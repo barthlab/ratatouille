@@ -1,0 +1,17 @@
+# CONVERSION
+SUPPORT_VIDEO_FORMAT = (
+    ".h264",
+    ".avi",
+    ".mp4",
+)
+INPUT_VIDEO_FPS = 30
+OUTPUT_VIDEO_FPS = 30
+
+# CUSTOM EXTRACTION
+CUSTOM_EXTRACTION_VIDEO_FORMAT = (
+    ".avi",
+)
+CUSTOM_EXTRACTION_PREFIX = (
+    "VIDEO_",
+    "mouse_video_",
+)
