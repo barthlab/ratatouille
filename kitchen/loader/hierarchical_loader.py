@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 import os
 import os.path as path
 from tqdm import tqdm
@@ -12,6 +12,7 @@ from kitchen.structure.hierarchical_data_structure import DataSet, Cohort, FovDa
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate, TemporalUID, ObjectUID
 from kitchen.structure.neural_data_structure import NeuralData
 import kitchen.configs.routing as routing
+from kitchen.utils.sequence_kit import split_by
 
 """
 Hierarchical data loading and splitting functions.
@@ -125,16 +126,19 @@ def SplitSession2CellSession(session_node: Session) -> List[CellSession]:
 def MergeSession2FovDay(dataset: DataSet) -> List[FovDay]:
     """Merge session nodes into fov day nodes."""
     fov_day_nodes = []
+    
     # split sessions by day id
-    dict_session_by_day = dataset.select("session").split_by("day_id")
+    dict_session_by_day = split_by(dataset.select("session"), attr_name= "day_id")
     for day_id, session_nodes in dict_session_by_day.items():
         assert day_id is not None, f"Cannot find day id in {session_nodes}"
+
         # split sessions within same day by object_uid
-        dict_same_day_sessions_by_fov = DataSet(session_nodes).split_by("object_uid")
-        print(day_id, dict_same_day_sessions_by_fov.keys())
+        dict_same_day_sessions_by_fov = split_by(session_nodes, attr_name= "object_uid")
         for object_uid, same_fov_day_session_nodes in dict_same_day_sessions_by_fov.items():
             assert object_uid is not None, f"Cannot find object_uid in {same_fov_day_session_nodes}"
             example_session_node = same_fov_day_session_nodes[0]
+            
+            # create fov day node
             fov_day_coordinate = TemporalObjectCoordinate(
                 temporal_uid=example_session_node.coordinate.temporal_uid.transit("day"),
                 object_uid=example_session_node.coordinate.object_uid)            
@@ -181,13 +185,14 @@ def SplitCellSession2Trial(cell_session_node: CellSession) -> List[Trial]:
     return trial_splitter_default(cell_session_node)
         
 
-def cohort_loader(template_id: str, cohort_id: str) -> DataSet:
+def cohort_loader(template_id: str, cohort_id: str, name: Optional[str] = None) -> DataSet:
     """
     Load data for a cohort, including all its children nodes.
 
-    Loader follows such a hierarchy:
-    Cohort -> Mice -> Fov -> Cell -> CellSession -> Trial
-                          -> Session 
+    Loader follows such a hierarchy:    
+    Cohort -> Mice -> Fov -> Session -> CellSession -> Trial
+                        FovDay </   Cell </
+
     Args:
         template_id (str): The template ID for initial cohort node.
         cohort_id (str): The cohort ID for initial cohort node.
@@ -201,7 +206,7 @@ def cohort_loader(template_id: str, cohort_id: str) -> DataSet:
             temporal_uid=TemporalUID(template_id=template_id), 
             object_uid=ObjectUID(cohort_id=cohort_id)),
         data=NeuralData(),)    
-    loaded_data = DataSet(nodes=[init_cohort_node])
+    loaded_data = DataSet(name=name if name is not None else cohort_id, nodes=[init_cohort_node])
 
     # Cohort to Mice
     for cohort_node in loaded_data.select("cohort"):
@@ -235,7 +240,7 @@ def cohort_loader(template_id: str, cohort_id: str) -> DataSet:
     return loaded_data
 
 
-def naive_loader(template_id: str, cohort_id: str) -> DataSet:
+def naive_loader(template_id: str, cohort_id: str, name: Optional[str] = None) -> DataSet:
     """
     Load data for a cohort to FOV level, for basic diagnosis & data manipulation.
 
@@ -254,7 +259,7 @@ def naive_loader(template_id: str, cohort_id: str) -> DataSet:
             temporal_uid=TemporalUID(template_id=template_id), 
             object_uid=ObjectUID(cohort_id=cohort_id)),
         data=NeuralData(),)    
-    loaded_data = DataSet(nodes=[init_cohort_node])
+    loaded_data = DataSet(name=name if name is not None else cohort_id, nodes=[init_cohort_node])
 
     # Cohort to Mice
     for cohort_node in loaded_data.select("cohort"):

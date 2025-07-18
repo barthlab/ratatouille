@@ -1,5 +1,5 @@
 import numpy as np
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, Generator, Optional, Any, Self, Tuple, Iterable
 from functools import cached_property
 
@@ -130,13 +130,13 @@ class Events:
                 new_t.append(self.t[i])
         return Events(v=np.array(new_v), t=np.array(new_t))
 
-    # def frequency(self, bin_size: float) -> TimeSeries:
-    #     """Compute event frequency (events/sec) within bin_size seconds."""
-    #     assert bin_size > 0, "bin size should be positive"
-    #     assert len(self) > 0, "Cannot compute frequency for empty events"
-    #     bins = np.arange(self.t[0]-bin_size, self.t[-1] + bin_size, bin_size)
-    #     counts, bin_edges = np.histogram(self.t, bins=bins)
-    #     return TimeSeries(v=counts / bin_size, t=bin_edges[:-1] + bin_size/2)
+    def frequency(self, bin_size: float) -> TimeSeries:
+        """Compute event frequency (events/sec) within bin_size seconds."""
+        assert bin_size > 0, "bin size should be positive"
+        assert len(self) > 0, "Cannot compute frequency for empty events"
+        bins = np.arange(self.t[0]-bin_size, self.t[-1] + bin_size, bin_size)
+        counts, bin_edges = np.histogram(self.t, bins=bins)
+        return TimeSeries(v=counts / bin_size, t=bin_edges[:-1] + bin_size/2)
 
     def rate(self, bin_size: float) -> TimeSeries:
         """If value is number like, compute value rate (values / sec) within bin_size seconds."""
@@ -190,6 +190,7 @@ class Fluorescence:
     fov_motion: TimeSeries
     cell_position: np.ndarray
     cell_idx: np.ndarray
+    cell_order: Optional[np.ndarray] = field(default=None)
 
     def __post_init__(self):
         assert self.raw_f.v.shape == (self.num_cell, self.num_timepoint), \
@@ -200,6 +201,12 @@ class Fluorescence:
             f"cell_position: Expected shape {(self.num_cell, 2)}, but got {self.cell_position.shape}"
         assert len(self.cell_idx) == self.num_cell, \
             f"cell_idx: Expected length {self.num_cell}, but got {len(self.cell_idx)}"
+        
+        if self.cell_order is not None:
+            assert len(self.cell_order) == self.num_cell, \
+                f"cell_order: Expected length {self.num_cell}, but got {len(self.cell_order)}"
+        else:
+            self.cell_order = np.arange(self.num_cell)
 
     @cached_property
     def num_cell(self):
@@ -224,16 +231,19 @@ class Fluorescence:
             raw_f=self.raw_f.segment(start_t, end_t),
             fov_motion=self.fov_motion.segment(start_t, end_t),
             cell_position=self.cell_position,
-            cell_idx=self.cell_idx
+            cell_idx=self.cell_idx,
+            cell_order=self.cell_order
         )
     
     def extract_cell(self, cell_idx: int) -> "Fluorescence":
         """Extract fluorescence of a single cell."""
+        assert self.cell_order is not None, f"cell_order is not set: {self}"
         return Fluorescence(
             raw_f=TimeSeries(v=self.raw_f.v[cell_idx:cell_idx+1], t=self.raw_f.t),
             fov_motion=self.fov_motion,
             cell_position=self.cell_position[cell_idx:cell_idx+1],
-            cell_idx=np.array([cell_idx])
+            cell_idx=np.array([cell_idx]),
+            cell_order=np.array([self.cell_order[cell_idx]])
         )
     
     @cached_property
@@ -255,7 +265,8 @@ class Fluorescence:
             raw_f=self.raw_f.aligned_to(align_time),
             fov_motion=self.fov_motion.aligned_to(align_time),
             cell_position=self.cell_position,
-            cell_idx=self.cell_idx
+            cell_idx=self.cell_idx,
+            cell_order=self.cell_order
         )
     
 

@@ -4,7 +4,7 @@ import warnings
 from kitchen.operator.grouping import grouping_timeseries
 from kitchen.operator.sync_nodes import sync_nodes
 from kitchen.plotter.data_viewer.group_view import group_plot_whisker, group_plot_pupil, group_plot_locomotion, group_plot_lick, group_plot_timeline, group_plot_single_cell_fluorescence
-from kitchen.plotter.decorators import BBOX, TraceStacker, default_style_multi_ax
+from kitchen.plotter.decorators.decorators import BBOX, TraceStacker, default_style_multi_ax
 from kitchen.structure.hierarchical_data_structure import DataSet
 from kitchen.plotter.plotting_params import FLUORESCENCE_RATIO, LICK_RATIO, LOCOMOTION_RATIO, PUPIL_RATIO, TIMELINE_RATIO, WHISKER_RATIO
 

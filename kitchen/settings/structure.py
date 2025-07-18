@@ -1,0 +1,1 @@
+NULL_STRUCTURE_NAME = "Null"

@@ -29,6 +29,7 @@ from typing import Any, ClassVar, Generator, List, Optional, Dict, Self, Sequenc
 import warnings
 import pandas as pd
 
+from kitchen.settings.structure import NULL_STRUCTURE_NAME
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate
 from kitchen.structure.neural_data_structure import NeuralData
 from kitchen.utils.sequence_kit import filter_by
@@ -159,6 +160,7 @@ class DataSet:
     Manages Node collections with fast lookup by type and functional filtering.
     Supports adding individual nodes, lists, or other DataSets with duplicate detection.
     """
+    name: str
     nodes: List[Node] = field(default_factory=list)
     _fast_lookup: Dict[str, set[Node]] = field(repr=False, init=False)
     _root_coordinate: TemporalObjectCoordinate | int = field(repr=False, init=False)
@@ -206,41 +208,34 @@ class DataSet:
 
     def __str__(self) -> str:
         """Return string representation """
-        summary_str = f"Dataset with {len(self)} nodes:\n"
+        summary_str = f"Dataset {self.name} with {len(self)} nodes:\n"
         for node_name, node_set in self._fast_lookup.items():
             node_list = sorted(node_set, key=lambda node: node.coordinate)
             node_concat_string = "\n".join(str(node) for node in node_list[:3])
             summary_str += f"{len(node_list)} {node_name}: \n{node_concat_string}\n ... \n"
         return summary_str
 
-    def split_by(self, attr_name: str) -> Dict[Any, List[Node]]:
-        """Split nodes into groups based on attribute value."""
-        split_dict = defaultdict(list)
-        for node in self:
-            split_dict[getattr(node, attr_name, None)].append(node)
-        return split_dict
-
-    def subset(self, empty_warning: bool = True, **criterion: Any) -> "DataSet":
+    def subset(self, _specified_name: str = NULL_STRUCTURE_NAME, _empty_warning: bool = True, **criterion: Any) -> "DataSet":
         """Filter all nodes by criterion function."""
         selected_nodes = filter_by(self.nodes, **criterion)
-        if empty_warning and len(selected_nodes) == 0:
+        if _empty_warning and len(selected_nodes) == 0:
             warnings.warn("Subset operation resulted in 0 nodes, check your criterion function")
-        return DataSet(selected_nodes)
+        return DataSet(name=_specified_name, nodes=selected_nodes)
 
-    def subtree(self, root_node: Node, empty_warning: bool = True) -> "DataSet":
+    def subtree(self, root_node: Node, _specified_name: str = NULL_STRUCTURE_NAME, _empty_warning: bool = True) -> "DataSet":
         """Extract a subtree rooted at a specific node."""
         selected_nodes = [node for node in self if root_node.coordinate.contains(node.coordinate)]
-        if empty_warning and len(selected_nodes) == 0:
+        if _empty_warning and len(selected_nodes) == 0:
             warnings.warn("Subtree operation resulted in 0 nodes, check your root node")
-        return DataSet(selected_nodes)
+        return DataSet(name=_specified_name, nodes=selected_nodes)
 
-    def select(self, hash_key: str, empty_warning: bool = True, **criterion: Any) -> "DataSet":
+    def select(self, hash_key: str, _specified_name: str = NULL_STRUCTURE_NAME, _empty_warning: bool = True, **criterion: Any) -> "DataSet":
         """Filter nodes of specific type by criterion. More efficient than subset()."""
         assert hash_key == hash_key.lower(), f"hash_key must be lower case, but got {hash_key}"
         selected_nodes = filter_by(self._fast_lookup[hash_key], **criterion)
-        if empty_warning and len(selected_nodes) == 0:
+        if _empty_warning and len(selected_nodes) == 0:
             warnings.warn("Select operation resulted in 0 nodes, check your criterion function")
-        return DataSet(selected_nodes)
+        return DataSet(name=_specified_name, nodes=selected_nodes)
 
     def status(self, save_path: Optional[str] = None):
         """Return string representation of dataset status."""

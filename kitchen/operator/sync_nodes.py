@@ -26,4 +26,4 @@ def sync_nodes(dataset: DataSet, sync_events: Tuple[str]):
         assert node.data.timeline is not None, f"Cannot find timeline in {node}"
         node = node.aligned_to(node.data.timeline.filter(sync_events).t[0])
         synced_nodes.append(node)
-    return DataSet(nodes=synced_nodes)
+    return DataSet(name=dataset.name + "_synced", nodes=synced_nodes)

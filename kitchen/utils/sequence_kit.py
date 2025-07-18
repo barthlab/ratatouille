@@ -1,4 +1,6 @@
-from typing import Iterable, Dict, Any
+from collections import defaultdict
+from typing import Callable, Iterable, Dict, Any
+import warnings
 
 def _check(value: Any, criterion: Any) -> bool:
     """Helper to check if a value matches a given criterion."""
@@ -38,3 +40,33 @@ def filter_by(datalist: Iterable, **criteria: Any) -> list:
 def select_from(datadict: Dict, **criteria: Any) -> Dict:
     """Select from a dict where keys match criteria."""
     return {k: v for k, v in datadict.items() if _matches_criteria(k, **criteria)}
+
+
+
+def split_by(datalist: Iterable, attr_name: str, _none_warning: bool = True) -> Dict[Any, list]:
+    """Split a list into groups based on attribute value."""
+    split_dict = defaultdict(list)
+    for item in datalist:
+        attr_value = getattr(item, attr_name, None)
+        if attr_value is None and _none_warning:
+            warnings.warn(f"Cannot find attribute {attr_name} in {item}")
+        split_dict[attr_value].append(item)
+    return split_dict
+
+def group_by(datalist: Iterable, key_func: Callable, _none_warning: bool = True) -> Dict[Any, list]:
+    """Group a list into groups based on a key function."""
+    group_dict = defaultdict(list)
+    for item in datalist:
+        key = key_func(item)
+        if key is None and _none_warning:
+            warnings.warn(f"Cannot find key for {item}")            
+        group_dict[key].append(item)
+    return group_dict
+
+
+def zip_dicts(*dcts: dict):
+    """Find common keys in multiple dicts, and yield (key, (value1, value2, ...)) pairs."""
+    if not dcts:
+        return
+    for i in set(dcts[0]).intersection(*dcts[1:]):
+        yield i, tuple(d[i] for d in dcts)
