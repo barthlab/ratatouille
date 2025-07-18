@@ -21,19 +21,19 @@ def isnot_none(data):
     return data is not None
 
 
-def unit_plot_locomotion(locomotions: Events | list[Events], ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
+def unit_plot_locomotion(locomotion: Events | list[Events], ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
     """plot locomotion"""
-    if not isnot_none(locomotions):
+    if not isnot_none(locomotion):
         return 0
     
-    if isinstance(locomotions, Events):
+    if isinstance(locomotion, Events):
         # plot single locomotion rate
-        plotting_locomotion = locomotions.rate(bin_size=LOCOMOTION_BIN_SIZE)
+        plotting_locomotion = locomotion.rate(bin_size=LOCOMOTION_BIN_SIZE)
         y_height = np.nanmax(plotting_locomotion.v) * ratio    
         ax.plot(plotting_locomotion.t, plotting_locomotion.v * ratio + y_offset, **LOCOMOTION_TRACE_STYLE)
     else:
         # plot multiple locomotion rates
-        group_locomotion = grouping_events_rate(locomotions, bin_size=LOCOMOTION_BIN_SIZE)
+        group_locomotion = grouping_events_rate(locomotion, bin_size=LOCOMOTION_BIN_SIZE)
         y_height = np.nanmax(group_locomotion.mean) * ratio
         oreo_plot(ax, group_locomotion, y_offset, ratio, LOCOMOTION_TRACE_STYLE, FILL_BETWEEN_STYLE)
 

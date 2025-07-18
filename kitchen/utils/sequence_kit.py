@@ -1,8 +1,13 @@
 from collections import defaultdict
-from typing import Callable, Iterable, Dict, Any
+from typing import Callable, Generator, Iterable, Dict, Any, List, Optional, Tuple, TypeVar
 import warnings
 
-def _check(value: Any, criterion: Any) -> bool:
+
+T = TypeVar('T')
+K = TypeVar('K')
+
+
+def _check(value: T, criterion: Callable[[T], bool] | Tuple[T, ...] | T) -> bool:
     """Helper to check if a value matches a given criterion."""
     if callable(criterion):
         result = criterion(value)
@@ -26,18 +31,18 @@ def _matches_criteria(obj: Any, **criteria: Any) -> bool:
     # Check all remaining criteria against the object's attributes.
     return all(_check(getattr(obj, key, None), val) for key, val in criteria.items())
 
-def find_only_one(datalist: Iterable, **criteria: Any) -> Any:
+def find_only_one(datalist: Iterable[T], **criteria: Any) -> T:
     """Find exactly one item matching criteria, or raise an error."""
     matches = [item for item in datalist if _matches_criteria(item, **criteria)]
     if len(matches) != 1:
         raise ValueError(f"Expected 1 match, but found {len(matches)}")
     return matches[0]
 
-def filter_by(datalist: Iterable, **criteria: Any) -> list:
+def filter_by(datalist: Iterable[T], **criteria: Any) -> list[T]:
     """Filter a list for items matching criteria."""
     return [item for item in datalist if _matches_criteria(item, **criteria)]
 
-def select_from(datadict: Dict, **criteria: Any) -> Dict:
+def select_from(datadict: Dict[K, T], **criteria: Any) -> Dict[K, T]:
     """Select from a dict where keys match criteria."""
     return {k: v for k, v in datadict.items() if _matches_criteria(k, **criteria)}
 
@@ -53,7 +58,7 @@ def split_by(datalist: Iterable, attr_name: str, _none_warning: bool = True) -> 
         split_dict[attr_value].append(item)
     return split_dict
 
-def group_by(datalist: Iterable, key_func: Callable, _none_warning: bool = True) -> Dict[Any, list]:
+def group_by(datalist: Iterable[T], key_func: Callable[[T], K], _none_warning: bool = True) -> Dict[K, list[T]]:
     """Group a list into groups based on a key function."""
     group_dict = defaultdict(list)
     for item in datalist:
@@ -64,9 +69,12 @@ def group_by(datalist: Iterable, key_func: Callable, _none_warning: bool = True)
     return group_dict
 
 
-def zip_dicts(*dcts: dict):
+def zip_dicts(*dcts: Dict[K, T]) -> Generator[Tuple[K, Tuple[T, ...]]]:
     """Find common keys in multiple dicts, and yield (key, (value1, value2, ...)) pairs."""
-    if not dcts:
-        return
     for i in set(dcts[0]).intersection(*dcts[1:]):
         yield i, tuple(d[i] for d in dcts)
+
+
+def select_truthy_items(datalist: Iterable[Optional[T]]) -> List[T]:
+    """Selects items that are 'truthy'."""
+    return [item for item in datalist if item]

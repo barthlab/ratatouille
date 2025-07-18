@@ -31,6 +31,10 @@ class TimeSeries:
         """Return number of time points."""
         return len(self.t)
     
+    def __bool__(self):
+        """Return True if non-empty."""
+        return len(self) > 0
+    
     def __repr__(self):
         """Return string representation."""
         return self.__str__()
@@ -77,6 +81,10 @@ class Events:
     def __len__(self):
         """Return number of time points."""
         return len(self.t)
+
+    def __bool__(self):
+        """Return True if non-empty."""
+        return len(self) > 0
     
     def __repr__(self):
         """Return string representation."""
@@ -224,6 +232,14 @@ class Fluorescence:
         """Return string representation."""
         return f"Fluorescence data with {self.num_cell} cells and {self.num_timepoint} timepoints"
     
+    def __len__(self) -> int:
+        """Return number of time points."""
+        return self.num_timepoint
+    
+    def __bool__(self) -> bool:
+        """Return True if non-empty."""
+        return len(self) > 0
+
     def segment(self, start_t: float, end_t: float) -> "Fluorescence":
         """Extract temporal segment between start_t (inclusive) and end_t (exclusive)."""
         assert end_t >= start_t, f"start time {start_t} should be earlier than end time {end_t}"
@@ -281,12 +297,12 @@ class NeuralData:
     array data should be immutable and are shared across nodes at different hierarchy levels.
     """
     # Behavior modalities
-    position: Optional[Events | TimeSeries] = None
-    locomotion: Optional[Events | TimeSeries] = None
-    lick: Optional[Events | TimeSeries] = None
-    pupil: Optional[Events | TimeSeries] = None
-    tongue: Optional[Events | TimeSeries] = None
-    whisker: Optional[Events | TimeSeries] = None
+    position: Optional[Events] = None
+    locomotion: Optional[Events] = None
+    lick: Optional[Events] = None
+    pupil: Optional[TimeSeries] = None
+    tongue: Optional[TimeSeries] = None
+    whisker: Optional[TimeSeries] = None
 
     # Fluorescence
     fluorescence: Optional[Fluorescence] = None
