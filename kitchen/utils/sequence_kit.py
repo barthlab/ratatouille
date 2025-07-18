@@ -69,7 +69,7 @@ def group_by(datalist: Iterable[T], key_func: Callable[[T], K], _none_warning: b
     return group_dict
 
 
-def zip_dicts(*dcts: Dict[K, T]) -> Generator[Tuple[K, Tuple[T, ...]]]:
+def zip_dicts(*dcts: Dict[K, Any]) -> Generator[Tuple[K, Any], None, None]:
     """Find common keys in multiple dicts, and yield (key, (value1, value2, ...)) pairs."""
     for i in set(dcts[0]).intersection(*dcts[1:]):
         yield i, tuple(d[i] for d in dcts)
