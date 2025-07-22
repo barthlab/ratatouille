@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 
 from kitchen.configs import routing
+from kitchen.settings.loaders import DATA_HODGEPODGE_MODE
 from kitchen.structure.hierarchical_data_structure import Fov
 from kitchen.structure.neural_data_structure import Timeline
 
@@ -14,13 +15,18 @@ from kitchen.structure.neural_data_structure import Timeline
 
 def timeline_loader_from_fov(fov_node: Fov) -> Generator[Tuple[str, str, Timeline], None, None]:
     
-    def io_default(dir_path: str) -> Generator[Tuple[str, str, Timeline], None, None]:        
-        timeline_dir_path = path.join(dir_path, "timeline")
-        assert path.exists(timeline_dir_path), f"Cannot find timeline path: {timeline_dir_path}"            
+    def io_default(dir_path: str) -> Generator[Tuple[str, str, Timeline], None, None]:       
+        if DATA_HODGEPODGE_MODE:
+            timeline_filepaths = routing.search_pattern_file(pattern="TIMELINE_*.csv", search_dir=dir_path)
+        else:
+            timeline_filepaths = routing.search_pattern_file(pattern="TIMELINE_*.csv", search_dir=path.join(dir_path, "timeline"))
+        
+        assert len(timeline_filepaths) > 0, f"Cannot find timeline path: {dir_path}"            
             
-        for filename in os.listdir(timeline_dir_path):
+        for filepath in timeline_filepaths:
+            dirname, filename = path.split(filepath)
             if filename.startswith("TIMELINE_") and filename.endswith(".csv"):
-                data_array = pd.read_csv(path.join(timeline_dir_path, filename), header=0)
+                data_array = pd.read_csv(path.join(dirname, filename), header=0)
                 assert 'time' in data_array.columns and 'details' in data_array.columns, \
                       f"Cannot find 'time' and 'details' columns in {filename}"
                 

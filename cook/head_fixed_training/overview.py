@@ -5,8 +5,8 @@ import warnings
 
 from tqdm import tqdm
 
-from kitchen.plotter.data_viewer.datasets_view import datasets_avg_view
-from kitchen.plotter.data_viewer.nodes_view import node_avg_view, node_flat_view
+# from kitchen.plotter.data_viewer.datasets_view import datasets_avg_view
+# from kitchen.plotter.data_viewer.nodes_view import node_avg_view, node_flat_view
 from kitchen.structure.hierarchical_data_structure import Session
 from kitchen.structure.neural_data_structure import Timeline
 import kitchen.video.format_converter as format_converter
@@ -57,7 +57,7 @@ rule_bn = {
 
 def main():
     dataset = hier_loader.cohort_loader(template_id="ThreeStage_WaterOmission", cohort_id="HeadFixedTraining_202507") 
-
+    exit()
     # dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
 
     # M002_PB_2420M

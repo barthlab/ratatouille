@@ -1,5 +1,5 @@
 import os.path as path
-from typing import Dict, Generator, Optional
+from typing import Any, Dict, Generator, Optional
 import warnings
 
 import numpy as np
@@ -7,16 +7,18 @@ import pandas as pd
 
 from kitchen.configs import routing
 from kitchen.settings.behavior import LICK_INACTIVATE_WINDOW, LOCOMOTION_CIRCUMFERENCE, LOCOMOTION_NUM_TICKS, VIDEO_EXTRACTED_BEHAVIOR_MIN_MAX_PERCENTILE, VIDEO_EXTRACTED_BEHAVIOR_TYPES
+from kitchen.settings.loaders import DATA_HODGEPODGE_MODE
 from kitchen.structure.hierarchical_data_structure import Fov
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate
 from kitchen.structure.neural_data_structure import Events, TimeSeries, Timeline
+from kitchen.utils.sequence_kit import find_only_one
 
 
 
 def behavior_loader_from_fov(
         fov_node: Fov,
         timeline_dict: Dict[TemporalObjectCoordinate, Timeline]) -> \
-            Generator[Dict[str, Optional[TimeSeries | Events]], None, None]:
+            Generator[Dict[str, Any], None, None]:
     """Load behavioral data (lick, locomotion, pupil, etc.) for all sessions within a FOV."""
     
     def io_default(dir_path: str) -> Generator[Dict[str, Optional[TimeSeries | Events]], None, None]:
@@ -24,8 +26,12 @@ def behavior_loader_from_fov(
             session_behavior = {}
 
             """load lick"""
-            lick_path = path.join(dir_path, "lick",
-                                  f"LICK_{session_coordinate.temporal_uid.session_id}.csv")
+            if DATA_HODGEPODGE_MODE:
+                lick_path = find_only_one(routing.search_pattern_file(
+                    pattern=f"LICK_{session_coordinate.temporal_uid.session_id}.csv", search_dir=dir_path))
+            else:
+                lick_path = path.join(dir_path, "lick", f"LICK_{session_coordinate.temporal_uid.session_id}.csv")
+            
             try:
                 # check if lick file exists
                 assert path.exists(lick_path), f"Cannot find lick path: {lick_path}"
@@ -41,8 +47,12 @@ def behavior_loader_from_fov(
                 warnings.warn(f"Cannot load lick from {lick_path}: {e}")
 
             """load locomotion"""
-            locomotion_path = path.join(dir_path, "locomotion",
-                                        f"LOCOMOTION_{session_coordinate.temporal_uid.session_id}.csv")
+            if DATA_HODGEPODGE_MODE:
+                locomotion_path = find_only_one(routing.search_pattern_file(
+                    pattern=f"LOCOMOTION_{session_coordinate.temporal_uid.session_id}.csv", search_dir=dir_path))
+            else:
+                locomotion_path = path.join(dir_path, "locomotion",
+                                            f"LOCOMOTION_{session_coordinate.temporal_uid.session_id}.csv")
             try:
                 # check if locomotion file exists
                 assert path.exists(locomotion_path), f"Cannot find locomotion path: {locomotion_path}"
@@ -64,8 +74,12 @@ def behavior_loader_from_fov(
 
             """load video extracted behavior"""
             for behavior_type in VIDEO_EXTRACTED_BEHAVIOR_TYPES:
-                behavior_path = path.join(dir_path, behavior_type.lower(),
-                                        f"{behavior_type}_{session_coordinate.temporal_uid.session_id}.csv")
+                if DATA_HODGEPODGE_MODE:
+                    behavior_path = find_only_one(routing.search_pattern_file(
+                        pattern=f"{behavior_type}_{session_coordinate.temporal_uid.session_id}.csv", search_dir=dir_path))
+                else:
+                    behavior_path = path.join(dir_path, behavior_type.lower(),
+                                            f"{behavior_type}_{session_coordinate.temporal_uid.session_id}.csv")
                 try:                    
                     # check if behavior file exists
                     task_start, task_end = timeline.task_time()

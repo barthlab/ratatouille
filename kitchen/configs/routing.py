@@ -1,12 +1,16 @@
+from glob import glob
 import os
 import os.path as path
+from typing import List
 
 from kitchen.structure.hierarchical_data_structure import DataSet, Node
+
 
 ROOT_PATH = (r"C:\Users\maxyc\PycharmProjects\Ratatouille")
 DATA_PATH = path.join(ROOT_PATH, "ingredients")
 FIGURE_PATH = path.join(ROOT_PATH, "cuisine")
 TEST_PATH = path.join(ROOT_PATH, "critic")
+
 
 
 def robust_path_join(*args) -> str:
@@ -49,3 +53,7 @@ def default_fig_path(dataset: DataSet) -> str:
     fig_path = robust_path_join(FIGURE_PATH, *fig_path_values)
     return fig_path
 
+
+def search_pattern_file(pattern: str, search_dir: str) -> List[str]:
+    recursive_path = os.path.join(search_dir, '**', pattern)
+    return list(glob(recursive_path, recursive=True))

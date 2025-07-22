@@ -8,17 +8,24 @@ from scipy.io import loadmat
 
 from kitchen.configs import routing
 from kitchen.settings.fluorescence import CROP_BEGGINNG, DEFAULT_RECORDING_DURATION, FAST_MATCHING_MODE, NULL_TTL_OFFSET
+from kitchen.settings.loaders import DATA_HODGEPODGE_MODE
 from kitchen.settings.timeline import TTL_EVENT_DEFAULT
 from kitchen.structure.hierarchical_data_structure import Fov
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate
 from kitchen.structure.neural_data_structure import Fluorescence, TimeSeries, Timeline
+from kitchen.utils.sequence_kit import find_only_one
 
 
 def fluorescence_loader_from_fov(
         fov_node: Fov, timeline_dict: Dict[TemporalObjectCoordinate, Timeline]) -> Generator[Optional[Fluorescence], None, None]:
 
     def load_fall_mat(data_dir: str, session_duration: float) -> Generator[Fluorescence, None, None]:    
-        mat_dict = loadmat(path.join(data_dir, "soma", "Fall.mat"))
+        """load fall mat file"""
+        if DATA_HODGEPODGE_MODE:
+            mat_path = find_only_one(routing.search_pattern_file(pattern="Fall.mat", search_dir=data_dir))
+        else:
+            mat_path = path.join(data_dir, "soma", "Fall.mat") 
+        mat_dict = loadmat(mat_path)
 
         """get raw fluorescence"""
         F = mat_dict['F'].copy()
