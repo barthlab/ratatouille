@@ -26,13 +26,13 @@ def behavior_loader_from_fov(
             session_behavior = {}
 
             """load lick"""
-            if DATA_HODGEPODGE_MODE:
-                lick_path = find_only_one(routing.search_pattern_file(
-                    pattern=f"LICK_{session_coordinate.temporal_uid.session_id}.csv", search_dir=dir_path))
-            else:
-                lick_path = path.join(dir_path, "lick", f"LICK_{session_coordinate.temporal_uid.session_id}.csv")
-            
             try:
+                if DATA_HODGEPODGE_MODE:
+                    lick_path = find_only_one(routing.search_pattern_file(
+                        pattern=f"LICK_{session_coordinate.temporal_uid.session_id}.csv", search_dir=dir_path))
+                else:
+                    lick_path = path.join(dir_path, "lick", f"LICK_{session_coordinate.temporal_uid.session_id}.csv")                
+        
                 # check if lick file exists
                 assert path.exists(lick_path), f"Cannot find lick path: {lick_path}"
                 lick_data = pd.read_csv(lick_path, header=0).to_numpy()
@@ -44,16 +44,17 @@ def behavior_loader_from_fov(
                     t=np.array(lick_data[:, 0] / 1000, dtype=np.float32)).inactivation_window_filter(LICK_INACTIVATE_WINDOW)
                 session_behavior["lick"] = lick_events
             except Exception as e:
-                warnings.warn(f"Cannot load lick from {lick_path}: {e}")
+                warnings.warn(f"Cannot load lick from {dir_path}: {e}")
 
-            """load locomotion"""
-            if DATA_HODGEPODGE_MODE:
-                locomotion_path = find_only_one(routing.search_pattern_file(
-                    pattern=f"LOCOMOTION_{session_coordinate.temporal_uid.session_id}.csv", search_dir=dir_path))
-            else:
-                locomotion_path = path.join(dir_path, "locomotion",
-                                            f"LOCOMOTION_{session_coordinate.temporal_uid.session_id}.csv")
+            """load locomotion"""                
             try:
+                if DATA_HODGEPODGE_MODE:
+                    locomotion_path = find_only_one(routing.search_pattern_file(
+                        pattern=f"LOCOMOTION_{session_coordinate.temporal_uid.session_id}.csv", search_dir=dir_path))
+                else:
+                    locomotion_path = path.join(dir_path, "locomotion",
+                                                f"LOCOMOTION_{session_coordinate.temporal_uid.session_id}.csv")
+                    
                 # check if locomotion file exists
                 assert path.exists(locomotion_path), f"Cannot find locomotion path: {locomotion_path}"
                 locomotion_data = pd.read_csv(locomotion_path, header=0).to_numpy()
@@ -70,17 +71,18 @@ def behavior_loader_from_fov(
                 session_behavior["position"] = position_events
                 session_behavior["locomotion"] = locomotion_events
             except Exception as e:
-                warnings.warn(f"Cannot load locomotion from {locomotion_path}: {e}")     
+                warnings.warn(f"Cannot load locomotion from {dir_path}: {e}")     
 
             """load video extracted behavior"""
-            for behavior_type in VIDEO_EXTRACTED_BEHAVIOR_TYPES:
-                if DATA_HODGEPODGE_MODE:
-                    behavior_path = find_only_one(routing.search_pattern_file(
-                        pattern=f"{behavior_type}_{session_coordinate.temporal_uid.session_id}.csv", search_dir=dir_path))
-                else:
-                    behavior_path = path.join(dir_path, behavior_type.lower(),
-                                            f"{behavior_type}_{session_coordinate.temporal_uid.session_id}.csv")
+            for behavior_type in VIDEO_EXTRACTED_BEHAVIOR_TYPES:                
                 try:                    
+                    if DATA_HODGEPODGE_MODE:
+                        behavior_path = find_only_one(routing.search_pattern_file(
+                            pattern=f"{behavior_type}_{session_coordinate.temporal_uid.session_id}.csv", search_dir=dir_path))
+                    else:
+                        behavior_path = path.join(dir_path, behavior_type.lower(),
+                                                  f"{behavior_type}_{session_coordinate.temporal_uid.session_id}.csv")
+                    
                     # check if behavior file exists
                     task_start, task_end = timeline.task_time()
                     assert path.exists(behavior_path), f"Cannot find {behavior_type} path: {behavior_path}"
@@ -95,7 +97,7 @@ def behavior_loader_from_fov(
                     behavior_timeseries = TimeSeries(v=normalized_values, t=video_time)
                     session_behavior[behavior_type.lower()] = behavior_timeseries
                 except Exception as e:
-                    warnings.warn(f"Cannot load {behavior_type} from {behavior_path}: {e}")           
+                    warnings.warn(f"Cannot load {behavior_type} from {dir_path}: {e}")           
 
             yield session_behavior
 
