@@ -1,7 +1,7 @@
 from glob import glob
 import os
 import os.path as path
-from typing import List
+from typing import List, Optional
 
 from kitchen.structure.hierarchical_data_structure import DataSet, Node
 
@@ -40,7 +40,7 @@ def default_data_path(node: Node, check_exist: bool = True) -> str:
     return node_data_path
 
 
-def default_fig_path(dataset: DataSet) -> str:
+def default_fig_path(dataset: DataSet, fig_name: Optional[str] = None) -> str:
     """Generate the default file system path for a dataset's figures."""
     root_coordinate = dataset.root_coordinate
     fig_path_values = [
@@ -50,7 +50,9 @@ def default_fig_path(dataset: DataSet) -> str:
         root_coordinate.temporal_uid.day_id,
         root_coordinate.temporal_uid.session_id,
     ]
-    fig_path = robust_path_join(FIGURE_PATH, *fig_path_values)
+    fig_path = robust_path_join(FIGURE_PATH, *fig_path_values) 
+    if fig_name is not None:
+        fig_path = smart_path_append(fig_path, fig_name)
     return fig_path
 
 

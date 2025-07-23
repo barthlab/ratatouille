@@ -8,7 +8,7 @@ from kitchen.utils.sequence_kit import zip_dicts
 
 def default_style(
         mosaic_style,
-        content_dict: Dict[Any, Tuple[Callable[..., Generator], DataSet | List[DataSet]]],  
+        content_dict: Dict[Any, Tuple[Callable[..., Generator[float, float, None]], DataSet | List[DataSet]]],  
         figsize: Tuple[float, float],
         save_path: Optional[str] = None, 
 

@@ -61,13 +61,13 @@ FILL_BETWEEN_STYLE = {
 
 VSPAN_STYLE = {
     "lw": 0,
-    "alpha": 0.01,
+    "alpha": 0.5,
     "zorder": -10,
 }
 
 VLINE_STYLE = {
     "lw": 0.5,
-    "alpha": 0.1,
+    "alpha": 0.5,
     "ls": "--",
     "zorder": -10,
 }

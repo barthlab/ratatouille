@@ -11,21 +11,23 @@ from kitchen.plotter.color_scheme import FLUORESCENCE_COLOR, GRAND_COLOR_SCHEME,
 from kitchen.plotter.plotting_params import LICK_BIN_SIZE, LOCOMOTION_BIN_SIZE, TIME_TICK_DURATION
 from kitchen.plotter.style_dicts import FILL_BETWEEN_STYLE, FLUORESCENCE_TRACE_STYLE, LICK_TRACE_STYLE, LOCOMOTION_TRACE_STYLE, POSITION_SCATTER_STYLE, LICK_VLINES_STYLE, PUPIL_TRACE_STYLE, TIMELINE_SCATTER_STYLE, VLINE_STYLE, VSPAN_STYLE, WHISKER_TRACE_STYLE
 from kitchen.plotter.utils.tick_labels import TICK_PAIR, add_new_yticks
+from kitchen.settings.plotting import PLOTTING_OVERLAP_HARSH_MODE
 from kitchen.structure.neural_data_structure import Events, Fluorescence, TimeSeries, Timeline
 
 
-def isnot_none(data):
+def sanity_check(data) -> bool:
     """Check if data is not None"""
     if isinstance(data, list):
-        return all(d is not None for d in data)
+        return all(d is not None for d in data) if PLOTTING_OVERLAP_HARSH_MODE else any(d is not None for d in data)
     return data is not None
 
 
-def unit_plot_locomotion(locomotion: Events | list[Events], ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
+def unit_plot_locomotion(locomotion: None | Events | list[Events], ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
     """plot locomotion"""
-    if not isnot_none(locomotion):
+    if not sanity_check(locomotion):
         return 0
-    
+    assert locomotion is not None, "Sanity check failed"
+
     if isinstance(locomotion, Events):
         # plot single locomotion rate
         plotting_locomotion = locomotion.rate(bin_size=LOCOMOTION_BIN_SIZE)
@@ -40,13 +42,14 @@ def unit_plot_locomotion(locomotion: Events | list[Events], ax: plt.Axes, y_offs
     # add y ticks
     add_new_yticks(ax, [TICK_PAIR(y_offset, "Locomotion", LOCOMOTION_COLOR), 
                         TICK_PAIR(y_offset + 2 * ratio, "2 cm/s", LOCOMOTION_COLOR)])
-    return y_height
+    return max(y_height, 2*ratio)
 
 
-def unit_plot_position(position: Events, ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
+def unit_plot_position(position: None | Events, ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
     """plot position"""
-    if not isnot_none(position):
+    if not sanity_check(position):
         return 0
+    assert position is not None, "Sanity check failed"
 
     # plot position      
     ax.scatter(position.t, position.v * ratio + y_offset, **POSITION_SCATTER_STYLE)        
@@ -58,10 +61,11 @@ def unit_plot_position(position: Events, ax: plt.Axes, y_offset: float, ratio: f
     return 1*ratio
 
 
-def unit_plot_lick(lick: Events | list[Events], ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
+def unit_plot_lick(lick: None | Events | list[Events], ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
     """plot lick"""    
-    if not isnot_none(lick):
+    if not sanity_check(lick):
         return 0
+    assert lick is not None, "Sanity check failed"
 
     if isinstance(lick, Events):
         # plot single lick
@@ -71,17 +75,18 @@ def unit_plot_lick(lick: Events | list[Events], ax: plt.Axes, y_offset: float, r
     else:
         # plot multiple licks
         group_lick = grouping_events_rate(lick, bin_size=LICK_BIN_SIZE)
-        y_height = np.nanmax(group_lick.mean) * ratio
+        y_height = max(np.nanmax(group_lick.mean) * ratio, 5*ratio)
         oreo_plot(ax, group_lick, y_offset, ratio, LICK_TRACE_STYLE, FILL_BETWEEN_STYLE)
         add_new_yticks(ax, [TICK_PAIR(y_offset, "Lick", LICK_COLOR),
                             TICK_PAIR(y_offset + 5 * ratio, "5 Hz", LICK_COLOR)])
     return y_height
 
 
-def unit_plot_pupil(pupil: TimeSeries | list[TimeSeries], ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
+def unit_plot_pupil(pupil: None | TimeSeries | list[TimeSeries], ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
     """plot pupil"""    
-    if not isnot_none(pupil):
+    if not sanity_check(pupil):
         return 0
+    assert pupil is not None, "Sanity check failed"
     
     if isinstance(pupil, TimeSeries):
         # plot single pupil
@@ -97,11 +102,12 @@ def unit_plot_pupil(pupil: TimeSeries | list[TimeSeries], ax: plt.Axes, y_offset
     return ratio
 
 
-def unit_plot_whisker(whisker: TimeSeries | list[TimeSeries], ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
+def unit_plot_whisker(whisker: None | TimeSeries | list[TimeSeries], ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
     """plot whisker"""    
-    if not isnot_none(whisker):    
+    if not sanity_check(whisker):    
         return 0    
-    
+    assert whisker is not None, "Sanity check failed"
+
     if isinstance(whisker, TimeSeries):
         # plot single whisker
         ax.plot(whisker.t, whisker.v * ratio + y_offset, **WHISKER_TRACE_STYLE)        
@@ -116,10 +122,11 @@ def unit_plot_whisker(whisker: TimeSeries | list[TimeSeries], ax: plt.Axes, y_of
     return ratio
 
 
-def unit_plot_timeline(timeline: Timeline | list[Timeline], ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
+def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
     """plot timeline"""
-    if not isnot_none(timeline):
+    if not sanity_check(timeline):
         return 0
+    assert timeline is not None, "Sanity check failed"
     
     if isinstance(timeline, Timeline):
         # plot single timeline
@@ -169,10 +176,11 @@ def unit_plot_timeline(timeline: Timeline | list[Timeline], ax: plt.Axes, y_offs
     return ratio
 
 
-def unit_plot_single_cell_fluorescence(fluorescence: Fluorescence | list[Fluorescence], ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
+def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[Fluorescence], ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
     """plot a single cell"""
-    if not isnot_none(fluorescence):
+    if not sanity_check(fluorescence):
         return 0
+    assert fluorescence is not None, "Sanity check failed"
 
     if isinstance(fluorescence, Fluorescence):
         # plot single cell fluorescence

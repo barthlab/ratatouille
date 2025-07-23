@@ -42,9 +42,13 @@ def filter_by(datalist: Iterable[T], **criteria: Any) -> list[T]:
     """Filter a list for items matching criteria."""
     return [item for item in datalist if _matches_criteria(item, **criteria)]
 
-def select_from(datadict: Dict[K, T], **criteria: Any) -> Dict[K, T]:
+def select_from_key(datadict: Dict[K, T], **criteria: Any) -> Dict[K, T]:
     """Select from a dict where keys match criteria."""
     return {k: v for k, v in datadict.items() if _matches_criteria(k, **criteria)}
+
+def select_from_value(datadict: Dict[K, T], **criteria: Any) -> Dict[K, T]:
+    """Select from a dict where values match criteria."""
+    return {k: v for k, v in datadict.items() if _matches_criteria(v, **criteria)}
 
 
 

@@ -43,7 +43,7 @@ def smart_interp(x_new, xp, fp, method: str = "previous"):
 
 def grouping_timeseries(timeseries: List[TimeSeries], scale_factor: float = 2, interp_method: str = "previous") -> GROUP_TUPLE:
     """Group a list of timeseries."""
-    min_t, max_t = min(timeseries, key=lambda x: x.t[0]).t[0], max(timeseries, key=lambda x: x.t[-1]).t[-1]
+    min_t, max_t =max(timeseries, key=lambda x: x.t[0]).t[0], min(timeseries, key=lambda x: x.t[-1]).t[-1]
     max_fs = max(timeseries, key=lambda x: x.fs).fs
     group_t = np.linspace(min_t, max_t, int((max_t - min_t) * max_fs * scale_factor))
     all_values = [smart_interp(group_t, ts.t, ts.v, interp_method) for ts in timeseries]
