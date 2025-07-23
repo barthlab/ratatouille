@@ -1,6 +1,6 @@
 
 from typing import Dict
-from kitchen.settings.timeline import STIMULUS_EVENTS_DEFAULT
+from kitchen.settings.timeline import REWARD_EVENTS_DEFAULT, STIMULUS_EVENTS_DEFAULT
 from kitchen.structure.hierarchical_data_structure import DataSet
 
 # pre-defined rules
@@ -24,7 +24,15 @@ PREDEFINED_RULES = {
     "BlankNoWater": {
         "hash_key": "trial",
         "timeline": lambda x: (len(x.filter("NoWaterOn")) > 0) & (len(x.filter("BlankOn")) > 0)
-    }
+    },
+    "PurePuff": {
+        "hash_key": "trial",
+        "timeline": lambda x: (len(x.filter("VerticalPuffOn")) > 0) & (len(x.filter(REWARD_EVENTS_DEFAULT)) == 0)
+    },
+    "PureBlank": {
+        "hash_key": "trial",
+        "timeline": lambda x: (len(x.filter("BlankOn")) > 0) & (len(x.filter(REWARD_EVENTS_DEFAULT)) == 0)
+    },
 }
 
 

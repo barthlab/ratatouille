@@ -205,5 +205,5 @@ def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[
     example_fluorescence = fluorescence[0]
     add_new_yticks(ax, TICK_PAIR(y_offset, f"Cell {example_fluorescence.cell_idx[0]}", FLUORESCENCE_COLOR))      
     add_new_yticks(ax, TICK_PAIR(y_offset + 1 * ratio, f"1 {DF_F0_SIGN}" if np.all(example_fluorescence.cell_order == 0) else "", FLUORESCENCE_COLOR))    
-    return np.nanmax(squeezed_fluorescence.mean) * ratio
+    return max(np.nanmax(squeezed_fluorescence.mean) * ratio, 1*ratio)
         
