@@ -1,3 +1,5 @@
+import math
+
 from kitchen.plotter.style_dicts import DEFAULT_ALPHA
 
 
@@ -5,7 +7,11 @@ def ind_alpha(total_alpha: float, num_overlaps: int):
     """Calculate the individual alpha required to reach the total_alpha"""
     if num_overlaps <= 0:
         return 0
-    return 1 - (1 - total_alpha)**(1 / num_overlaps)
+    if total_alpha <= 0.0:
+        return 0.0
+    if total_alpha >= 1.0:
+        return 1.0
+    return -math.expm1(math.log1p(-total_alpha) / num_overlaps)
 
 
 def calibrate_alpha(style: dict, num_overlaps: int):

@@ -70,6 +70,7 @@ class BodyPartExtractor:
         self.points = []
         self.bbox, self.mask = (0, 0, 0, 0), np.zeros(self.display_sample.shape, dtype=np.uint8)
         self.loaded = self.select_roi(overwrite=overwrite)
+        self.overwrite = overwrite
 
     def format_checking(self):
         """Validate video file format and body part type."""
@@ -122,12 +123,17 @@ class BodyPartExtractor:
         """
         cv2.namedWindow(self.part_name)
         cv2.moveWindow(self.part_name, 0, 0)
-        if path.exists(self.archive_path) and (not overwrite):
-            archive_dict = np.load(self.archive_path)
-            self.bbox, self.mask, self.points = archive_dict['bbox'], archive_dict['mask'], archive_dict['points']
-            self.display_selected_region()
-            cv2.waitKey(1000)
-            cv2.destroyAllWindows()
+        if path.exists(self.archive_path) and (not overwrite):            
+            try:
+                archive_dict = np.load(self.archive_path)
+                self.bbox, self.mask, self.points = archive_dict['bbox'], archive_dict['mask'], archive_dict['points']
+                self.display_selected_region()
+                cv2.waitKey(1000)
+                cv2.destroyAllWindows()
+            except Exception as e:
+                print(f"Cannot load archive {self.archive_path}: {e}")
+                print("Redo ROI selection.")
+                self.select_roi(overwrite=True)
             return True
         else:
             new_window_for_selection = "Select ROI for " + self.part_name
@@ -201,6 +207,10 @@ class BodyPartExtractor:
             print(f"ROI not selected for {self.part_name}, skip extraction.")
             return
         
+        # if path.exists(self.result_save_path) and (not self.overwrite):
+        #     print(f"Result already exists for {self.part_name}, skip extraction.")
+        #     return
+        
         cv2.namedWindow("Optical Flow")
         x, y, w, h = self.bbox
         mask = self.mask
@@ -209,7 +219,7 @@ class BodyPartExtractor:
             """Preprocess frame for motion extraction."""
             crop_frame = tmp_frame[y:y+h, x:x+w]
             crop_frame[mask == 0] = 0
-            return cv2.resize(crop_frame, dsize=None, fx=1, fy=1)
+            return cv2.resize(crop_frame, dsize=None, fx=0.5, fy=0.5)
 
         cap = self.get_cap()
         frame_cnt = 0
@@ -228,8 +238,8 @@ class BodyPartExtractor:
 
                 cur_frame = preprocess(frame)
                 flow = cv2.calcOpticalFlowFarneback(
-                    prev=pre_frame, next=cur_frame, flow=np.array([]), pyr_scale=0.5, levels=3, winsize=5,
-                    iterations=3, poly_n=7, poly_sigma=1.5, flags=cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
+                    prev=pre_frame, next=cur_frame, flow=np.array([]), pyr_scale=0.5, levels=2, winsize=5,
+                    iterations=2, poly_n=5, poly_sigma=1.1, flags=cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
 
                 mag, ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
                 mag = np.asarray(mag, dtype=np.float32)
@@ -259,6 +269,7 @@ def default_collection(data_set: DataSet, overwrite=False):
         for video_path in all_video_path:
             for body_part in OPTICAL_FLOW_EXTRACTED_BEHAVIOR_TYPES:
                 all_body_parts.append(BodyPartExtractor(video_path, body_part, overwrite=overwrite))
+                
     """Extract motion intensity for all body parts"""
     for body_part in all_body_parts:
         body_part.optical_flow_extraction()

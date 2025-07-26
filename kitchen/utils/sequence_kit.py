@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Callable, Generator, Iterable, Dict, Any, List, Optional, Tuple, TypeVar
+from typing import Callable, Generator, Iterable, Dict, Any, List, Mapping, Optional, Tuple, TypeVar
 import warnings
 
 
@@ -73,7 +73,7 @@ def group_by(datalist: Iterable[T], key_func: Callable[[T], K], _none_warning: b
     return group_dict
 
 
-def zip_dicts(*dcts: Dict[K, Any]) -> Generator[Tuple[K, Any], None, None]:
+def zip_dicts(*dcts: Mapping[K, Any]) -> Generator[Tuple[K, Any], None, None]:
     """Find common keys in multiple dicts, and yield (key, (value1, value2, ...)) pairs."""
     for i in set(dcts[0]).intersection(*dcts[1:]):
         yield i, tuple(d[i] for d in dcts)

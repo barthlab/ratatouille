@@ -68,7 +68,7 @@ def stack_view(
 ) -> Generator[float, float, None]:
     """Stack view of all nodes in the dataset"""
     try:
-        dataset_synced = sync_nodes(datasets, sync_events)
+        dataset_synced = sync_nodes(datasets, sync_events, plot_manual)
     except Exception as e:
         raise ValueError(f"Cannot sync nodes: {e}")
     

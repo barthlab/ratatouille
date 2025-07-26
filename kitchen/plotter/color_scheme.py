@@ -10,6 +10,7 @@ LICK_COLOR = "Red"
 PUPIL_COLOR = "Purple"
 WHISKER_COLOR = "Green"
 FLUORESCENCE_COLOR = "Black"
+SUBTRACT_COLOR = "dimgray"
 
 # Timeline color scheme
 PUFF_COLOR = "lightgray"
@@ -18,6 +19,11 @@ WATER_COLOR = "cornflowerblue"
 NOWATER_COLOR = "orangered"
 BUZZER_COLOR = "darkorange"
 
+# Event color scheme
+REWARD_TRIAL_COLOR = "#298c8c"
+OMISSION_TRIAL_COLOR = "#f1a226"
+
+# Grand color scheme
 GRAND_COLOR_SCHEME = {
     "VerticalPuffOn": PUFF_COLOR,
     "Puff": PUFF_COLOR,
@@ -29,6 +35,10 @@ GRAND_COLOR_SCHEME = {
     "BuzzerOn": BUZZER_COLOR,
 }
 
+TABLEAU_10 = (
+    "#1A4E86", '#F28E2B', '#E15759', '#76B7B2', '#59A14F',
+    '#EDC948', '#B07AA1', '#FF9DA7', '#9C755F', '#BAB0AC'
+)
 
 def plot_colortable(colors, *, ncols=4, sort_colors=True):
     cell_width = 212

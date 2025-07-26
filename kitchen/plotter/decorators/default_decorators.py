@@ -1,5 +1,5 @@
 import os
-from typing import Generator, List, Dict, Tuple, Callable, Any, Optional
+from typing import Generator, List, Mapping, Tuple, Callable, Any, Optional
 from matplotlib import pyplot as plt
 
 from kitchen.structure.hierarchical_data_structure import DataSet
@@ -8,7 +8,7 @@ from kitchen.utils.sequence_kit import zip_dicts
 
 def default_style(
         mosaic_style,
-        content_dict: Dict[Any, Tuple[Callable[..., Generator[float, float, None]], DataSet | List[DataSet]]],  
+        content_dict: Mapping[Any, Tuple[Callable[..., Generator[float, float, None]], DataSet | List[DataSet]]],  
         figsize: Tuple[float, float],
         save_path: Optional[str] = None, 
 
@@ -27,12 +27,12 @@ def default_style(
 ):
     # Set default font size
     plt.rcParams["font.family"] = "Arial"
-    plt.rcParams['font.size'] = 5
+    plt.rcParams['font.size'] = 3
     plt.rcParams.update({
         'xtick.labelsize': 5,      # X-axis tick labels
         'ytick.labelsize': 5,      # Y-axis tick labels
         'axes.labelsize': 6,       # X and Y axis labels
-        'legend.fontsize': 6,      # Legend font size
+        'legend.fontsize': 3,      # Legend font size
         'axes.titlesize': 5,       # Plot title
         'figure.titlesize': 5      # Figure title (suptitle)
     })

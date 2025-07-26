@@ -1,16 +1,17 @@
 from typing import Tuple
 
+from kitchen.plotter.plotting_manual import PlotManual
 from kitchen.settings.plotting import PLOTTING_OVERLAP_HARSH_MODE
 from kitchen.structure.hierarchical_data_structure import DataSet
-from kitchen.utils.sequence_kit import find_only_one
+from kitchen.utils.sequence_kit import find_only_one, select_from_key
 
 
-def sync_nodes(dataset: DataSet, sync_events: Tuple[str]):
-    assert len(dataset) >= 2, f"Dataset should have at least 2 nodes for sync check, got {len(dataset)}"
+def sync_nodes(dataset: DataSet, sync_events: Tuple[str], plot_manual: PlotManual=PlotManual()):
+    # assert len(dataset) >= 2, f"Dataset should have at least 2 nodes for sync check, got {len(dataset)}"
 
     if PLOTTING_OVERLAP_HARSH_MODE:
         """All nodes should have same availability status of neural data"""
-        all_status = [node.data.status() for node in dataset]
+        all_status = [select_from_key(node.data.status(), **plot_manual._asdict()) for node in dataset]
         assert all(status == all_status[0] for status in all_status), "Neural data availability mismatch, see status_report.xlsx"
 
     """All nodes should contain unique align event in timeline"""

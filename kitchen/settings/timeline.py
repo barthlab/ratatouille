@@ -1,5 +1,6 @@
 # Timeline data loading settings and constants
 
+
 SUPPORTED_TIMELINE_EVENT = {
     "VerticalPuffOn",
     "VerticalPuffOff",
@@ -61,3 +62,4 @@ ALIGNMENT_STYLE = {
     "Aligned2Reward": REWARD_EVENTS_DEFAULT,
     "Aligned2Buzzer": ("BuzzerOn",),
 }
+

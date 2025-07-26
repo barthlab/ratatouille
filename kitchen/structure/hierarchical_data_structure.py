@@ -139,6 +139,10 @@ class Fov(Node):
     _expected_temporal_uid_level = 'template'
     _expected_object_uid_level = 'fov'
 
+class Day(Node):
+    """Day-level data for entire FOVs. Temporal: day, Spatial: mice."""
+    _expected_temporal_uid_level = 'day'
+    _expected_object_uid_level = 'mice'
 
 class Mice(Node):
     """Mouse-level data across experimental template. Temporal: template, Spatial: mice."""
@@ -215,6 +219,15 @@ class DataSet:
             summary_str += f"{len(node_list)} {node_name}: \n{node_concat_string}\n ... \n"
         return summary_str
 
+    def __add__(self, other: "DataSet") -> "DataSet":
+        """Combine two datasets into one."""
+        new_dataset = DataSet(name=self.name + "_" + other.name, nodes=self.nodes + other.nodes)
+        return new_dataset
+    
+    def __radd__(self, other: "DataSet") -> "DataSet":
+        """Combine two datasets into one."""
+        return self.__add__(other)
+        
     def subset(self, _specified_name: str = NULL_STRUCTURE_NAME, _empty_warning: bool = True, **criterion: Any) -> "DataSet":
         """Filter all nodes by criterion function."""
         selected_nodes = filter_by(self.nodes, **criterion)
@@ -249,7 +262,7 @@ class DataSet:
                                 "Session": session_node.coordinate.temporal_uid.session_id,
                                 **session_node.data.status()})
         df = pd.DataFrame(status_list)
-
+        
         save_path = "status_report.xlsx" if save_path is None else save_path
         write_boolean_dataframe(df, "Status Report", save_path)
 

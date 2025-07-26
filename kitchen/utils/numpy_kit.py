@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.interpolate import interp1d
 from numpy.lib.stride_tricks import sliding_window_view
 
 def numpy_percentile_filter(input_array: np.ndarray, s: int, q: float) -> np.ndarray:
@@ -55,3 +56,15 @@ def numpy_percentile_filter(input_array: np.ndarray, s: int, q: float) -> np.nda
     if original_ndim == 1:
         return result.squeeze(axis=0)
     return result
+
+
+def smart_interp(x_new, xp, fp, method: str = "previous"):
+    if method == "previous":
+        f_new = interp1d(xp, fp, kind='previous', axis=-1, bounds_error=False)
+    elif method == "nearest":
+        f_new = interp1d(xp, fp, kind='nearest', axis=-1, bounds_error=False)
+    elif method == "linear":
+        f_new = interp1d(xp, fp, kind='linear', axis=-1, bounds_error=False)
+    else:
+        raise ValueError(f"Unknown interpolation method: {method}")
+    return f_new(x_new)

@@ -8,7 +8,7 @@ from kitchen.settings.timeline import TRIAL_ALIGN_EVENT_DEFAULT
 from kitchen.settings.trials import TRIAL_RANGE_RELATIVE_TO_ALIGNMENT
 from kitchen.loader.timeline_loader import timeline_loader_from_fov
 from kitchen.loader.behavior_loader import behavior_loader_from_fov
-from kitchen.structure.hierarchical_data_structure import DataSet, Cohort, FovDay, Mice, Fov, Session, CellSession, Trial
+from kitchen.structure.hierarchical_data_structure import DataSet, Cohort, Day, FovDay, Mice, Fov, Session, CellSession, Trial
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate, TemporalUID, ObjectUID
 from kitchen.structure.neural_data_structure import NeuralData
 import kitchen.configs.routing as routing
@@ -19,7 +19,7 @@ Hierarchical data loading and splitting functions.
 
 Supports the complete experimental hierarchy:
 Cohort -> Mice -> Fov -> Session -> CellSession -> Trial
-                     FovDay </   Cell </
+               Day <- FovDay </   Cell </
 
 Each split function takes a parent node and creates child nodes by scanning
 the file system structure and loading appropriate data.
@@ -141,7 +141,7 @@ def MergeSession2FovDay(dataset: DataSet) -> List[FovDay]:
             # create fov day node
             fov_day_coordinate = TemporalObjectCoordinate(
                 temporal_uid=example_session_node.coordinate.temporal_uid.transit("day"),
-                object_uid=example_session_node.coordinate.object_uid)            
+                object_uid=object_uid)            
             fov_day_nodes.append(
                 FovDay(
                     coordinate=fov_day_coordinate,
@@ -149,6 +149,33 @@ def MergeSession2FovDay(dataset: DataSet) -> List[FovDay]:
                 )
             )            
     return fov_day_nodes
+
+def MergeFovDay2Day(dataset: DataSet) -> List[Day]:
+    """Merge fov day nodes into day nodes."""
+    day_nodes = []
+    
+    # split fov day by mice id
+    dict_fov_day_by_mice = split_by(dataset.select("fovday"), attr_name= "mice_id")
+    for mice_id, fov_day_nodes in dict_fov_day_by_mice.items():
+        assert mice_id is not None, f"Cannot find mice id in {fov_day_nodes}"
+
+        # split fov day within same mice by day id
+        dict_same_mice_fov_day_by_day = split_by(fov_day_nodes, attr_name= "temporal_uid")
+        for temporal_uid, same_day_fov_day_nodes in dict_same_mice_fov_day_by_day.items():
+            assert temporal_uid is not None, f"Cannot find temporal_uid in {same_day_fov_day_nodes}"
+            example_fov_day_node = same_day_fov_day_nodes[0]
+            
+            # create day node
+            day_coordinate = TemporalObjectCoordinate(
+                temporal_uid=temporal_uid,
+                object_uid=example_fov_day_node.coordinate.object_uid.transit("mice"))
+            day_nodes.append(
+                Day(
+                    coordinate=day_coordinate,
+                    data=NeuralData(),
+                )
+            )
+    return day_nodes
 
 def SplitCellSession2Trial(cell_session_node: CellSession) -> List[Trial]: 
     """Split a cell session node into multiple trial nodes."""
@@ -225,6 +252,9 @@ def cohort_loader(template_id: str, cohort_id: str, name: Optional[str] = None) 
 
     # Session to FovDay
     loaded_data.add_node(MergeSession2FovDay(loaded_data))
+
+    # FovDay to Day
+    loaded_data.add_node(MergeFovDay2Day(loaded_data))
 
     # Session to CellSession
     for session_node in loaded_data.select("session"):

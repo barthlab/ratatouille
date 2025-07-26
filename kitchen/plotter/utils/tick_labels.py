@@ -1,8 +1,10 @@
 from collections import namedtuple
+from typing import Dict
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import numpy as np
 
-from kitchen.plotter.style_dicts import REFERENCE_LINE_STYLE
+from kitchen.plotter.style_dicts import LEGEND_STYLE, REFERENCE_LINE_STYLE
 
 
 TICK_PAIR = namedtuple("TICK_PAIR", ["location", "label", "color"], defaults=["", "black"])
@@ -28,3 +30,8 @@ def add_new_yticks(ax: plt.Axes, new_ticks: list[TICK_PAIR] | TICK_PAIR, add_ref
     for tick_instance, new_tick in zip(ax.get_yticklabels()[-num_new_ticks:], new_ticks):
         tick_instance.set_color(new_tick.color)
         ax.axhline(new_tick.location, **REFERENCE_LINE_STYLE)
+
+
+def add_line_legend(ax: plt.Axes, lines: Dict[str, dict], **kwargs):
+    legend_handles = [Line2D([0], [0], label=label, **style) for label, style in lines.items()]
+    ax.legend(handles=legend_handles, **(LEGEND_STYLE | kwargs))

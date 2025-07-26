@@ -4,7 +4,7 @@ General naming function for Node objects with type-specific implementations.
 
 from functools import singledispatch
 
-from kitchen.structure.hierarchical_data_structure import Node, Trial, CellSession, Session, Cell, FovDay, Fov, Mice, Cohort
+from kitchen.structure.hierarchical_data_structure import Day, Node, Trial, CellSession, Session, Cell, FovDay, Fov, Mice, Cohort
 
 
 @singledispatch
@@ -45,7 +45,13 @@ def _(node: Cell) -> str:
 def _(node: FovDay) -> str:
     fov_id = node.coordinate.object_uid.fov_id
     day_id = node.coordinate.temporal_uid.day_id
-    return f"FOV_{fov_id}_Day_{day_id}"
+    return f"FOV_{fov_id}_{day_id}"
+
+@get_node_name.register
+def _(node: Day) -> str:
+    mice_id = node.coordinate.object_uid.mice_id
+    day_id = node.coordinate.temporal_uid.day_id
+    return f"{mice_id}_{day_id}"
 
 
 @get_node_name.register

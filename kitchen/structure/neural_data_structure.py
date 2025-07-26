@@ -4,8 +4,8 @@ from typing import Dict, Generator, Optional, Any, Self, Tuple, Iterable
 from functools import cached_property
 
 from kitchen.settings.timeline import SUPPORTED_TIMELINE_EVENT
-from kitchen.settings.fluorescence import DETREND_BASELINE_WINDOW, DETREND_BASELINE_PERCENTILE, TRIAL_DF_F0_WINDOW
-from kitchen.utils.numpy_kit import numpy_percentile_filter
+from kitchen.settings.fluorescence import DEFAULT_RECORDING_DURATION, DETREND_BASELINE_WINDOW, DETREND_BASELINE_PERCENTILE, TRIAL_DF_F0_WINDOW
+from kitchen.utils.numpy_kit import numpy_percentile_filter, smart_interp
 
 
 @dataclass
@@ -41,14 +41,44 @@ class TimeSeries:
     
     def __str__(self) -> str:
         """Return string representation."""
+        if len(self.t) == 0:
+            return "Empty TimeSeries"
         return f"TimeSeries with {len(self.t)} frames from {self.t[0]:.2f} to {self.t[-1]:.2f}"
+
+    def __add__(self, other: "TimeSeries") -> "TimeSeries":
+        """Add two time series."""
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+
+        new_t = np.union1d(self.t, other.t)
+        self_v = smart_interp(new_t, self.t, self.v)
+        other_v = smart_interp(new_t, other.t, other.v)
+
+        return TimeSeries(t=new_t, v=self_v + other_v)
+    
+    def __radd__(self, other: "TimeSeries") -> "TimeSeries":
+        """Add two time series."""
+        if other == 0:
+            return self
+        return self.__add__(other)
+    
+    def __sub__(self, other: "TimeSeries") -> "TimeSeries":
+        """Subtract two time series."""
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+
+        return self + (-other)
+
+    def __neg__(self) -> Self:
+        """Return a new TimeSeries with negated values."""
+        return self.__class__(v=-self.v, t=self.t)
 
     def segment(self, start_t: float, end_t: float) -> "TimeSeries":
         """Extract temporal segment between start_t (inclusive) and end_t (exclusive)."""
         assert end_t >= start_t, f"start time {start_t} should be earlier than end time {end_t}"
         segment_start_index = np.searchsorted(self.t, start_t)
         segment_end_index = np.searchsorted(self.t, end_t)
-        return TimeSeries(
+        return self.__class__(
             v=self.v[..., segment_start_index: segment_end_index],
             t=self.t[segment_start_index: segment_end_index]
         )
@@ -56,11 +86,13 @@ class TimeSeries:
     @cached_property
     def fs(self) -> float:
         """Return sampling frequency."""
+        if len(self) < 2:
+            return np.nan
         return float(1 / np.mean(np.diff(self.t)))
     
     def aligned_to(self, align_time: float) -> "TimeSeries":
         """Align time series to a specific time point."""
-        return TimeSeries(v=self.v.copy(), t=self.t - align_time)
+        return self.__class__(v=self.v.copy(), t=self.t - align_time)
 
 
 
@@ -180,11 +212,9 @@ class Timeline(Events):
         )
 
     def task_time(self) -> Tuple[float, float]:
-        """Return start and end time of task."""
-        assert "task start" in self.v, f"Cannot find task start in {self.v}"
-        assert "task end" in self.v, f"Cannot find task end in {self.v}"
-        task_start = self.filter("task start").t[0]
-        task_end = self.filter("task end").t[0]
+        """Return start and end time of task."""            
+        task_start = self.filter("task start").t[0] if "task start" in self.v else 0
+        task_end = self.filter("task end").t[0] if "task end" in self.v else DEFAULT_RECORDING_DURATION
         return task_start, task_end
 
     def aligned_to(self, align_time: float) -> "Timeline":
