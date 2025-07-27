@@ -2,7 +2,7 @@
 from typing import Generator, Tuple
 import matplotlib.pyplot as plt
 
-from kitchen.operator.sync_nodes import sync_nodes
+from kitchen.operator.sync_nodes import sync_check, sync_nodes
 from kitchen.plotter.plotting_manual import PlotManual
 from kitchen.plotter.plotting_params import FLUORESCENCE_RATIO, TIMELINE_RATIO, LICK_RATIO, LOCOMOTION_RATIO, PUPIL_RATIO, WHISKER_RATIO
 from kitchen.plotter.unit_plotter.unit_trace import unit_plot_timeline
@@ -23,6 +23,7 @@ def subtract_view(
     
     dataset1, dataset2 = datasets
     try:
+        sync_check(dataset1 + dataset2, sync_events, plot_manual)
         dataset1_synced = sync_nodes(dataset1, sync_events, plot_manual)
         dataset2_synced = sync_nodes(dataset2, sync_events, plot_manual)
     except Exception as e:
@@ -41,13 +42,14 @@ def subtract_view(
     # 2. plot fluorescence
     if plot_manual.fluorescence:
         valid_fluorescence1 = select_truthy_items([node.data.fluorescence for node in dataset1_synced])    
-        valid_fluorescence2 = select_truthy_items([node.data.fluorescence for node in dataset2_synced])    
+        valid_fluorescence2 = select_truthy_items([node.data.fluorescence for node in dataset2_synced])      
+        cell_id_flag = valid_fluorescence1[0].num_cell > 1
         for cell_id in range(valid_fluorescence1[0].num_cell):
             y_offset = yield unit_subtract_single_cell_fluorescence(
                 fluorescence1=[fluorescence.extract_cell(cell_id) for fluorescence in valid_fluorescence1],
                 fluorescence2=[fluorescence.extract_cell(cell_id) for fluorescence in valid_fluorescence2],
                 subtract_manual=subtract_manual,
-                ax=ax, y_offset=y_offset, ratio=FLUORESCENCE_RATIO)
+                ax=ax, y_offset=y_offset, ratio=FLUORESCENCE_RATIO, cell_id_flag=cell_id_flag)
     
     # 3. plot behavior
     if plot_manual.lick:

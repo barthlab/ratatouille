@@ -127,6 +127,11 @@ class HierarchicalUID:
         new_uid_dict.update(kwargs)
         return self.__class__(**new_uid_dict)
 
+    @property
+    def parent_uid(self) -> Self:
+        """Create new UID at higher hierarchy level by removing the most specific field."""
+        return self.transit(self._HIERARCHY_FIELDS[self.level_index - 1])
+    
 
 @dataclass(frozen=True)
 class ObjectUID(HierarchicalUID):

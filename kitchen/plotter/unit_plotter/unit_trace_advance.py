@@ -6,7 +6,7 @@ from kitchen.operator.grouping import grouping_events_rate, grouping_timeseries
 from kitchen.plotter.unit_plotter.unit_trace import sanity_check
 from kitchen.plotter.utils.fill_plot import oreo_plot, sushi_plot
 from kitchen.settings.fluorescence import DF_F0_SIGN
-from kitchen.plotter.color_scheme import LOCOMOTION_COLOR, LICK_COLOR, PUPIL_COLOR, SUBTRACT_COLOR, WHISKER_COLOR
+from kitchen.plotter.color_scheme import FLUORESCENCE_COLOR, LOCOMOTION_COLOR, LICK_COLOR, PUPIL_COLOR, WHISKER_COLOR
 from kitchen.plotter.plotting_params import LICK_BIN_SIZE, LOCOMOTION_BIN_SIZE
 from kitchen.plotter.style_dicts import FILL_BETWEEN_STYLE, FLUORESCENCE_TRACE_STYLE, LICK_TRACE_STYLE, LOCOMOTION_TRACE_STYLE, PUPIL_TRACE_STYLE, SUBTRACT_STYLE, WHISKER_TRACE_STYLE
 from kitchen.plotter.utils.tick_labels import TICK_PAIR, add_new_yticks
@@ -147,7 +147,8 @@ def unit_subtract_single_cell_fluorescence(
         fluorescence1: None | Fluorescence | list[Fluorescence],
         fluorescence2: None | Fluorescence | list[Fluorescence],
         subtract_manual: SUBTRACT_MANUAL,
-        ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
+        ax: plt.Axes, y_offset: float, ratio: float = 1.0,
+        cell_id_flag: bool = True) -> float:
     """plot a single cell"""
     if not sanity_check(fluorescence1) or not sanity_check(fluorescence2):
         return 0
@@ -169,9 +170,11 @@ def unit_subtract_single_cell_fluorescence(
                 **(FLUORESCENCE_TRACE_STYLE | {"color": subtract_manual.color2}))      
 
         # add y ticks  
-        add_new_yticks(ax, TICK_PAIR(y_offset, f"Cell {fluorescence1.cell_idx[0]}", SUBTRACT_COLOR))      
-        add_new_yticks(ax, TICK_PAIR(y_offset + 1 * ratio,
-                                     f"1 {DF_F0_SIGN}" if np.all(fluorescence1.cell_order == 0) else "", SUBTRACT_COLOR))
+        add_new_yticks(ax, TICK_PAIR(
+            y_offset, f"Cell {fluorescence1.cell_idx[0]}" if cell_id_flag else "Cell", FLUORESCENCE_COLOR))      
+        add_new_yticks(ax, TICK_PAIR(
+            y_offset + 1 * ratio,
+            f"1 {DF_F0_SIGN}" if (np.all(fluorescence1.cell_order == 0) or (not cell_id_flag)) else "", FLUORESCENCE_COLOR))
         
         # plot subtraction
         sushi_plot(ax, cell_trace1, cell_trace2, y_offset, ratio, FILL_BETWEEN_STYLE | SUBTRACT_STYLE)
@@ -187,8 +190,11 @@ def unit_subtract_single_cell_fluorescence(
     
     # add y ticks
     example_fluorescence = fluorescence1[0]
-    add_new_yticks(ax, TICK_PAIR(y_offset, f"Cell {example_fluorescence.cell_idx[0]}", SUBTRACT_COLOR))      
-    add_new_yticks(ax, TICK_PAIR(y_offset + 1 * ratio, f"1 {DF_F0_SIGN}" if np.all(example_fluorescence.cell_order == 0) else "", SUBTRACT_COLOR))    
+    add_new_yticks(ax, TICK_PAIR(
+        y_offset, f"Cell {example_fluorescence.cell_idx[0]}" if cell_id_flag else "Cell", FLUORESCENCE_COLOR))      
+    add_new_yticks(ax, TICK_PAIR(
+        y_offset + 1 * ratio,
+        f"1 {DF_F0_SIGN}" if (np.all(example_fluorescence.cell_order == 0) or (not cell_id_flag)) else "", FLUORESCENCE_COLOR))    
 
     # plot subtraction
     sushi_plot(ax, group_fluorescence1, group_fluorescence2, y_offset, ratio, FILL_BETWEEN_STYLE | SUBTRACT_STYLE)

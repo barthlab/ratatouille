@@ -1,4 +1,5 @@
 from collections import defaultdict
+from functools import reduce
 from typing import Callable, Generator, Iterable, Dict, Any, List, Mapping, Optional, Tuple, TypeVar
 import warnings
 
@@ -56,7 +57,7 @@ def split_by(datalist: Iterable, attr_name: str, _none_warning: bool = True) -> 
     """Split a list into groups based on attribute value."""
     split_dict = defaultdict(list)
     for item in datalist:
-        attr_value = getattr(item, attr_name, None)
+        attr_value = reduce(lambda obj, attr: getattr(obj, attr, None), attr_name.split('.'), item)
         if attr_value is None and _none_warning:
             warnings.warn(f"Cannot find attribute {attr_name} in {item}")
         split_dict[attr_value].append(item)

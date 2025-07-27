@@ -176,7 +176,9 @@ def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes,
     return ratio
 
 
-def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[Fluorescence], ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
+def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[Fluorescence], 
+                                       ax: plt.Axes, y_offset: float, ratio: float = 1.0,
+                                       cell_id_flag: bool = True) -> float:
     """plot a single cell"""
     if not sanity_check(fluorescence):
         return 0
@@ -189,9 +191,11 @@ def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[
         ax.plot(fluorescence.detrend_f.t, cell_trace * ratio + y_offset, **FLUORESCENCE_TRACE_STYLE)      
 
         # add y ticks  
-        add_new_yticks(ax, TICK_PAIR(y_offset, f"Cell {fluorescence.cell_idx[0]}", FLUORESCENCE_COLOR))      
-        add_new_yticks(ax, TICK_PAIR(y_offset + 1 * ratio,
-                                     f"1 {DF_F0_SIGN}" if np.all(fluorescence.cell_order == 0) else "", FLUORESCENCE_COLOR))
+        add_new_yticks(ax, TICK_PAIR(
+            y_offset, f"Cell {fluorescence.cell_idx[0]}" if cell_id_flag else "Cell", FLUORESCENCE_COLOR))      
+        add_new_yticks(ax, TICK_PAIR(
+            y_offset + 1 * ratio,
+            f"1 {DF_F0_SIGN}" if (np.all(fluorescence.cell_order == 0) or (not cell_id_flag)) else "", FLUORESCENCE_COLOR))
         return max(np.nanmax(cell_trace) * ratio, 1*ratio)
 
     # plot multiple cell fluorescence
@@ -200,7 +204,11 @@ def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[
 
     # add y ticks
     example_fluorescence = fluorescence[0]
-    add_new_yticks(ax, TICK_PAIR(y_offset, f"Cell {example_fluorescence.cell_idx[0]}", FLUORESCENCE_COLOR))      
-    add_new_yticks(ax, TICK_PAIR(y_offset + 1 * ratio, f"1 {DF_F0_SIGN}" if np.all(example_fluorescence.cell_order == 0) else "", FLUORESCENCE_COLOR))    
+    add_new_yticks(ax, TICK_PAIR(
+        y_offset, 
+        f"Cell {example_fluorescence.cell_idx[0]}" if cell_id_flag else "Cell", FLUORESCENCE_COLOR))      
+    add_new_yticks(ax, TICK_PAIR(
+        y_offset + 1 * ratio, 
+        f"1 {DF_F0_SIGN}" if (np.all(example_fluorescence.cell_order == 0) or (not cell_id_flag)) else "", FLUORESCENCE_COLOR))    
     return max(np.nanmax(group_fluorescence.mean) * ratio, 1*ratio)
         

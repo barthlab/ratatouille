@@ -111,18 +111,20 @@ class Trial(Node):
     _expected_temporal_uid_level = 'chunk'
     _expected_object_uid_level = 'cell'
 
+class FovTrial(Node):
+    """Individual trials/chunks within sessions. Temporal: chunk, Spatial: fov."""
+    _expected_temporal_uid_level = 'chunk'
+    _expected_object_uid_level = 'fov'
 
 class CellSession(Node):
     """Cell data aggregated at session level. Temporal: session, Spatial: cell."""
     _expected_temporal_uid_level = 'session'
     _expected_object_uid_level = 'cell'
 
-
 class Session(Node):
     """Session-level data for entire FOVs. Temporal: session, Spatial: fov."""
     _expected_temporal_uid_level = 'session'
     _expected_object_uid_level = 'fov'
-
 
 class Cell(Node):
     """Individual cell data across experimental template. Temporal: template, Spatial: cell."""
@@ -148,7 +150,6 @@ class Mice(Node):
     """Mouse-level data across experimental template. Temporal: template, Spatial: mice."""
     _expected_temporal_uid_level = 'template'
     _expected_object_uid_level = 'mice'
-
 
 class Cohort(Node):
     """Cohort-level data across experimental template. Temporal: template, Spatial: cohort."""
@@ -249,6 +250,16 @@ class DataSet:
         if _empty_warning and len(selected_nodes) == 0:
             warnings.warn("Select operation resulted in 0 nodes, check your criterion function")
         return DataSet(name=_specified_name, nodes=selected_nodes)
+    
+    def rule_based_selection(self, rule_dict: Dict[str, dict]) -> Dict[str, "DataSet"]:
+        """Select nodes based on pre-defined rules."""    
+        selected_nodes = {}    
+        for name, rule_definition in rule_dict.items():
+            this_type_nodes = self.select(**rule_definition)      
+            if len(this_type_nodes) > 0:
+                selected_nodes[name] = this_type_nodes      
+        return selected_nodes
+
 
     def status(self, save_path: Optional[str] = None):
         """Return string representation of dataset status."""

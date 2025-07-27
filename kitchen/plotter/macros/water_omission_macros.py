@@ -7,7 +7,7 @@ from kitchen.calculator.basic_metric import AVERAGE_VALUE
 from kitchen.calculator.calculator_interface import calculate_metric
 from kitchen.configs import routing
 from kitchen.configs.naming import get_node_name
-from kitchen.operator.select_trials import PREDEFINED_RULES
+from kitchen.operator.select_trial_rules import PREDEFINED_TRIAL_RULES
 from kitchen.plotter.ax_plotter.advance_plot import subtract_view
 from kitchen.plotter.ax_plotter.basic_bar import pairwise_comparison_bar
 from kitchen.plotter.ax_plotter.basic_plot import stack_view
@@ -33,8 +33,8 @@ def find_omission_day_id(dataset: DataSet) -> dict[str, Tuple[Day, Day, Day]]:
             before_day = day_nodes[day_idx]
             cur_day = day_nodes[day_idx + 1]
             after_day = day_nodes[day_idx + 2] 
-            if len(mice_dataset.subtree(before_day).select(**PREDEFINED_RULES["PuffNoWater"])) == 0 and\
-                len(mice_dataset.subtree(cur_day).select(**PREDEFINED_RULES["PuffNoWater"])) > 0:
+            if len(mice_dataset.subtree(before_day).select(**PREDEFINED_TRIAL_RULES["PuffNoWater"])) == 0 and\
+                len(mice_dataset.subtree(cur_day).select(**PREDEFINED_TRIAL_RULES["PuffNoWater"])) > 0:
                 omission_day_id_dict[mice_node.mice_id] = (before_day, cur_day, after_day)
     print(f"Found omission days (before, omission, after) for {len(omission_day_id_dict)} mice")
     for mice_id, (_, omission_day, _) in omission_day_id_dict.items():
@@ -60,7 +60,7 @@ def mice_water_omission_overview(
                 content_dict = {
                     f"{get_node_name(day_node)}\n{trial_type}": (
                         partial(stack_view, plot_manual=plot_manual, sync_events=alignment_events),
-                        mice_dataset.subtree(day_node).select(**PREDEFINED_RULES[trial_type])
+                        mice_dataset.subtree(day_node).select(**PREDEFINED_TRIAL_RULES[trial_type])
                     )
                     for day_node in [omission_day_node, after_day_node]
                     for trial_type in plotting_trial_types
@@ -68,13 +68,13 @@ def mice_water_omission_overview(
                 content_dict = content_dict | {
                     f"{omission_name}\nSubtraction": (
                         partial(subtract_view, subtract_manual=subtract_manual, plot_manual=plot_manual, sync_events=alignment_events),
-                        [mice_dataset.subtree(omission_day_node).select(**PREDEFINED_RULES["PuffWater"]),
-                         mice_dataset.subtree(omission_day_node).select(**PREDEFINED_RULES["PuffNoWater"])]
+                        [mice_dataset.subtree(omission_day_node).select(**PREDEFINED_TRIAL_RULES["PuffWater"]),
+                         mice_dataset.subtree(omission_day_node).select(**PREDEFINED_TRIAL_RULES["PuffNoWater"])]
                     ),
                     f"{after_name}\nSubtraction": (
                         partial(subtract_view, subtract_manual=subtract_manual, plot_manual=plot_manual, sync_events=alignment_events),
-                        [mice_dataset.subtree(after_day_node).select(**PREDEFINED_RULES["PuffWater"]),
-                         mice_dataset.subtree(after_day_node).select(**PREDEFINED_RULES["PuffNoWater"])]
+                        [mice_dataset.subtree(after_day_node).select(**PREDEFINED_TRIAL_RULES["PuffWater"]),
+                         mice_dataset.subtree(after_day_node).select(**PREDEFINED_TRIAL_RULES["PuffNoWater"])]
                     ),
                     }
                 default_style(
@@ -102,8 +102,8 @@ def mice_water_omission_summary(
             content_dict = {
                 f"{mice_node.mice_id} {day_name}\nSubtraction": (
                     partial(subtract_view, subtract_manual=subtract_manual, plot_manual=plot_manual, sync_events=alignment_events),
-                    [dataset.subtree(mice_node).subtree(day_node).select(**PREDEFINED_RULES["PuffWater"]),
-                     dataset.subtree(mice_node).subtree(day_node).select(**PREDEFINED_RULES["PuffNoWater"])]
+                    [dataset.subtree(mice_node).subtree(day_node).select(**PREDEFINED_TRIAL_RULES["PuffWater"]),
+                     dataset.subtree(mice_node).subtree(day_node).select(**PREDEFINED_TRIAL_RULES["PuffNoWater"])]
                 )
                 for mice_node in dataset.select("mice")
                 for day_node, day_name in zip(omission_day_id_dict[mice_node.mice_id][1:], ["Omission day0", "Omission day1"])
@@ -113,10 +113,10 @@ def mice_water_omission_summary(
                     partial(subtract_view, subtract_manual=subtract_manual, plot_manual=plot_manual, sync_events=alignment_events),
                     [dataset.subtree(mice_node).select(
                         day_id=lambda day_id: day_id in [omission_day_id_dict[mice_node.mice_id][1].day_id, omission_day_id_dict[mice_node.mice_id][2].day_id],
-                        **PREDEFINED_RULES["PuffWater"]),
+                        **PREDEFINED_TRIAL_RULES["PuffWater"]),
                      dataset.subtree(mice_node).select(
                          day_id=lambda day_id: day_id in [omission_day_id_dict[mice_node.mice_id][1].day_id, omission_day_id_dict[mice_node.mice_id][2].day_id],
-                         **PREDEFINED_RULES["PuffNoWater"])]
+                         **PREDEFINED_TRIAL_RULES["PuffNoWater"])]
                 )
                 for mice_node in dataset.select("mice")
                 }
@@ -166,8 +166,8 @@ def water_omission_response_compare(
                         comparison_method="ttest_rel",
                         data_name=data_name,
                         ),
-                [sub_dataset.select(**PREDEFINED_RULES["PuffWater"]),
-                sub_dataset.select(**PREDEFINED_RULES["PuffNoWater"])]
+                [sub_dataset.select(**PREDEFINED_TRIAL_RULES["PuffWater"]),
+                sub_dataset.select(**PREDEFINED_TRIAL_RULES["PuffNoWater"])]
             )
             for sub_dataset, dataset_label in zip([day0_dataset, day1_dataset, day01_dataset], ["Day0", "Day1", "Day0/1"])
         }
@@ -183,8 +183,8 @@ def water_omission_response_compare(
         content_dict = {
             f"{mice_node.mice_id}\n{dataset_label}": (
                 partial(subtract_view, subtract_manual=subtract_manual, plot_manual=sub_plot_manual, sync_events=alignment_style),
-                [sub_dataset.select(mice_id=mice_node.mice_id, **PREDEFINED_RULES["PuffWater"]),
-                 sub_dataset.select(mice_id=mice_node.mice_id, **PREDEFINED_RULES["PuffNoWater"])]
+                [sub_dataset.select(mice_id=mice_node.mice_id, **PREDEFINED_TRIAL_RULES["PuffWater"]),
+                 sub_dataset.select(mice_id=mice_node.mice_id, **PREDEFINED_TRIAL_RULES["PuffNoWater"])]
             )
             for sub_dataset, dataset_label in zip([day0_dataset, day1_dataset, day01_dataset], ["Day0", "Day1", "Day0/1"])            
             for mice_node in dataset.select("mice")

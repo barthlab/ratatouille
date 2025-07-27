@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, overload
 import os
 import os.path as path
 from tqdm import tqdm
@@ -8,7 +8,7 @@ from kitchen.settings.timeline import TRIAL_ALIGN_EVENT_DEFAULT
 from kitchen.settings.trials import TRIAL_RANGE_RELATIVE_TO_ALIGNMENT
 from kitchen.loader.timeline_loader import timeline_loader_from_fov
 from kitchen.loader.behavior_loader import behavior_loader_from_fov
-from kitchen.structure.hierarchical_data_structure import DataSet, Cohort, Day, FovDay, Mice, Fov, Session, CellSession, Trial
+from kitchen.structure.hierarchical_data_structure import DataSet, Cohort, Day, FovDay, FovTrial, Mice, Fov, Session, CellSession, Trial
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate, TemporalUID, ObjectUID
 from kitchen.structure.neural_data_structure import NeuralData
 import kitchen.configs.routing as routing
@@ -18,8 +18,9 @@ from kitchen.utils.sequence_kit import split_by
 Hierarchical data loading and splitting functions.
 
 Supports the complete experimental hierarchy:
+                               /-> FovTrial
 Cohort -> Mice -> Fov -> Session -> CellSession -> Trial
-               Day <- FovDay </   Cell </
+               Day <- FovDay </   Cell </  
 
 Each split function takes a parent node and creates child nodes by scanning
 the file system structure and loading appropriate data.
@@ -128,7 +129,7 @@ def MergeSession2FovDay(dataset: DataSet) -> List[FovDay]:
     fov_day_nodes = []
     
     # split sessions by day id
-    dict_session_by_day = split_by(dataset.select("session"), attr_name= "day_id")
+    dict_session_by_day = split_by(dataset.select("session"), attr_name= "temporal_uid.parent_uid")
     for day_id, session_nodes in dict_session_by_day.items():
         assert day_id is not None, f"Cannot find day id in {session_nodes}"
 
@@ -140,7 +141,7 @@ def MergeSession2FovDay(dataset: DataSet) -> List[FovDay]:
             
             # create fov day node
             fov_day_coordinate = TemporalObjectCoordinate(
-                temporal_uid=example_session_node.coordinate.temporal_uid.transit("day"),
+                temporal_uid=example_session_node.coordinate.temporal_uid.parent_uid,
                 object_uid=object_uid)            
             fov_day_nodes.append(
                 FovDay(
@@ -155,7 +156,7 @@ def MergeFovDay2Day(dataset: DataSet) -> List[Day]:
     day_nodes = []
     
     # split fov day by mice id
-    dict_fov_day_by_mice = split_by(dataset.select("fovday"), attr_name= "mice_id")
+    dict_fov_day_by_mice = split_by(dataset.select("fovday"), attr_name= "object_uid.parent_uid")
     for mice_id, fov_day_nodes in dict_fov_day_by_mice.items():
         assert mice_id is not None, f"Cannot find mice id in {fov_day_nodes}"
 
@@ -168,7 +169,7 @@ def MergeFovDay2Day(dataset: DataSet) -> List[Day]:
             # create day node
             day_coordinate = TemporalObjectCoordinate(
                 temporal_uid=temporal_uid,
-                object_uid=example_fov_day_node.coordinate.object_uid.transit("mice"))
+                object_uid=example_fov_day_node.coordinate.object_uid.parent_uid)
             day_nodes.append(
                 Day(
                     coordinate=day_coordinate,
@@ -177,40 +178,49 @@ def MergeFovDay2Day(dataset: DataSet) -> List[Day]:
             )
     return day_nodes
 
+@overload
+def trial_splitter_default(session_level_node: Session) -> List[FovTrial]: ...
+
+@overload
+def trial_splitter_default(session_level_node: CellSession) -> List[Trial]: ...
+
+def trial_splitter_default(session_level_node: CellSession | Session) -> List[Trial] | List[FovTrial]:
+    assert session_level_node.data.timeline is not None, f"Cannot find timeline in {session_level_node}"
+    target_node_type = Trial if isinstance(session_level_node, CellSession) else FovTrial
+
+    # find the all trial align event
+    trial_aligns = None
+    for trial_align_candidate in TRIAL_ALIGN_EVENT_DEFAULT:
+        trial_aligns = session_level_node.data.timeline.filter(trial_align_candidate)
+        if len(trial_aligns) > 0:
+            break
+    assert trial_aligns is not None, f"Cannot find any trial align event in timeline {session_level_node.data.timeline}"
+
+    # split the session level node into trial level nodes
+    trial_nodes = []
+    for trial_id, (trial_t, trial_v) in enumerate(trial_aligns):
+        trial_coordinate = TemporalObjectCoordinate(
+            temporal_uid=session_level_node.coordinate.temporal_uid.child_uid(chunk_id=trial_id),
+            object_uid=session_level_node.coordinate.object_uid)
+        trial_neural_data = session_level_node.data.segment(
+            start_t=trial_t + TRIAL_RANGE_RELATIVE_TO_ALIGNMENT[0],
+            end_t=trial_t + TRIAL_RANGE_RELATIVE_TO_ALIGNMENT[1])
+        trial_nodes.append(
+            target_node_type(
+                coordinate=trial_coordinate,
+                data=trial_neural_data
+            )
+        )
+    return trial_nodes
+
 def SplitCellSession2Trial(cell_session_node: CellSession) -> List[Trial]: 
     """Split a cell session node into multiple trial nodes."""
-
-    def trial_splitter_default(cell_session_node: CellSession) -> List[Trial]:
-        assert cell_session_node.data.timeline is not None, f"Cannot find timeline in {cell_session_node}"
-        
-        # find the all trial align event
-        trial_aligns = None
-        for trial_align_candidate in TRIAL_ALIGN_EVENT_DEFAULT:
-            trial_aligns = cell_session_node.data.timeline.filter(trial_align_candidate)
-            if len(trial_aligns) > 0:
-                break
-        assert trial_aligns is not None, f"Cannot find any trial align event in {cell_session_node}," \
-            f" as its timeline is {cell_session_node.data.timeline}"
-
-        # split the cell session into trials
-        trial_nodes = []
-        for trial_id, (trial_t, trial_v) in enumerate(trial_aligns):
-            trial_coordinate = TemporalObjectCoordinate(
-                temporal_uid=cell_session_node.coordinate.temporal_uid.child_uid(chunk_id=trial_id),
-                object_uid=cell_session_node.coordinate.object_uid)
-            trial_neural_data = cell_session_node.data.segment(
-                start_t=trial_t + TRIAL_RANGE_RELATIVE_TO_ALIGNMENT[0],
-                end_t=trial_t + TRIAL_RANGE_RELATIVE_TO_ALIGNMENT[1])
-            trial_nodes.append(
-                Trial(
-                    coordinate=trial_coordinate,
-                    data=trial_neural_data
-                )
-            )
-        return trial_nodes
-    
     return trial_splitter_default(cell_session_node)
-        
+
+def SplitSession2FovTrial(session_node: Session) -> List[FovTrial]: 
+    """Split a session node into multiple fov trial nodes."""
+    return trial_splitter_default(session_node)
+
 
 def cohort_loader(template_id: str, cohort_id: str, name: Optional[str] = None) -> DataSet:
     """
@@ -266,6 +276,12 @@ def cohort_loader(template_id: str, cohort_id: str, name: Optional[str] = None) 
                                   desc="Splitting cell session to trials", unit="cell session"):
         assert isinstance(cell_session_node, CellSession)
         loaded_data.add_node(SplitCellSession2Trial(cell_session_node))
+        
+    # Session to FovTrial
+    for session_node in tqdm(loaded_data.select("session"), 
+                                  desc="Splitting session to fov trials", unit="session"):
+        assert isinstance(session_node, Session)
+        loaded_data.add_node(SplitSession2FovTrial(session_node))
 
     return loaded_data
 

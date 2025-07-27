@@ -84,10 +84,11 @@ def stack_view(
     # 2. plot fluorescence
     if plot_manual.fluorescence:    
         valid_fluorescence = select_truthy_items([node.data.fluorescence for node in dataset_synced])    
+        cell_id_flag = valid_fluorescence[0].num_cell > 1
         for cell_id in range(valid_fluorescence[0].num_cell):
             y_offset = yield unit_plot_single_cell_fluorescence(
                 fluorescence=[fluorescence.extract_cell(cell_id) for fluorescence in valid_fluorescence], 
-                ax=ax, y_offset=y_offset, ratio=FLUORESCENCE_RATIO)
+                ax=ax, y_offset=y_offset, ratio=FLUORESCENCE_RATIO, cell_id_flag=cell_id_flag)
 
     # 3. plot behavior  
     if plot_manual.lick:    

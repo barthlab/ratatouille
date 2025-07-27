@@ -1,4 +1,5 @@
 from typing import Tuple
+import numpy as np
 
 from kitchen.plotter.plotting_manual import PlotManual
 from kitchen.settings.plotting import PLOTTING_OVERLAP_HARSH_MODE
@@ -6,7 +7,7 @@ from kitchen.structure.hierarchical_data_structure import DataSet
 from kitchen.utils.sequence_kit import find_only_one, select_from_key
 
 
-def sync_nodes(dataset: DataSet, sync_events: Tuple[str], plot_manual: PlotManual=PlotManual()):
+def sync_check(dataset: DataSet, sync_events: Tuple[str], plot_manual: PlotManual=PlotManual()):    
     # assert len(dataset) >= 2, f"Dataset should have at least 2 nodes for sync check, got {len(dataset)}"
 
     if PLOTTING_OVERLAP_HARSH_MODE:
@@ -19,10 +20,21 @@ def sync_nodes(dataset: DataSet, sync_events: Tuple[str], plot_manual: PlotManua
         assert node.data.timeline is not None, f"Cannot find timeline in {node}"
         find_only_one(node.data.timeline.v, _self=lambda x: x in sync_events)
     
-    # """All nodes should have same group of cells"""
-    # all_cells = [tuple(node.data.fluorescence.cell_idx) for node in dataset if node.data.fluorescence is not None]
-    # assert all(cells == all_cells[0] for cells in all_cells), f"Number of cells mismatch, got {all_cells}"
-    
+    """All nodes should have same number of cells"""
+    if plot_manual.fluorescence:
+        all_cells = [node.data.fluorescence.num_cell for node in dataset if node.data.fluorescence is not None]
+        assert len(set(all_cells)) == 1, f"Number of cells mismatch, got {all_cells}"
+        if all_cells[0] > 1:
+            """If nodes have multiple cells, all nodes should have same cell idx"""
+            all_cell_idx = [node.data.fluorescence.cell_idx for node in dataset if node.data.fluorescence is not None]
+            assert all(np.array_equal(cell_idx, all_cell_idx[0]) for cell_idx in all_cell_idx), f"Cell idx mismatch, got {all_cell_idx}"
+            all_node_object_uid = [node.object_uid for node in dataset if node.data.fluorescence is not None]
+            assert len(set(all_node_object_uid)) == 1, f"Object uid mismatch, got {all_node_object_uid}"
+        
+
+def sync_nodes(dataset: DataSet, sync_events: Tuple[str], plot_manual: PlotManual=PlotManual()):
+    sync_check(dataset, sync_events, plot_manual)
+
     """Align all nodes to the given sync events"""
     synced_nodes = []
     for node in dataset:

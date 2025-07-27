@@ -23,10 +23,13 @@ def main():
     dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
 
     plot_manual = PlotManual(lick=True, locomotion=True, whisker=True, pupil=True)  
+    
+    # water omission
     water_omission_response_compare(dataset, plot_manual)
     mice_water_omission_overview(dataset, plot_manual)
     mice_water_omission_summary(dataset, plot_manual)
 
+    # fov overview
     for fov_node in dataset.select(hash_key="fov"):
         assert isinstance(fov_node, Fov)
         fov_trial_avg_default(fov_node, dataset, plot_manual=plot_manual)
