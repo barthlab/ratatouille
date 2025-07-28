@@ -40,7 +40,11 @@ TRIAL_ALIGN_EVENT_DEFAULT = (
     ),
     (
         "BuzzerOn",
-    )
+    ),
+    (
+        "WaterOn",
+        "NoWaterOn",
+    ),
 )
 
 STIMULUS_EVENTS_DEFAULT = (

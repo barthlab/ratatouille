@@ -1,7 +1,7 @@
 import os.path as path
 import warnings
 
-from kitchen.plotter.macros.basic_macros import fov_overview, fov_trial_avg_default, node_trial_avg_default, session_overview
+from kitchen.plotter.macros.basic_macros import fov_overview, fov_summary_trial_avg_default, single_node_trial_avg_default, session_overview
 from kitchen.plotter.macros.water_omission_macros import mice_water_omission_overview, mice_water_omission_summary, water_omission_response_compare
 from kitchen.plotter.plotting_manual import PlotManual
 from kitchen.structure.hierarchical_data_structure import Fov, Session
@@ -9,7 +9,7 @@ import kitchen.video.format_converter as format_converter
 import kitchen.video.custom_extraction as custom_extraction
 import kitchen.loader.hierarchical_loader as hier_loader
 
-warnings.filterwarnings("ignore")
+# warnings.filterwarnings("ignore")
 
 def preprocessing():
     hft_data_path = r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\HeadFixedTraining_SurpriseSignal"
@@ -32,15 +32,8 @@ def main():
     # fov overview
     for fov_node in dataset.select(hash_key="fov"):
         assert isinstance(fov_node, Fov)
-        fov_trial_avg_default(fov_node, dataset, plot_manual=plot_manual)
+        fov_summary_trial_avg_default(fov_node, dataset, plot_manual=plot_manual)
         fov_overview(fov_node, dataset, plot_manual=plot_manual)
-
-    # for fovday_node in dataset.select(hash_key="fovday", mice_id="M002_PB_2420M", coordinate=lambda coordinate:(coordinate.day_id > "20250703")):
-    #     for session_node in dataset.subtree(fovday_node).select(hash_key="session"):
-    #         assert isinstance(session_node, Session)
-    #         session_overview(session_node, plot_manual=plot_manual)
-    #         node_trial_avg_default(session_node, dataset, plot_manual=plot_manual)
-    #     node_trial_avg_default(fovday_node, dataset, plot_manual=plot_manual)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,8 @@
 /cuisine/*
 /ingredients/*
+!/ingredients/dataset_template/*
+/ingredients/dataset_template/*.avi
+/ingredients/dataset_template/*.h264
 ai_code.py
 
 # Byte-compiled / optimized / DLL files

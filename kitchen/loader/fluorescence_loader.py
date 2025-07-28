@@ -74,6 +74,8 @@ def fluorescence_loader_from_fov(
             df = ttl_array.parse(sheet_name, header=0).to_numpy()
             assert df.shape[1] == 2, f"Cannot find 2 columns in {ttl_file_path} {sheet_name}"     
             ttl_t = df[:, 0]/1000
+
+            # alignment happens here
             timeline_t = timeline.filter(TTL_EVENT_DEFAULT)
 
             """match ttl and timeline"""

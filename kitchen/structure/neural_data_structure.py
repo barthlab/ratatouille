@@ -95,7 +95,6 @@ class TimeSeries:
         return self.__class__(v=self.v.copy(), t=self.t - align_time)
 
 
-
 @dataclass
 class Events:
     v: np.ndarray
