@@ -1,7 +1,6 @@
 
 from typing import Dict
 from kitchen.settings.timeline import REWARD_EVENTS_DEFAULT, STIMULUS_EVENTS_DEFAULT
-from kitchen.structure.hierarchical_data_structure import DataSet
 
 # pre-defined rules
 PREDEFINED_RULES: Dict[str, dict] = {

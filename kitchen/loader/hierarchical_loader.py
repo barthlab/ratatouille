@@ -1,3 +1,4 @@
+from itertools import zip_longest
 from typing import List, Optional, overload
 import os
 import os.path as path
@@ -81,7 +82,7 @@ def SplitFov2Session(fov_node: Fov) -> List[Session]:
 
     """Load fluorescence and behavior from fov node."""
     session_nodes = []
-    for fluorescence, behavior_dict, (session_coordinate, timeline) in zip(
+    for fluorescence, behavior_dict, (session_coordinate, timeline) in zip_longest(
         fluorescence_loader_from_fov(fov_node, timeline_dict),
         behavior_loader_from_fov(fov_node, timeline_dict),
         timeline_dict.items()

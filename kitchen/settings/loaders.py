@@ -12,4 +12,25 @@ This provides more flexibility but requires unique file naming conventions to id
 """
 
 
+from typing import Callable, Generator, List, Optional
+
+
 DATA_HODGEPODGE_MODE = False 
+
+
+
+SPECIFIED_TIMELINE_LOADER = "io_default"
+SPECIFIED_FLUORESCENCE_LOADER = "io_default"
+SPECIFIED_BEHAVIOR_LOADER = "io_default"
+
+
+
+
+def io_enumerator(dir_path: str, io_funcs: List[Callable[[str], Generator]], specified_io: Optional[str] = None) -> Generator:
+    try:
+        assert specified_io is not None
+        for io_func in io_funcs:
+            if io_func.__name__ == specified_io:
+                yield from io_func(dir_path)
+    except Exception as e:
+        print(f"Cannot load data via {specified_io}: {e}")

@@ -7,7 +7,7 @@ import pandas as pd
 
 from kitchen.configs import routing
 from kitchen.settings.behavior import LICK_INACTIVATE_WINDOW, LOCOMOTION_CIRCUMFERENCE, LOCOMOTION_NUM_TICKS, VIDEO_EXTRACTED_BEHAVIOR_MIN_MAX_PERCENTILE, VIDEO_EXTRACTED_BEHAVIOR_TYPES
-from kitchen.settings.loaders import DATA_HODGEPODGE_MODE
+from kitchen.settings.loaders import DATA_HODGEPODGE_MODE, SPECIFIED_BEHAVIOR_LOADER, io_enumerator
 from kitchen.structure.hierarchical_data_structure import Fov
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate
 from kitchen.structure.neural_data_structure import Events, TimeSeries, Timeline
@@ -19,7 +19,13 @@ def behavior_loader_from_fov(
         fov_node: Fov,
         timeline_dict: Dict[TemporalObjectCoordinate, Timeline]) -> \
             Generator[Dict[str, Any], None, None]:
-    """Load behavioral data (lick, locomotion, pupil, etc.) for all sessions within a FOV."""
+    """
+    Load behavioral data (lick, locomotion, pupil, etc.) for all sessions within a FOV.
+    
+    All custom io function should follow the same strucutre:
+    1. For each session, load all behavioral data.
+    2. Yield a dictionary containing all behavioral data for the session.
+    """
     
     def io_default(dir_path: str) -> Generator[Dict[str, Optional[TimeSeries | Events]], None, None]:
         for session_coordinate, timeline in timeline_dict.items():
@@ -100,14 +106,42 @@ def behavior_loader_from_fov(
                     warnings.warn(f"Cannot load {behavior_type} from {dir_path}: {e}")           
 
             yield session_behavior
+    
+    def io_matt_test(dir_path: str) -> Generator[Dict[str, Optional[TimeSeries | Events]], None, None]:
+        """Matt test mode. Only locomotion."""
+        for session_coordinate, timeline in timeline_dict.items():
+            session_behavior = {}
 
+            """load locomotion"""                
+            try:
+                assert not DATA_HODGEPODGE_MODE, "Matt test mode only works in default data mode."
+                locomotion_path = path.join(dir_path, "locomotion",
+                                            f"distance_data_{session_coordinate.temporal_uid.session_id}.csv")
+                
+                # check if locomotion file exists
+                assert path.exists(locomotion_path), f"Cannot find locomotion path: {locomotion_path}"
+                locomotion_data = pd.read_csv(locomotion_path, header=0).to_numpy()
+                assert locomotion_data.shape[1] == 3, f"Cannot find 3 column in {locomotion_path}"
+                
+                # calculate delta distance            
+                positions = np.array(locomotion_data[:, 1], dtype=np.float32)
+                times = np.array(locomotion_data[:, 0] / 1000, dtype=np.float32)
+                delta_dist = (positions[1:] - positions[:-1]) * LOCOMOTION_CIRCUMFERENCE / LOCOMOTION_NUM_TICKS
+
+                # create position and locomotion events
+                position_events = Events(v=(positions % LOCOMOTION_NUM_TICKS) / LOCOMOTION_NUM_TICKS, t=times)     
+                locomotion_events = Events(v=delta_dist, t=times[1:])     
+                session_behavior["position"] = position_events
+                session_behavior["locomotion"] = locomotion_events
+            except Exception as e:
+                warnings.warn(f"Cannot load locomotion from {dir_path}: {e}")     
+
+            yield session_behavior
+    
+    
     default_fov_data_path = routing.default_data_path(fov_node)
-    n_session = len(timeline_dict)
 
     """Load behavior from fov node."""
-    try:
-        yield from io_default(default_fov_data_path)
-    except Exception as e:
-        warnings.warn(f"Cannot load behavior from {default_fov_data_path}: {e}")
-        for _ in range(n_session):
-            yield {}
+    yield from io_enumerator(default_fov_data_path, 
+                             [io_default, io_matt_test], 
+                             SPECIFIED_BEHAVIOR_LOADER)

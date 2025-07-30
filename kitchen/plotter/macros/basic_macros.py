@@ -126,6 +126,7 @@ def single_node_trial_avg_default(
     n_trial_types = len(trial_types)
     for alignment_name, alignment_events in ALIGNMENT_STYLE.items():
         try:
+            assert n_trial_types > 0, f"Cannot find any trial type for {get_node_name(node)}"
             default_style(
                 mosaic_style=[[f"{get_node_name(node)}\n{trial_type}"
                             for trial_type in trial_types.keys()],],

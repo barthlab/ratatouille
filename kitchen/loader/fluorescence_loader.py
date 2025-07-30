@@ -1,6 +1,5 @@
 import os.path as path
 from typing import Dict, Generator, Optional
-import warnings
 import numpy as np
 import pandas as pd
 from scipy.io import loadmat
@@ -8,7 +7,7 @@ from scipy.io import loadmat
 
 from kitchen.configs import routing
 from kitchen.settings.fluorescence import CROP_BEGGINNG, DEFAULT_RECORDING_DURATION, FAST_MATCHING_MODE, NULL_TTL_OFFSET
-from kitchen.settings.loaders import DATA_HODGEPODGE_MODE
+from kitchen.settings.loaders import DATA_HODGEPODGE_MODE, SPECIFIED_FLUORESCENCE_LOADER, io_enumerator
 from kitchen.settings.timeline import TTL_EVENT_DEFAULT
 from kitchen.structure.hierarchical_data_structure import Fov
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate
@@ -19,9 +18,11 @@ from kitchen.utils.sequence_kit import find_only_one
 def fluorescence_loader_from_fov(
         fov_node: Fov, timeline_dict: Dict[TemporalObjectCoordinate, Timeline]) -> Generator[Optional[Fluorescence], None, None]:
 
-    def load_fall_mat(data_dir: str, session_duration: float) -> Generator[Fluorescence, None, None]:    
+    def load_fall_mat(data_dir: str, session_duration: float,
+                      n_session: int,
+                      hodgepodge_mode: bool = DATA_HODGEPODGE_MODE) -> Generator[Fluorescence, None, None]:    
         """load fall mat file"""
-        if DATA_HODGEPODGE_MODE:
+        if hodgepodge_mode:
             mat_path = find_only_one(routing.search_pattern_file(pattern="Fall.mat", search_dir=data_dir))
         else:
             mat_path = path.join(data_dir, "soma", "Fall.mat") 
@@ -59,6 +60,7 @@ def fluorescence_loader_from_fov(
             )
 
     def io_default(dir_path: str) -> Generator[Fluorescence, None, None]:
+        n_session = len(timeline_dict)
         ttl_file_path = path.join(dir_path, "ttl.xlsx")
         assert path.exists(ttl_file_path), f"Cannot find ttl file: {ttl_file_path}"
 
@@ -68,7 +70,7 @@ def fluorescence_loader_from_fov(
         for sheet_name, (session_coordinate, timeline), fluorescence in zip(
             ttl_array.sheet_names, 
             timeline_dict.items(), 
-            load_fall_mat(dir_path, DEFAULT_RECORDING_DURATION)
+            load_fall_mat(dir_path, DEFAULT_RECORDING_DURATION, n_session)
         ):       
             """load ttl and align to timeline"""
             df = ttl_array.parse(sheet_name, header=0).to_numpy()
@@ -94,9 +96,10 @@ def fluorescence_loader_from_fov(
             yield fluorescence    
 
     def io_lost_ttl(dir_path: str) -> Generator[Fluorescence, None, None]:
+        n_session = len(timeline_dict)
         for (session_coordinate, timeline), fluorescence in zip(
             timeline_dict.items(), 
-            load_fall_mat(dir_path, DEFAULT_RECORDING_DURATION)
+            load_fall_mat(dir_path, DEFAULT_RECORDING_DURATION, n_session)
         ):            
             """align fluorescence to timeline"""
             task_start, _ = timeline.task_time()
@@ -105,18 +108,61 @@ def fluorescence_loader_from_fov(
             fluorescence.fov_motion.t -= ttl_to_timeline_offset
             yield fluorescence
 
+    def io_matt_test(dir_path: str) -> Generator[Fluorescence, None, None]:
+        n_session = len(timeline_dict)
+        ttl_file_path = path.join(dir_path, "ttl.xlsx")
+        assert path.exists(ttl_file_path), f"Cannot find ttl file: {ttl_file_path}"
+
+        """ calculate ttl to timeline offset """
+        ttl_array = pd.ExcelFile(ttl_file_path)
+        assert len(ttl_array.sheet_names) == 2 * n_session, f"Cannot find 2*{n_session} sheets in {ttl_file_path}"
+        
+        # load cell permutation matrix
+        permutation_matrix = pd.read_csv(routing.search_pattern_file(pattern="*_roi_sheet_*.csv", search_dir=dir_path)[0], header=0)
+        for session_coordinate in timeline_dict.keys():
+            assert session_coordinate.day_id in permutation_matrix.columns, f"Cannot find {session_coordinate.day_id} in {permutation_matrix.columns}"
+        for sheet_name, (session_coordinate, timeline) in zip(
+            ttl_array.sheet_names[::2], 
+            timeline_dict.items(), 
+        ):      
+            fluorescence = load_fall_mat(
+                path.join(dir_path, "soma", session_coordinate.day_id),
+                  DEFAULT_RECORDING_DURATION, 1, hodgepodge_mode=True).__next__()
+            """load ttl and align to timeline"""
+            df = ttl_array.parse(sheet_name, header=0).to_numpy()
+            assert df.shape[1] == 1, f"Cannot find 2 columns in {ttl_file_path} {sheet_name}"     
+            ttl_t = df[:, 0]/1000
+
+            # alignment happens here
+            timeline_t = timeline.filter(TTL_EVENT_DEFAULT)
+
+            """match ttl and timeline"""
+            if FAST_MATCHING_MODE:
+                ttl_to_timeline_offset = ttl_t[0] - timeline_t.t[0]
+            else:
+                assert len(ttl_t) == len(timeline_t.t), f"Cannot match ttl and timeline in {sheet_name}"
+                ttl_to_timeline_offsets = ttl_t - timeline_t.t
+                assert np.allclose(ttl_to_timeline_offsets, ttl_to_timeline_offsets[0]), \
+                    f"Cannot match ttl and timeline in {sheet_name}"
+                ttl_to_timeline_offset = ttl_to_timeline_offsets[0]
+            
+            # permutate cell order
+            permutation = permutation_matrix[session_coordinate.day_id].to_numpy()
+            new_order = [find_only_one(np.where(fluorescence.cell_idx == cell_perm_idx)) for cell_perm_idx in permutation]
+            fluorescence.cell_order = np.array(new_order).squeeze(1)
+            fluorescence.cell_idx = np.arange(len(fluorescence.cell_order))
+            fluorescence.raw_f.v = fluorescence.raw_f.v[fluorescence.cell_order]
+            fluorescence.cell_position = fluorescence.cell_position[fluorescence.cell_order]
+
+            """align fluorescence to timeline"""
+            fluorescence.raw_f.t -= ttl_to_timeline_offset
+            fluorescence.fov_motion.t -= ttl_to_timeline_offset
+            yield fluorescence    
+
+
     default_fov_data_path = routing.default_data_path(fov_node)
-    n_session = len(timeline_dict)
 
     """Load fluorescence from fov node."""
-    success_flag = False
-    for io_func in [io_default, io_lost_ttl]:
-        try:
-            yield from io_func(default_fov_data_path)
-            success_flag = True            
-            break
-        except Exception as e:
-            warnings.warn(f"Cannot load fluorescence from {default_fov_data_path} via {io_func.__name__}: {e}")
-    if not success_flag:
-        for _ in range(n_session):
-            yield None
+    yield from io_enumerator(default_fov_data_path, 
+                             [io_default, io_lost_ttl, io_matt_test], 
+                             SPECIFIED_FLUORESCENCE_LOADER)
