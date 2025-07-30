@@ -25,7 +25,7 @@ def main():
         # single_node_trial_avg_default(fov_node, dataset, plot_manual=plot_manual, trial_rules=PREDEFINED_TRIAL_RULES)
         # fov_summary_trial_avg_default(fov_node, dataset, plot_manual=plot_manual, trial_rules=PREDEFINED_TRIAL_RULES)
         fov_overview(fov_node, dataset, plot_manual=plot_manual)
-        exit()
+       
 
         
 if __name__ == "__main__":
