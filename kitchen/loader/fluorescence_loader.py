@@ -148,6 +148,8 @@ def fluorescence_loader_from_fov(
             
             # permutate cell order
             permutation = permutation_matrix[session_coordinate.day_id].to_numpy()
+            assert set(permutation) == set(fluorescence.cell_idx), \
+                f"Cannot match roi sheet permutation and cell idx in {session_coordinate}: {permutation} vs {fluorescence.cell_idx}"
             new_order = [find_only_one(np.where(fluorescence.cell_idx == cell_perm_idx)) for cell_perm_idx in permutation]
             fluorescence.cell_order = np.array(new_order).squeeze(1)
             fluorescence.cell_idx = np.arange(len(fluorescence.cell_order))
