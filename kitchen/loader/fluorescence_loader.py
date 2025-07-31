@@ -78,14 +78,14 @@ def fluorescence_loader_from_fov(
             ttl_t = df[:, 0]/1000
 
             # alignment happens here
-            timeline_t = timeline.filter(TTL_EVENT_DEFAULT)
+            ttl_aligns = timeline.advanced_filter(TTL_EVENT_DEFAULT)
 
             """match ttl and timeline"""
             if FAST_MATCHING_MODE:
-                ttl_to_timeline_offset = ttl_t[0] - timeline_t.t[0]
+                ttl_to_timeline_offset = ttl_t[0] - ttl_aligns.t[0]
             else:
-                assert len(ttl_t) == len(timeline_t.t), f"Cannot match ttl and timeline in {sheet_name}"
-                ttl_to_timeline_offsets = ttl_t - timeline_t.t
+                assert len(ttl_t) == len(ttl_aligns.t), f"Cannot match ttl and timeline in {sheet_name}"
+                ttl_to_timeline_offsets = ttl_t - ttl_aligns.t
                 assert np.allclose(ttl_to_timeline_offsets, ttl_to_timeline_offsets[0]), \
                     f"Cannot match ttl and timeline in {sheet_name}"
                 ttl_to_timeline_offset = ttl_to_timeline_offsets[0]
@@ -133,15 +133,15 @@ def fluorescence_loader_from_fov(
             assert df.shape[1] == 1, f"Cannot find 2 columns in {ttl_file_path} {sheet_name}"     
             ttl_t = df[:, 0]/1000
 
-            # alignment happens here
-            timeline_t = timeline.filter(TTL_EVENT_DEFAULT)
+            # find the all ttl align event
+            ttl_aligns = timeline.advanced_filter(TTL_EVENT_DEFAULT)
 
             """match ttl and timeline"""
             if FAST_MATCHING_MODE:
-                ttl_to_timeline_offset = ttl_t[0] - timeline_t.t[0]
+                ttl_to_timeline_offset = ttl_t[0] - ttl_aligns.t[0]
             else:
-                assert len(ttl_t) == len(timeline_t.t), f"Cannot match ttl and timeline in {sheet_name}"
-                ttl_to_timeline_offsets = ttl_t - timeline_t.t
+                assert len(ttl_t) == len(ttl_aligns.t), f"Cannot match ttl and timeline in {sheet_name}"
+                ttl_to_timeline_offsets = ttl_t - ttl_aligns.t
                 assert np.allclose(ttl_to_timeline_offsets, ttl_to_timeline_offsets[0]), \
                     f"Cannot match ttl and timeline in {sheet_name}"
                 ttl_to_timeline_offset = ttl_to_timeline_offsets[0]

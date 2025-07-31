@@ -190,12 +190,7 @@ def trial_splitter_default(session_level_node: CellSession | Session) -> List[Tr
     target_node_type = Trial if isinstance(session_level_node, CellSession) else FovTrial
 
     # find the all trial align event
-    trial_aligns = None
-    for trial_align_candidate in TRIAL_ALIGN_EVENT_DEFAULT:
-        trial_aligns = session_level_node.data.timeline.filter(trial_align_candidate)
-        if len(trial_aligns) > 0:
-            break
-    assert trial_aligns is not None, f"Cannot find any trial align event in timeline {session_level_node.data.timeline}"
+    trial_aligns = session_level_node.data.timeline.advanced_filter(TRIAL_ALIGN_EVENT_DEFAULT)
 
     # split the session level node into trial level nodes
     trial_nodes = []

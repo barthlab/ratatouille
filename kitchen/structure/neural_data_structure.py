@@ -210,6 +210,13 @@ class Timeline(Events):
             t=np.array([t for x, t in zip(self.v, self.t) if x in event_types])
         )
 
+    def advanced_filter(self, list_of_event_types: Iterable[str | Iterable[str]]) -> "Timeline":
+        """Extract events of specific types."""
+        for event_types in list_of_event_types:
+            if len(self.filter(event_types)) > 0:
+                return self.filter(event_types)
+        raise ValueError(f"Cannot find any exists event in {list_of_event_types} in timeline {self}")
+
     def task_time(self) -> Tuple[float, float]:
         """Return start and end time of task."""            
         task_start = self.filter("task start").t[0] if "task start" in self.v else 0

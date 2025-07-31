@@ -2,6 +2,7 @@
 
 
 SUPPORTED_TIMELINE_EVENT = {
+    "TrialOn",
     "VerticalPuffOn",
     "VerticalPuffOff",
     "HorizontalPuffOn",
@@ -21,12 +22,24 @@ SUPPORTED_TIMELINE_EVENT = {
 }
 
 TTL_EVENT_DEFAULT = (
-    "VerticalPuffOn",
-    "HorizontalPuffOn",
-    "BlankOn",
-    "Puff",
-    "Blank",
-    )
+    (
+        "TrialOn",
+    ),
+    (
+        "BuzzerOn",
+    ),
+    (        
+        "VerticalPuffOn",
+        "HorizontalPuffOn",
+        "BlankOn",
+        "Puff",
+        "Blank",
+    ),
+    (
+        "WaterOn",
+        "NoWaterOn",
+    ),
+)
 
 TRIAL_ALIGN_EVENT_DEFAULT = (
     (
