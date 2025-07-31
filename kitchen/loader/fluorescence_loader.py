@@ -69,7 +69,7 @@ def fluorescence_loader_from_fov(
         assert len(ttl_array.sheet_names) == n_session, f"Cannot find {n_session} sheets in {ttl_file_path}"
         for sheet_name, (session_coordinate, timeline), fluorescence in zip(
             ttl_array.sheet_names, 
-            timeline_dict.items(), 
+            sorted(timeline_dict.items()), 
             load_fall_mat(dir_path, DEFAULT_RECORDING_DURATION, n_session)
         ):       
             """load ttl and align to timeline"""
@@ -108,7 +108,7 @@ def fluorescence_loader_from_fov(
             fluorescence.fov_motion.t -= ttl_to_timeline_offset
             yield fluorescence
 
-    def io_matt_test(dir_path: str) -> Generator[Fluorescence, None, None]:
+    def io_split_fall(dir_path: str) -> Generator[Fluorescence, None, None]:
         n_session = len(timeline_dict)
         ttl_file_path = path.join(dir_path, "ttl.xlsx")
         assert path.exists(ttl_file_path), f"Cannot find ttl file: {ttl_file_path}"
@@ -166,5 +166,5 @@ def fluorescence_loader_from_fov(
 
     """Load fluorescence from fov node."""
     yield from io_enumerator(default_fov_data_path, 
-                             [io_default, io_lost_ttl, io_matt_test], 
+                             [io_default, io_lost_ttl, io_split_fall], 
                              SPECIFIED_FLUORESCENCE_LOADER)

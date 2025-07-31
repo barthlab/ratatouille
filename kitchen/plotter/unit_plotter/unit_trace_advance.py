@@ -5,7 +5,7 @@ import numpy as np
 from kitchen.operator.grouping import grouping_events_rate, grouping_timeseries
 from kitchen.plotter.unit_plotter.unit_trace import sanity_check
 from kitchen.plotter.utils.fill_plot import oreo_plot, sushi_plot
-from kitchen.settings.fluorescence import DF_F0_SIGN
+from kitchen.settings.fluorescence import DF_F0_SIGN, Z_SCORE_SIGN
 from kitchen.plotter.color_scheme import FLUORESCENCE_COLOR, LOCOMOTION_COLOR, LICK_COLOR, PUPIL_COLOR, WHISKER_COLOR
 from kitchen.plotter.plotting_params import LICK_BIN_SIZE, LOCOMOTION_BIN_SIZE
 from kitchen.plotter.style_dicts import FILL_BETWEEN_STYLE, FLUORESCENCE_TRACE_STYLE, LICK_TRACE_STYLE, LOCOMOTION_TRACE_STYLE, PUPIL_TRACE_STYLE, SUBTRACT_STYLE, WHISKER_TRACE_STYLE
@@ -162,11 +162,11 @@ def unit_subtract_single_cell_fluorescence(
         assert np.all(fluorescence1.cell_idx == fluorescence2.cell_idx), \
             f"Expected same cell, but got {fluorescence1.cell_idx} and {fluorescence2.cell_idx}"
         
-        cell_trace1 = fluorescence1.detrend_f.v[0]
-        ax.plot(fluorescence1.detrend_f.t, cell_trace1 * ratio + y_offset,
+        cell_trace1 = fluorescence1.z_score.v[0]
+        ax.plot(fluorescence1.z_score.t, cell_trace1 * ratio + y_offset,
                 **(FLUORESCENCE_TRACE_STYLE | {"color": subtract_manual.color1}))      
-        cell_trace2 = fluorescence2.detrend_f.v[0]
-        ax.plot(fluorescence2.detrend_f.t, cell_trace2 * ratio + y_offset,
+        cell_trace2 = fluorescence2.z_score.v[0]
+        ax.plot(fluorescence2.z_score.t, cell_trace2 * ratio + y_offset,
                 **(FLUORESCENCE_TRACE_STYLE | {"color": subtract_manual.color2}))      
 
         # add y ticks  
@@ -174,7 +174,7 @@ def unit_subtract_single_cell_fluorescence(
             y_offset, f"Cell {fluorescence1.cell_idx[0]}" if cell_id_flag else "Cell", FLUORESCENCE_COLOR))      
         add_new_yticks(ax, TICK_PAIR(
             y_offset + 1 * ratio,
-            f"1 {DF_F0_SIGN}" if (np.all(fluorescence1.cell_order == 0) or (not cell_id_flag)) else "", FLUORESCENCE_COLOR))
+            f"1 {Z_SCORE_SIGN}" if (np.all(fluorescence1.cell_order == 0) or (not cell_id_flag)) else "", FLUORESCENCE_COLOR))
         
         # plot subtraction
         sushi_plot(ax, cell_trace1, cell_trace2, y_offset, ratio, FILL_BETWEEN_STYLE | SUBTRACT_STYLE)

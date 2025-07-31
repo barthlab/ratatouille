@@ -106,42 +106,11 @@ def behavior_loader_from_fov(
                     warnings.warn(f"Cannot load {behavior_type} from {dir_path}: {e}")           
 
             yield session_behavior
-    
-    def io_matt_test(dir_path: str) -> Generator[Dict[str, Optional[TimeSeries | Events]], None, None]:
-        """Matt test mode. Only locomotion."""
-        for session_coordinate, timeline in timeline_dict.items():
-            session_behavior = {}
-
-            """load locomotion"""                
-            try:
-                assert not DATA_HODGEPODGE_MODE, "Matt test mode only works in default data mode."
-                locomotion_path = path.join(dir_path, "locomotion",
-                                            f"distance_data_{session_coordinate.temporal_uid.session_id}.csv")
-                
-                # check if locomotion file exists
-                assert path.exists(locomotion_path), f"Cannot find locomotion path: {locomotion_path}"
-                locomotion_data = pd.read_csv(locomotion_path, header=0).to_numpy()
-                assert locomotion_data.shape[1] == 3, f"Cannot find 3 column in {locomotion_path}"
-                
-                # calculate delta distance            
-                positions = np.array(locomotion_data[:, 1], dtype=np.float32)
-                times = np.array(locomotion_data[:, 0] / 1000, dtype=np.float32)
-                delta_dist = (positions[1:] - positions[:-1]) * LOCOMOTION_CIRCUMFERENCE / LOCOMOTION_NUM_TICKS
-
-                # create position and locomotion events
-                position_events = Events(v=(positions % LOCOMOTION_NUM_TICKS) / LOCOMOTION_NUM_TICKS, t=times)     
-                locomotion_events = Events(v=delta_dist, t=times[1:])     
-                session_behavior["position"] = position_events
-                session_behavior["locomotion"] = locomotion_events
-            except Exception as e:
-                warnings.warn(f"Cannot load locomotion from {dir_path}: {e}")     
-
-            yield session_behavior
-    
+ 
     
     default_fov_data_path = routing.default_data_path(fov_node)
 
     """Load behavior from fov node."""
     yield from io_enumerator(default_fov_data_path, 
-                             [io_default, io_matt_test], 
+                             [io_default, ], 
                              SPECIFIED_BEHAVIOR_LOADER)

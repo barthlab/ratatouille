@@ -4,12 +4,12 @@ FAST_MATCHING_MODE = True  # only match the first event
 
 NULL_TTL_OFFSET = 0.5  # s - if no ttl is found, align the fluorescence to the timeline by this offset
 DF_F0_SIGN = r"$\Delta F/F_0$"
+Z_SCORE_SIGN = r"$z$-score"
 
 
 # process fluorescence
-DETREND_BASELINE_PERCENTILE = 20  # %
 DETREND_BASELINE_WINDOW = 60  # s
-
+FLUORESCENCE_MIN_MAX_PERCENTILE = (10, 90)  # % - percentile for min and max value normalization
 
 # baseline for df/f0
 TRIAL_DF_F0_WINDOW = (-1, 0)  # s

@@ -4,8 +4,8 @@ from typing import Dict, Generator, Optional, Any, Self, Tuple, Iterable
 from functools import cached_property
 
 from kitchen.settings.timeline import SUPPORTED_TIMELINE_EVENT
-from kitchen.settings.fluorescence import DEFAULT_RECORDING_DURATION, DETREND_BASELINE_WINDOW, DETREND_BASELINE_PERCENTILE, TRIAL_DF_F0_WINDOW
-from kitchen.utils.numpy_kit import numpy_percentile_filter, smart_interp
+from kitchen.settings.fluorescence import DEFAULT_RECORDING_DURATION, TRIAL_DF_F0_WINDOW
+from kitchen.utils.numpy_kit import smart_interp
 
 
 @dataclass
@@ -292,11 +292,11 @@ class Fluorescence:
         )
     
     @cached_property
-    def detrend_f(self) -> TimeSeries:
-        """Detrend fluorescence by subtracting the 5th percentile of each cell."""
-        baseline = numpy_percentile_filter(
-            self.raw_f.v, s=int(self.raw_f.fs * DETREND_BASELINE_WINDOW), q=DETREND_BASELINE_PERCENTILE)
-        return TimeSeries(v=np.divide(self.raw_f.v - baseline, baseline, where=baseline!=0) , t=self.raw_f.t)
+    def z_score(self) -> TimeSeries:
+        """ Normalize fluorescence to z-score. """
+        baseline = np.mean(self.raw_f.v, axis=-1, keepdims=True)
+        std = np.std(self.raw_f.v, axis=-1, keepdims=True)
+        return TimeSeries(v=(self.raw_f.v - baseline) / std , t=self.raw_f.t)
     
     @cached_property
     def df_f0(self) -> TimeSeries:

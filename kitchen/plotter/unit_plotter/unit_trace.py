@@ -8,7 +8,7 @@ from kitchen.operator.grouping import grouping_events_rate, grouping_timeseries
 from kitchen.plotter.unit_plotter.unit_yticks import yticks_combo
 from kitchen.plotter.utils.alpha_calculator import calibrate_alpha, ind_alpha
 from kitchen.plotter.utils.fill_plot import oreo_plot
-from kitchen.settings.fluorescence import DF_F0_SIGN
+from kitchen.settings.fluorescence import DF_F0_SIGN, Z_SCORE_SIGN
 from kitchen.plotter.color_scheme import FLUORESCENCE_COLOR, GRAND_COLOR_SCHEME, LICK_COLOR
 from kitchen.plotter.plotting_params import LICK_BIN_SIZE, LOCOMOTION_BIN_SIZE, TIME_TICK_DURATION
 from kitchen.plotter.style_dicts import FILL_BETWEEN_STYLE, FLUORESCENCE_TRACE_STYLE, LICK_TRACE_STYLE, LOCOMOTION_TRACE_STYLE, MAX_OVERLAP_ALPHA_NUM_DUE_TO_MATPLOTLLIB_BUG, POSITION_SCATTER_STYLE, LICK_VLINES_STYLE, PUPIL_TRACE_STYLE, TIMELINE_SCATTER_STYLE, VLINE_STYLE, VSPAN_STYLE, WHISKER_TRACE_STYLE
@@ -32,9 +32,12 @@ def unit_plot_locomotion(locomotion: None | Events | list[Events], ax: plt.Axes,
 
     if isinstance(locomotion, Events):
         # plot single locomotion rate
-        plotting_locomotion = locomotion.rate(bin_size=LOCOMOTION_BIN_SIZE)
-        y_height = np.nanmax(plotting_locomotion.v) * ratio    
-        ax.plot(plotting_locomotion.t, plotting_locomotion.v * ratio + y_offset, **LOCOMOTION_TRACE_STYLE)
+        if len(locomotion) > 0:
+            plotting_locomotion = locomotion.rate(bin_size=LOCOMOTION_BIN_SIZE)
+            y_height = np.nanmax(plotting_locomotion.v) * ratio    
+            ax.plot(plotting_locomotion.t, plotting_locomotion.v * ratio + y_offset, **LOCOMOTION_TRACE_STYLE)
+        else:
+            y_height = 0        
     else:
         # plot multiple locomotion rates
         group_locomotion = grouping_events_rate(locomotion, bin_size=LOCOMOTION_BIN_SIZE)
@@ -187,15 +190,15 @@ def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[
     if isinstance(fluorescence, Fluorescence):
         # plot single cell fluorescence
         assert fluorescence.num_cell == 1, f"Expected 1 cell, but got {fluorescence.num_cell}"
-        cell_trace = fluorescence.detrend_f.v[0]
-        ax.plot(fluorescence.detrend_f.t, cell_trace * ratio + y_offset, **FLUORESCENCE_TRACE_STYLE)      
+        cell_trace = fluorescence.z_score.v[0]
+        ax.plot(fluorescence.z_score.t, cell_trace * ratio + y_offset, **FLUORESCENCE_TRACE_STYLE)      
 
         # add y ticks  
         add_new_yticks(ax, TICK_PAIR(
             y_offset, f"Cell {fluorescence.cell_idx[0]}" if cell_id_flag else "Cell", FLUORESCENCE_COLOR))      
         add_new_yticks(ax, TICK_PAIR(
             y_offset + 1 * ratio,
-            f"1 {DF_F0_SIGN}" if (np.all(fluorescence.cell_order == 0) or (not cell_id_flag)) else "", FLUORESCENCE_COLOR))
+            f"1 {Z_SCORE_SIGN}" if (np.all(fluorescence.cell_order == 0) or (not cell_id_flag)) else "", FLUORESCENCE_COLOR))
         return max(np.nanmax(cell_trace) * ratio, 1*ratio)
 
     # plot multiple cell fluorescence

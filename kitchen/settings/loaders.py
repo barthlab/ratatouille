@@ -18,9 +18,11 @@ from typing import Callable, Generator, List, Optional
 DATA_HODGEPODGE_MODE = False 
 
 
-SPECIFIED_TIMELINE_LOADER = "io_matt_test"  # io_default, io_matt_test, io_old
-SPECIFIED_FLUORESCENCE_LOADER = "io_matt_test"  # io_default, io_lost_ttl, io_matt_test
-SPECIFIED_BEHAVIOR_LOADER = "io_matt_test"  # io_default, io_matt_test
+SPECIFIED_TIMELINE_LOADER = "io_default"  # io_default, io_old
+SPECIFIED_FLUORESCENCE_LOADER = "io_default"  # io_default, io_lost_ttl, io_split_fall
+SPECIFIED_BEHAVIOR_LOADER = "io_default"  # io_default
+
+MATT_NAME_STYLE_FLAG = True  # Flag for day_id detection from TIMELINE file, at position 3 start with D
 
 
 def io_enumerator(dir_path: str, io_funcs: List[Callable[[str], Generator]], specified_io: Optional[str] = None) -> Generator:
