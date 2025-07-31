@@ -48,7 +48,7 @@ def timeline_loader_from_fov(fov_node: Fov) -> Generator[Tuple[str, str, Timelin
                 assert session_name is not None, f"Cannot extract session name from {filename}"
                 session_name = session_name.group(1)
                 if MATT_NAME_STYLE_FLAG:                    
-                    day_name = filename.split("_")[3]
+                    day_name = filename.split("_")[2]
                     assert day_name.startswith("D"), f"Expected day name to start with 'D' in {filename}"
                     day_name = day_name[1:].zfill(2)
                 else:
