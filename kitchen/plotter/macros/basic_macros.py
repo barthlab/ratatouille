@@ -18,6 +18,7 @@ from kitchen.configs import routing
 from kitchen.configs.naming import get_node_name
 from kitchen.plotter.ax_plotter.advance_plot import subtract_view
 from kitchen.plotter.plotting_manual import CHECK_PLOT_MANUAL, PlotManual
+from kitchen.plotter.plotting_params import UNIT_X_INCHES, UNIT_Y_INCHES
 from kitchen.plotter.unit_plotter.unit_trace_advance import SUBTRACT_MANUAL
 from kitchen.settings.timeline import ALIGNMENT_STYLE
 from kitchen.structure.hierarchical_data_structure import Fov, Node, Session, DataSet
@@ -48,17 +49,19 @@ def session_overview(
     """
     session_name = get_node_name(session_node)
     session_dataset = DataSet(name=session_name, nodes=[session_node])
-    default_style(
-        mosaic_style=[[session_name,],],
-        content_dict={
-            session_name: (
-                partial(flat_view, plot_manual=plot_manual),
-                session_dataset)
-            },
-        figsize=(5, 2),
-        save_path=routing.default_fig_path(session_dataset, "SessionOverview_{}.png"),
-    )
-
+    try:
+        default_style(
+            mosaic_style=[[session_name,],],
+            content_dict={
+                session_name: (
+                    partial(flat_view, plot_manual=plot_manual),
+                    session_dataset)
+                },
+            figsize=(5, UNIT_Y_INCHES),
+            save_path=routing.default_fig_path(session_dataset, "SessionOverview_{}.png"),
+        )
+    except Exception as e:
+        warnings.warn(f"Cannot plot session overview for {get_node_name(session_node)}: {e}")
 
 def fov_overview(
         fov_node: Fov,
@@ -82,17 +85,20 @@ def fov_overview(
     """
     session_nodes = dataset.subtree(fov_node).select("session")
     n_session = len(session_nodes)
-    default_style(
-        mosaic_style=[[get_node_name(session_node),] for session_node in session_nodes],
-        content_dict={
-            get_node_name(session_node): (
-                partial(flat_view, plot_manual=plot_manual),
-                DataSet(name=session_node.session_id, nodes=[session_node]))
-            for session_node in session_nodes
-            },
-        figsize=(5, 2 * n_session),
-        save_path=routing.default_fig_path(session_nodes, "FovOverview_{}.png"),
-    )
+    try:
+        default_style(
+            mosaic_style=[[get_node_name(session_node),] for session_node in session_nodes],
+            content_dict={
+                get_node_name(session_node): (
+                    partial(flat_view, plot_manual=plot_manual),
+                    DataSet(name=session_node.session_id, nodes=[session_node]))
+                for session_node in session_nodes
+                },
+            figsize=(5, UNIT_Y_INCHES * n_session),
+            save_path=routing.default_fig_path(session_nodes, "FovOverview_{}.png"),
+        )
+    except Exception as e:
+        warnings.warn(f"Cannot plot fov overview for {get_node_name(fov_node)}: {e}")
 
 
 def single_node_trial_avg_default(
@@ -136,7 +142,7 @@ def single_node_trial_avg_default(
                         trial_dataset)
                     for trial_type, trial_dataset in trial_types.items()
                     },
-                figsize=(n_trial_types * 1.5, 1.5),
+                figsize=(n_trial_types * UNIT_X_INCHES, UNIT_Y_INCHES),
                 save_path=routing.default_fig_path(subtree, f"TrialAvg_{{}}_{alignment_name}.png"),
             )
         except Exception as e:
@@ -207,7 +213,7 @@ def fov_summary_trial_avg_default(
             default_style(
                 mosaic_style=total_mosaic,
                 content_dict=content_dict,
-                figsize=(max_n_col * 1.5, 1.5 * len(total_mosaic)),
+                figsize=(max_n_col * UNIT_X_INCHES, UNIT_Y_INCHES * len(total_mosaic)),
                 save_path=routing.default_fig_path(dataset.subtree(fov_node), f"FOVSummary_{{}}_{alignment_name}.png"),
             )
         except Exception as e:

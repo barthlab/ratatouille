@@ -29,3 +29,9 @@ TIME_TICK_DURATION = 200  # s
 # Annotation 
 ANNOTATION_OFFSET_FACTOR = 0.1
 ANNOTATION_BBOX_HEIGHT_FACTOR = 0.5
+
+
+# Figure params
+DPI = 300
+UNIT_Y_INCHES = 4  # inches
+UNIT_X_INCHES = 1.5  # inches

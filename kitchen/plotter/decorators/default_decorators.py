@@ -2,6 +2,7 @@ import os
 from typing import Generator, List, Mapping, Tuple, Callable, Any, Optional
 from matplotlib import pyplot as plt
 
+from kitchen.plotter.plotting_params import DPI
 from kitchen.structure.hierarchical_data_structure import DataSet
 from kitchen.utils.sequence_kit import zip_dicts
 
@@ -109,7 +110,7 @@ def default_style(
     # Save or show the figure
     if save_path:        
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        fig.savefig(save_path, dpi=600)
+        fig.savefig(save_path, dpi=DPI)
         print(f"Plot saved to {save_path}")
     else:
         plt.show()
