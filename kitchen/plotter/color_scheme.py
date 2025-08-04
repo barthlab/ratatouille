@@ -18,6 +18,11 @@ BLANK_COLOR = "lightgray"
 WATER_COLOR = "cornflowerblue"
 NOWATER_COLOR = "orangered"
 BUZZER_COLOR = "darkorange"
+DARK_PUFF_COLOR = "gray"
+DARK_BLANK_COLOR = "gray"
+DARK_WATER_COLOR = "blue"
+DARK_NOWATER_COLOR = "red"
+DARK_BUZZER_COLOR = "chocolate"
 
 # Event color scheme
 REWARD_TRIAL_COLOR = "#298c8c"

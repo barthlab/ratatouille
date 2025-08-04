@@ -34,7 +34,8 @@ def smart_path_append(prev_path, new_name: str) -> str:
 def default_data_path(node: Node, check_exist: bool = True) -> str:
     """Generate the default file system path for a node's data."""
     node_obj_uid = node.coordinate.object_uid
-    node_data_path = robust_path_join(DATA_PATH, *[value for name, value in node_obj_uid if value is not None])
+    node_data_path = robust_path_join(DATA_PATH, node.coordinate.temporal_uid.template_id, 
+                                      *[value for name, value in node_obj_uid if value is not None])
     if check_exist:
         assert path.exists(node_data_path), f"Cannot find data path: {node_data_path}"
     return node_data_path
@@ -44,6 +45,7 @@ def default_fig_path(dataset: DataSet, fig_name: Optional[str] = None) -> str:
     """Generate the default file system path for a dataset's figures."""
     root_coordinate = dataset.root_coordinate
     fig_path_values = [
+        root_coordinate.temporal_uid.template_id,
         root_coordinate.object_uid.cohort_id,
         root_coordinate.object_uid.mice_id,
         root_coordinate.object_uid.fov_id,

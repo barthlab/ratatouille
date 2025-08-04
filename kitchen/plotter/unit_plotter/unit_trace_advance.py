@@ -7,7 +7,7 @@ from kitchen.plotter.unit_plotter.unit_trace import sanity_check
 from kitchen.plotter.utils.fill_plot import oreo_plot, sushi_plot
 from kitchen.settings.fluorescence import DF_F0_SIGN, Z_SCORE_SIGN
 from kitchen.plotter.color_scheme import FLUORESCENCE_COLOR, LOCOMOTION_COLOR, LICK_COLOR, PUPIL_COLOR, WHISKER_COLOR
-from kitchen.plotter.plotting_params import LICK_BIN_SIZE, LOCOMOTION_BIN_SIZE
+from kitchen.plotter.plotting_params import LICK_BIN_SIZE, LOCOMOTION_BIN_SIZE, RAW_FLUORESCENCE_RATIO
 from kitchen.plotter.style_dicts import FILL_BETWEEN_STYLE, FLUORESCENCE_TRACE_STYLE, LICK_TRACE_STYLE, LOCOMOTION_TRACE_STYLE, PUPIL_TRACE_STYLE, SUBTRACT_STYLE, WHISKER_TRACE_STYLE
 from kitchen.plotter.utils.tick_labels import TICK_PAIR, add_new_yticks
 from kitchen.structure.neural_data_structure import Events, Fluorescence, TimeSeries
@@ -162,12 +162,13 @@ def unit_subtract_single_cell_fluorescence(
         assert np.all(fluorescence1.cell_idx == fluorescence2.cell_idx), \
             f"Expected same cell, but got {fluorescence1.cell_idx} and {fluorescence2.cell_idx}"
         
+        ratio *= RAW_FLUORESCENCE_RATIO
         cell_trace1 = fluorescence1.z_score.v[0]
         ax.plot(fluorescence1.z_score.t, cell_trace1 * ratio + y_offset,
-                **(FLUORESCENCE_TRACE_STYLE | {"color": subtract_manual.color1}))      
+                **(FLUORESCENCE_TRACE_STYLE | {"color": subtract_manual.color1, "lw": FLUORESCENCE_TRACE_STYLE["lw"] * RAW_FLUORESCENCE_RATIO}))      
         cell_trace2 = fluorescence2.z_score.v[0]
         ax.plot(fluorescence2.z_score.t, cell_trace2 * ratio + y_offset,
-                **(FLUORESCENCE_TRACE_STYLE | {"color": subtract_manual.color2}))      
+                **(FLUORESCENCE_TRACE_STYLE | {"color": subtract_manual.color2, "lw": FLUORESCENCE_TRACE_STYLE["lw"] * RAW_FLUORESCENCE_RATIO}))      
 
         # add y ticks  
         add_new_yticks(ax, TICK_PAIR(

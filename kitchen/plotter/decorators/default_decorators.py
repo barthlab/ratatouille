@@ -2,7 +2,7 @@ import os
 from typing import Generator, List, Mapping, Tuple, Callable, Any, Optional
 from matplotlib import pyplot as plt
 
-from kitchen.plotter.plotting_params import DPI
+from kitchen.plotter.plotting_params import DPI, NORMALIZED_PROGRESS_YLIM
 from kitchen.structure.hierarchical_data_structure import DataSet
 from kitchen.utils.sequence_kit import zip_dicts
 
@@ -24,6 +24,7 @@ def default_style(
         uniform_xlabel: str = "", 
         uniform_ylabel: str = "",
         auto_title: bool = True,
+        auto_yscale: bool = True,
         default_padding: float = 0.5,
 ):
     # Set default font size
@@ -106,6 +107,10 @@ def default_style(
             else:
                 text = f"n = {', '.join(str(len(dataset)) for dataset in datasets)}"
             ax.text(1, 1, text, transform=ax.transAxes, va='top', ha='right')
+
+    # Adjust figsize
+    if auto_yscale:
+        fig.set_size_inches(figsize[0], figsize[1] * progress / NORMALIZED_PROGRESS_YLIM)
 
     # Save or show the figure
     if save_path:        

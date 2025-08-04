@@ -10,7 +10,7 @@ from kitchen.plotter.utils.alpha_calculator import calibrate_alpha, ind_alpha
 from kitchen.plotter.utils.fill_plot import oreo_plot
 from kitchen.settings.fluorescence import DF_F0_SIGN, Z_SCORE_SIGN
 from kitchen.plotter.color_scheme import FLUORESCENCE_COLOR, GRAND_COLOR_SCHEME, LICK_COLOR
-from kitchen.plotter.plotting_params import LICK_BIN_SIZE, LOCOMOTION_BIN_SIZE, TIME_TICK_DURATION
+from kitchen.plotter.plotting_params import LICK_BIN_SIZE, LOCOMOTION_BIN_SIZE, RAW_FLUORESCENCE_RATIO, TIME_TICK_DURATION
 from kitchen.plotter.style_dicts import FILL_BETWEEN_STYLE, FLUORESCENCE_TRACE_STYLE, LICK_TRACE_STYLE, LOCOMOTION_TRACE_STYLE, MAX_OVERLAP_ALPHA_NUM_DUE_TO_MATPLOTLLIB_BUG, POSITION_SCATTER_STYLE, LICK_VLINES_STYLE, PUPIL_TRACE_STYLE, TIMELINE_SCATTER_STYLE, VLINE_STYLE, VSPAN_STYLE, WHISKER_TRACE_STYLE
 from kitchen.plotter.utils.tick_labels import TICK_PAIR, add_new_yticks
 from kitchen.settings.plotting import PLOTTING_OVERLAP_HARSH_MODE
@@ -133,6 +133,7 @@ def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes,
             if event_type not in TIMELINE_SCATTER_STYLE:
                 continue
             ax.scatter(event_time, y_offset + 0.5 * ratio , **TIMELINE_SCATTER_STYLE[event_type])
+            ax.axvline(x=event_time, color=GRAND_COLOR_SCHEME[event_type], **VLINE_STYLE)
 
         # set x ticks
         try:
@@ -188,10 +189,13 @@ def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[
     assert fluorescence is not None, "Sanity check failed"
 
     if isinstance(fluorescence, Fluorescence):
+        ratio *= RAW_FLUORESCENCE_RATIO
+        
         # plot single cell fluorescence
         assert fluorescence.num_cell == 1, f"Expected 1 cell, but got {fluorescence.num_cell}"
         cell_trace = fluorescence.z_score.v[0]
-        ax.plot(fluorescence.z_score.t, cell_trace * ratio + y_offset, **FLUORESCENCE_TRACE_STYLE)      
+        ax.plot(fluorescence.z_score.t, cell_trace * ratio + y_offset, **(FLUORESCENCE_TRACE_STYLE | 
+                                                                          {"lw": FLUORESCENCE_TRACE_STYLE["lw"] * RAW_FLUORESCENCE_RATIO}))      
 
         # add y ticks  
         add_new_yticks(ax, TICK_PAIR(
