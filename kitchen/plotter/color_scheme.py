@@ -10,6 +10,7 @@ LICK_COLOR = "Red"
 PUPIL_COLOR = "Purple"
 WHISKER_COLOR = "Green"
 FLUORESCENCE_COLOR = "Black"
+INDIVIDUAL_FLUORESCENCE_COLOR = "gray"
 SUBTRACT_COLOR = "dimgray"
 
 # Timeline color scheme

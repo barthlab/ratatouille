@@ -18,14 +18,27 @@ class AdvacedTimeSeries(TimeSeries):
     """
 
     variance: np.ndarray
+    raw_array: np.ndarray
 
     @property
     def mean(self) -> np.ndarray:
-        return self.v
+        return self.v.copy()
     
     @property
     def var(self) -> np.ndarray:
-        return self.variance
+        return self.variance.copy()
+
+    @property
+    def raw(self) -> np.ndarray:
+        return self.raw_array.copy()
+    
+    @property
+    def data_num(self) -> int:
+        return len(self.raw)
+    
+    @property
+    def data_shape(self) -> tuple:
+        return self.raw.shape[1:]
 
     def __post_init__(self):
         """Validate data integrity, including the variance."""
@@ -37,10 +50,15 @@ class AdvacedTimeSeries(TimeSeries):
             )
         if np.any(self.variance < 0):
             raise ValueError("Variance cannot be negative.")
+        if self.data_shape != self.v.shape:
+            raise ValueError(
+                f"Shape of raw array {self.raw.shape} should match "
+                f"shape of mean (v) {self.v.shape}."
+            )
 
     def __neg__(self) -> Self:
         return self.__class__(
-            t=self.t.copy(), v=-self.mean, variance=self.variance.copy()
+            t=self.t.copy(), v=-self.mean, variance=self.variance.copy(), raw_array=-self.raw.copy()
         )
 
     def segment(self, start_t: float, end_t: float) -> Self:
@@ -51,6 +69,7 @@ class AdvacedTimeSeries(TimeSeries):
             v=self.mean.copy(),
             t=self.t - align_time,
             variance=self.variance.copy(),
+            raw_array=self.raw.copy()
         )
 
     def squeeze(self, axis: int) -> Self:
@@ -58,6 +77,7 @@ class AdvacedTimeSeries(TimeSeries):
             v=np.squeeze(self.mean, axis=axis),
             t=self.t,
             variance=np.squeeze(self.variance, axis=axis),
+            raw_array=np.squeeze(self.raw, axis=axis+1)
         )
 
 
@@ -68,7 +88,7 @@ def calculate_group_tuple(arrs: List[np.ndarray], t: np.ndarray) -> AdvacedTimeS
     assert len(t) == arrs[0].shape[-1], f"Time array should have same length as array shape (last dim), got {len(t)} vs {arrs[0].shape}"
     means = np.nanmean(arrs, axis=0)
     variances = stats.sem(arrs, axis=0, nan_policy="omit")
-    return AdvacedTimeSeries(v=means, t=t, variance=variances)
+    return AdvacedTimeSeries(v=means, t=t, variance=variances, raw_array=np.array(arrs))
 
 
 def grouping_events_rate(events: List[Events], bin_size: float) -> AdvacedTimeSeries:

@@ -11,7 +11,7 @@ from kitchen.plotter.utils.fill_plot import oreo_plot
 from kitchen.settings.fluorescence import DF_F0_SIGN, Z_SCORE_SIGN
 from kitchen.plotter.color_scheme import FLUORESCENCE_COLOR, GRAND_COLOR_SCHEME, LICK_COLOR
 from kitchen.plotter.plotting_params import LICK_BIN_SIZE, LOCOMOTION_BIN_SIZE, RAW_FLUORESCENCE_RATIO, TIME_TICK_DURATION
-from kitchen.plotter.style_dicts import FILL_BETWEEN_STYLE, FLUORESCENCE_TRACE_STYLE, LICK_TRACE_STYLE, LOCOMOTION_TRACE_STYLE, MAX_OVERLAP_ALPHA_NUM_DUE_TO_MATPLOTLLIB_BUG, POSITION_SCATTER_STYLE, LICK_VLINES_STYLE, PUPIL_TRACE_STYLE, TIMELINE_SCATTER_STYLE, VLINE_STYLE, VSPAN_STYLE, WHISKER_TRACE_STYLE
+from kitchen.plotter.style_dicts import FILL_BETWEEN_STYLE, FLUORESCENCE_TRACE_STYLE, INDIVIDUAL_FLUORESCENCE_TRACE_STYLE, LICK_TRACE_STYLE, LOCOMOTION_TRACE_STYLE, MAX_OVERLAP_ALPHA_NUM_DUE_TO_MATPLOTLLIB_BUG, POSITION_SCATTER_STYLE, LICK_VLINES_STYLE, PUPIL_TRACE_STYLE, TIMELINE_SCATTER_STYLE, VLINE_STYLE, VSPAN_STYLE, WHISKER_TRACE_STYLE
 from kitchen.plotter.utils.tick_labels import TICK_PAIR, add_new_yticks
 from kitchen.settings.plotting import PLOTTING_OVERLAP_HARSH_MODE
 from kitchen.structure.neural_data_structure import Events, Fluorescence, TimeSeries, Timeline
@@ -182,7 +182,7 @@ def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes,
 
 def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[Fluorescence], 
                                        ax: plt.Axes, y_offset: float, ratio: float = 1.0,
-                                       cell_id_flag: bool = True) -> float:
+                                       cell_id_flag: bool = True, individual_trace_flag: bool = False) -> float:
     """plot a single cell"""
     if not sanity_check(fluorescence):
         return 0
@@ -190,12 +190,12 @@ def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[
 
     if isinstance(fluorescence, Fluorescence):
         ratio *= RAW_FLUORESCENCE_RATIO
+        fluorescence_trace_style = FLUORESCENCE_TRACE_STYLE | {"lw": FLUORESCENCE_TRACE_STYLE["lw"] * RAW_FLUORESCENCE_RATIO}
         
         # plot single cell fluorescence
         assert fluorescence.num_cell == 1, f"Expected 1 cell, but got {fluorescence.num_cell}"
         cell_trace = fluorescence.z_score.v[0]
-        ax.plot(fluorescence.z_score.t, cell_trace * ratio + y_offset, **(FLUORESCENCE_TRACE_STYLE | 
-                                                                          {"lw": FLUORESCENCE_TRACE_STYLE["lw"] * RAW_FLUORESCENCE_RATIO}))      
+        ax.plot(fluorescence.z_score.t, cell_trace * ratio + y_offset, **fluorescence_trace_style)      
 
         # add y ticks  
         add_new_yticks(ax, TICK_PAIR(
@@ -208,6 +208,10 @@ def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[
     # plot multiple cell fluorescence
     group_fluorescence = grouping_timeseries([fluorescence.df_f0 for fluorescence in fluorescence]).squeeze(0)
     oreo_plot(ax, group_fluorescence, y_offset, ratio, FLUORESCENCE_TRACE_STYLE, FILL_BETWEEN_STYLE)
+    if individual_trace_flag:
+        for individual_fluorescence in group_fluorescence.raw:
+            ax.plot(group_fluorescence.t, individual_fluorescence * ratio + y_offset, 
+                    **calibrate_alpha(INDIVIDUAL_FLUORESCENCE_TRACE_STYLE, group_fluorescence.data_num))
 
     # add y ticks
     example_fluorescence = fluorescence[0]
