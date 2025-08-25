@@ -165,11 +165,14 @@ def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes,
     # plot vspan or vline
     for one_timeline in timeline:
         for event_time, event_type in zip(one_timeline.t, one_timeline.v):
-            if "On" not in event_type or event_type not in GRAND_COLOR_SCHEME:
+            if event_type not in GRAND_COLOR_SCHEME:
                 continue
+            if ("On" not in event_type) or (event_type.replace("On", "Off") not in one_timeline.v):
+                ax.axvline(event_time, color=GRAND_COLOR_SCHEME[event_type], 
+                            **calibrate_alpha(VLINE_STYLE, len(all_event[event_type])))
+                continue
+
             end_event = event_type.replace("On", "Off")
-            if end_event not in one_timeline.v:
-                continue
             end_time = one_timeline.filter(end_event).t[0]
             if end_time - event_time >= 0.09:
                 ax.axvspan(event_time, end_time, color=GRAND_COLOR_SCHEME[event_type],
@@ -190,12 +193,11 @@ def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[
 
     if isinstance(fluorescence, Fluorescence):
         ratio *= RAW_FLUORESCENCE_RATIO
-        fluorescence_trace_style = FLUORESCENCE_TRACE_STYLE | {"lw": FLUORESCENCE_TRACE_STYLE["lw"] * RAW_FLUORESCENCE_RATIO}
         
         # plot single cell fluorescence
         assert fluorescence.num_cell == 1, f"Expected 1 cell, but got {fluorescence.num_cell}"
         cell_trace = fluorescence.z_score.v[0]
-        ax.plot(fluorescence.z_score.t, cell_trace * ratio + y_offset, **fluorescence_trace_style)      
+        ax.plot(fluorescence.z_score.t, cell_trace * ratio + y_offset, **FLUORESCENCE_TRACE_STYLE)      
 
         # add y ticks  
         add_new_yticks(ax, TICK_PAIR(

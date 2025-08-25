@@ -14,7 +14,7 @@ INDIVIDUAL_FLUORESCENCE_COLOR = "gray"
 SUBTRACT_COLOR = "dimgray"
 
 # Timeline color scheme
-PUFF_COLOR = "lightgray"
+PUFF_COLOR = "lightgreen"
 BLANK_COLOR = "lightgray"
 WATER_COLOR = "cornflowerblue"
 NOWATER_COLOR = "orangered"

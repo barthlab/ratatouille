@@ -25,7 +25,7 @@ def default_style(
         uniform_ylabel: str = "",
         auto_title: bool = True,
         auto_yscale: bool = True,
-        default_padding: float = 0.5,
+        default_padding: float = 0.1,
 ):
     # Set default font size
     plt.rcParams["font.family"] = "Arial"

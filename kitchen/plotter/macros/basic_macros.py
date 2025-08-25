@@ -18,7 +18,7 @@ from kitchen.configs import routing
 from kitchen.configs.naming import get_node_name
 from kitchen.plotter.ax_plotter.advance_plot import subtract_view
 from kitchen.plotter.plotting_manual import CHECK_PLOT_MANUAL, PlotManual
-from kitchen.plotter.plotting_params import UNIT_X_INCHES, UNIT_Y_INCHES
+from kitchen.plotter.plotting_params import FLAT_X_INCHES, UNIT_X_INCHES, UNIT_Y_INCHES
 from kitchen.plotter.unit_plotter.unit_trace_advance import SUBTRACT_MANUAL
 from kitchen.settings.timeline import ALIGNMENT_STYLE
 from kitchen.structure.hierarchical_data_structure import Fov, Node, Session, DataSet
@@ -57,7 +57,7 @@ def session_overview(
                     partial(flat_view, plot_manual=plot_manual),
                     session_dataset)
                 },
-            figsize=(5, UNIT_Y_INCHES),
+            figsize=(FLAT_X_INCHES, UNIT_Y_INCHES),
             save_path=routing.default_fig_path(session_dataset, "SessionOverview_{}.png"),
         )
     except Exception as e:
@@ -87,14 +87,14 @@ def fov_overview(
     n_session = len(session_nodes)
     try:
         default_style(
-            mosaic_style=[[get_node_name(session_node),] for session_node in session_nodes],
+            mosaic_style=[[get_node_name(session_node) for session_node in session_nodes]],
             content_dict={
                 get_node_name(session_node): (
                     partial(flat_view, plot_manual=plot_manual),
                     DataSet(name=session_node.session_id, nodes=[session_node]))
                 for session_node in session_nodes
                 },
-            figsize=(5, UNIT_Y_INCHES * n_session),
+            figsize=(FLAT_X_INCHES * n_session, UNIT_Y_INCHES),
             save_path=routing.default_fig_path(session_nodes, "FovOverview_{}.png"),
         )
     except Exception as e:

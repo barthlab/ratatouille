@@ -61,7 +61,6 @@ def timeline_loader_from_fov(fov_node: Fov) -> Generator[Tuple[str, str, Timelin
                 """Yield day name, session name, and timeline data."""
                 yield day_name, session_name, extracted_timeline
         
-   
 
     def io_old(dir_path: str) -> Generator[Tuple[str, str, Timeline], None, None]:        
         timeline_dir_path = path.join(dir_path, "timeline")
@@ -78,11 +77,61 @@ def timeline_loader_from_fov(fov_node: Fov) -> Generator[Tuple[str, str, Timelin
                         t=np.array(df[:, 4] / 1000, dtype=np.float32)
                     )
                     day_id = str(sheet_id // 2)
-                    yield f"{day_id}",f"{sheet_id}", extracted_timeline
+                    yield f"{day_id}", f"{sheet_id}", extracted_timeline
+
+
+    def io_classic(dir_path: str) -> Generator[Tuple[str, str, Timeline], None, None]:
+        timeline_type = pd.ExcelFile(path.join(dir_path, "Arduino.xlsx"))
+        timeline_t = pd.ExcelFile(path.join(dir_path, "Arduino time point.xlsx"))
+
+        # sheet_0_column = timeline_t.parse(timeline_t.sheet_names[0], header=0).columns[0]
+        # sheet_1_column = timeline_t.parse(timeline_t.sheet_names[1], header=0).columns[0]
+        # duplicate_flag =  sheet_0_column == sheet_1_column
+        
+        # if duplicate_flag:
+        #     timeline_t_sheet_name = timeline_t.sheet_names[::2] if len(timeline_t.sheet_names) == 32 else timeline_t.sheet_names
+        #     timeline_type_sheet_name = timeline_type.sheet_names[::2] if len(timeline_type.sheet_names) == 32 else timeline_type.sheet_names
+        #     assert len(timeline_type_sheet_name) == len(timeline_t_sheet_name) == 16, \
+        #         f"Cannot match timeline type and timeline t sheet names in {dir_path}, \
+        #          got {timeline_type.sheet_names} and {timeline_t.sheet_names}"
+        # else:
+        timeline_t_sheet_name = [sheet_name for sheet_name in timeline_t.sheet_names for _ in range(2)] if len(timeline_t.sheet_names) == 16 else timeline_t.sheet_names
+        timeline_type_sheet_name = [sheet_name for sheet_name in timeline_type.sheet_names for _ in range(2)] if len(timeline_type.sheet_names) == 16 else timeline_type.sheet_names
+        assert len(timeline_type_sheet_name) == len(timeline_t_sheet_name) == 32, \
+            f"Cannot match timeline type and timeline t sheet names in {dir_path}, \
+                got {timeline_type.sheet_names} and {timeline_t.sheet_names}"
+            
+        for sheet_id, (type_sheet_name, t_sheet_name) in enumerate(zip(timeline_type_sheet_name, timeline_t_sheet_name)):
+            df_type = timeline_type.parse(type_sheet_name, header=None).to_numpy()
+            for i, type_value in enumerate(df_type[:, 0]):
+                if type_value.lower() in ("puff", "real"):
+                    df_type[i, 0] = "Puff"
+                elif type_value.lower() in ("blank", "fake"):
+                    df_type[i, 0] = "Blank"
+                else:
+                    raise ValueError(f"Unknown timeline type {type_value} in {type_sheet_name} at {dir_path}")
+            df_t = timeline_t.parse(t_sheet_name, header=0).to_numpy()
+            try:
+                assert df_type.shape[1] >= 1, f"Cannot find 1 column in {type_sheet_name} at {dir_path}"
+                assert df_t.shape[1] == 2, f"Cannot find 2 columns in {t_sheet_name} at {dir_path}"
+                assert abs(df_type.shape[0] - df_t.shape[0]) <= 1, f"Cannot match timeline type and timeline t in {dir_path}, got {df_type} and {df_t}"
+                min_length = min(df_type.shape[0], df_t.shape[0])
+                df_type = df_type[:min_length, 0]
+                df_t = df_t[:min_length, 0]
+                extracted_timeline = Timeline(
+                    v=df_type,
+                    t=np.array(df_t / 1000, dtype=np.float32)
+                )
+            except Exception as e:
+                print(f"Error loading timeline in {dir_path} at {type_sheet_name} and {t_sheet_name}: {e}")
+                extracted_timeline = Timeline(v=np.array([]), t=np.array([]))
+            day_id = str(sheet_id // 2)
+            yield f"{day_id}".zfill(2), f"{sheet_id}".zfill(2), extracted_timeline
+
  
 
     """Load timeline from fov node."""
     default_fov_data_path = routing.default_data_path(fov_node)
     yield from io_enumerator(default_fov_data_path, 
-                             [io_default, io_old], 
-                             SPECIFIED_TIMELINE_LOADER)
+                             [io_default, io_old, io_classic], 
+                             SPECIFIED_TIMELINE_LOADER, strict_mode=True)

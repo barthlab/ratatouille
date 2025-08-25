@@ -19,9 +19,10 @@ def fluorescence_loader_from_fov(
         fov_node: Fov, timeline_dict: Dict[TemporalObjectCoordinate, Timeline]) -> Generator[Optional[Fluorescence], None, None]:
 
     def load_fall_mat(data_dir: str, session_duration: float,
-                      n_session: int,
+                      n_session: Optional[int] = None, num_frames_per_session: Optional[int] = None,
                       hodgepodge_mode: bool = DATA_HODGEPODGE_MODE) -> Generator[Fluorescence, None, None]:    
         """load fall mat file"""
+        assert (n_session is not None) ^ (num_frames_per_session is not None), "Either n_session or frame_per_session must be specified"
         if hodgepodge_mode:
             mat_path = find_only_one(routing.search_pattern_file(pattern="Fall.mat", search_dir=data_dir))
         else:
@@ -44,8 +45,12 @@ def fluorescence_loader_from_fov(
 
         """split into sessions"""
         num_cells, num_total_frames = raw_f.shape
-        assert num_total_frames % n_session == 0, f"Cannot split {num_total_frames} frames into {n_session} sessions"
-        num_frames_per_session = int(num_total_frames // n_session)
+        if n_session is None:
+            assert num_total_frames % num_frames_per_session == 0, f"Cannot split {num_total_frames} frames into {num_frames_per_session} frames per session"
+            n_session = int(num_total_frames // num_frames_per_session)
+        if num_frames_per_session is None:
+            assert num_total_frames % n_session == 0, f"Cannot split {num_total_frames} frames into {n_session} sessions"
+            num_frames_per_session = int(num_total_frames // n_session)
 
         raw_f = np.reshape(raw_f, (num_cells, num_frames_per_session, n_session), order='F')
         fov_motion = np.reshape(fov_motion, (2, num_frames_per_session, n_session), order='F')
@@ -161,10 +166,27 @@ def fluorescence_loader_from_fov(
             fluorescence.fov_motion.t -= ttl_to_timeline_offset
             yield fluorescence    
 
+    def io_classic(dir_path: str) -> Generator[Fluorescence, None, None]:
+        n_session = len(timeline_dict) 
+        all_fluorescence = list(load_fall_mat(dir_path, DEFAULT_RECORDING_DURATION, num_frames_per_session=3061, hodgepodge_mode=True))
+        if len(all_fluorescence) == n_session:
+            for fluorescence in all_fluorescence:
+                yield fluorescence
+        elif len(all_fluorescence) == n_session * 2:
+            for fluorescence in all_fluorescence[::2]:
+                yield fluorescence
+        elif len(all_fluorescence) * 2 == n_session:
+            for fluorescence in all_fluorescence:
+                yield fluorescence
+                yield fluorescence
+        else:
+            raise ValueError(f"Cannot match fluorescence and timeline in {dir_path}")
+      
+
 
     default_fov_data_path = routing.default_data_path(fov_node)
 
     """Load fluorescence from fov node."""
     yield from io_enumerator(default_fov_data_path, 
-                             [io_default, io_lost_ttl, io_split_fall], 
-                             SPECIFIED_FLUORESCENCE_LOADER)
+                             [io_default, io_lost_ttl, io_split_fall, io_classic], 
+                             SPECIFIED_FLUORESCENCE_LOADER, strict_mode=True)

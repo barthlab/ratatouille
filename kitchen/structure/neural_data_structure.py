@@ -4,7 +4,7 @@ from typing import Dict, Generator, Optional, Any, Self, Tuple, Iterable
 from functools import cached_property
 
 from kitchen.settings.timeline import SUPPORTED_TIMELINE_EVENT
-from kitchen.settings.fluorescence import DEFAULT_RECORDING_DURATION, TRIAL_DF_F0_WINDOW
+from kitchen.settings.fluorescence import DEFAULT_RECORDING_DURATION, DF_F0_RANGE, TRIAL_DF_F0_WINDOW
 from kitchen.utils.numpy_kit import smart_interp
 
 
@@ -107,7 +107,7 @@ class Events:
         assert self.v.shape == self.t.shape, \
             f"values, times have different length, got {self.v.shape} and {self.t.shape}"
         if len(self.t) > 0:
-            assert np.all(np.diff(self.t) >= 0), "times should be in ascending order"
+            assert np.all(np.diff(self.t) >= 0), f"times should be in ascending order, got {self.t}"
     
     def __len__(self):
         """Return number of time points."""
@@ -215,7 +215,7 @@ class Timeline(Events):
         for event_types in list_of_event_types:
             if len(self.filter(event_types)) > 0:
                 return self.filter(event_types)
-        raise ValueError(f"Cannot find any exists event in {list_of_event_types} in timeline {self}")
+        return Timeline(v=np.array([]), t=np.array([]))
 
     def task_time(self) -> Tuple[float, float]:
         """Return start and end time of task."""            
@@ -306,10 +306,13 @@ class Fluorescence:
         return TimeSeries(v=(self.raw_f.v - baseline) / std , t=self.raw_f.t)
     
     @cached_property
-    def df_f0(self) -> TimeSeries:
+    def df_f0(self, clip: bool = True) -> TimeSeries:
         """Compute dF/F0."""
         baseline = np.mean(self.raw_f.segment(*TRIAL_DF_F0_WINDOW).v, axis=-1, keepdims=True)
-        return TimeSeries(v=(self.raw_f.v - baseline) / baseline , t=self.raw_f.t)
+        df_f0 = (self.raw_f.v - baseline) / baseline
+        if clip:
+            df_f0[(df_f0 < DF_F0_RANGE[0]) | (df_f0 > DF_F0_RANGE[1])] = np.nan
+        return TimeSeries(v= df_f0, t=self.raw_f.t)
     
     def aligned_to(self, align_time: float) -> "Fluorescence":
         """Align fluorescence to a specific time point."""

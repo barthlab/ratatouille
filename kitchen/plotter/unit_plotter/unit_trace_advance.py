@@ -165,10 +165,10 @@ def unit_subtract_single_cell_fluorescence(
         ratio *= RAW_FLUORESCENCE_RATIO
         cell_trace1 = fluorescence1.z_score.v[0]
         ax.plot(fluorescence1.z_score.t, cell_trace1 * ratio + y_offset,
-                **(FLUORESCENCE_TRACE_STYLE | {"color": subtract_manual.color1, "lw": FLUORESCENCE_TRACE_STYLE["lw"] * RAW_FLUORESCENCE_RATIO}))      
+                **(FLUORESCENCE_TRACE_STYLE | {"color": subtract_manual.color1}))      
         cell_trace2 = fluorescence2.z_score.v[0]
         ax.plot(fluorescence2.z_score.t, cell_trace2 * ratio + y_offset,
-                **(FLUORESCENCE_TRACE_STYLE | {"color": subtract_manual.color2, "lw": FLUORESCENCE_TRACE_STYLE["lw"] * RAW_FLUORESCENCE_RATIO}))      
+                **(FLUORESCENCE_TRACE_STYLE | {"color": subtract_manual.color2}))      
 
         # add y ticks  
         add_new_yticks(ax, TICK_PAIR(

@@ -13,3 +13,4 @@ FLUORESCENCE_MIN_MAX_PERCENTILE = (10, 90)  # % - percentile for min and max val
 
 # baseline for df/f0
 TRIAL_DF_F0_WINDOW = (-1, 0)  # s
+DF_F0_RANGE = (-3, 10)  # dF/F0 range for clipping

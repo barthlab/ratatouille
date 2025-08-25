@@ -25,6 +25,12 @@ PREDEFINED_RULES: Dict[str, dict] = {
     "PureBlank": {
         "timeline": lambda x: (len(x.filter("BlankOn")) == 1) & (len(x.filter(REWARD_EVENTS_DEFAULT)) == 0),
     },
+    "ClassicPuff": {
+        "timeline": lambda x: (len(x.filter("Puff")) == 1) & (len(x.filter(REWARD_EVENTS_DEFAULT)) == 0),
+    },
+    "ClassicBlank": {
+        "timeline": lambda x: (len(x.filter("Blank")) == 1) & (len(x.filter(REWARD_EVENTS_DEFAULT)) == 0),
+    },
 }
 
 PREDEFINED_TRIAL_RULES = {
