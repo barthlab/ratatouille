@@ -6,7 +6,7 @@ and DataSet class for managing collections of nodes.
 
 Hierarchical Organization:
 - Spatial: Cohort → Mice → FOV → Cell
-- Temporal: Template → Day → Session → Chunk
+- Temporal: Template → Day → Session → Chunk → Event
 
 Data Organization Matrix:
                                     Time →
@@ -19,7 +19,7 @@ Data Organization Matrix:
         └──────────────────┴───────────────────────────────────────────────────────────────────┘
                                     │■■■■■■■■■■■■■■ Behavior Data (All FOVs) ■■■■■■■■■■■■■■│
 
-Node Classes: Trial, CellSession, Session, Cell, Fov, Mice, Cohort
+Node Classes: Event, Trial, CellSession, Session, Cell, Fov, Mice, Cohort
 Each enforces appropriate coordinate constraints for its hierarchy level.
 """
 
@@ -105,6 +105,11 @@ class Node:
         
 
 # --- Specialized Node subclasses for different hierarchy levels ---
+
+class Event(Node):
+    """Individual events within trials. Temporal: event, Spatial: cell."""
+    _expected_temporal_uid_level = 'event'
+    _expected_object_uid_level = 'cell'
 
 class Trial(Node):
     """Individual trials/chunks within sessions. Temporal: chunk, Spatial: cell."""
