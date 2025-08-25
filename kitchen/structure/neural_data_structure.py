@@ -2,10 +2,13 @@ import numpy as np
 from dataclasses import dataclass, field
 from typing import Dict, Generator, Optional, Any, Self, Tuple, Iterable
 from functools import cached_property
+from scipy import signal
 
+from kitchen.settings.potential import COMPONENTS_BANDWIDTH, SPIKE_MAX_WINDOW_LEN, SPIKE_MIN_DISTANCE, SPIKE_MIN_HEIGHT_STD_RATIO, SPIKES_BANDWIDTH, STD_SLIDING_WINDOW, PotentialType
 from kitchen.settings.timeline import SUPPORTED_TIMELINE_EVENT
 from kitchen.settings.fluorescence import DEFAULT_RECORDING_DURATION, DF_F0_RANGE, TRIAL_DF_F0_WINDOW
-from kitchen.utils.numpy_kit import smart_interp
+from kitchen.utils.numpy_kit import sliding_std, smart_interp
+from kitchen.utils.pass_filter import high_pass
 
 
 @dataclass
@@ -323,7 +326,101 @@ class Fluorescence:
             cell_idx=self.cell_idx,
             cell_order=self.cell_order
         )
+
+@dataclass
+class Potential:
+    vm: TimeSeries
+    potential_type: PotentialType
+    spikes: Events = field(default_factory=lambda: Events(v=np.array([]), t=np.array([])))
+    _hp_components: Dict[float, TimeSeries] = field(default_factory=dict)
+    is_prime: bool = False
+
+    def __post_init__(self):
+        assert self.is_prime or self.spikes, f"Only prime potentials can be created without spikes, got {self.spikes}"
+        assert self.is_prime or len(self._hp_components) > 0, f"Only prime potentials can be created without hp_components, got {self._hp_components}"
+        if self.is_prime:
+            if not self._hp_components:
+                for cutoff in COMPONENTS_BANDWIDTH:
+                    self._hp_components[cutoff] = self._high_pass_vm(cutoff)
+            if not self.spikes:
+                self.spikes = self._compute_spikes()
+
+        assert self.vm.v.ndim == 1, f"vm should be 1-d array for one single cell, got {self.vm.v.shape} shape"
+  
+    def _compute_spikes(self) -> Events:
+        """Compute spikes from membrane potential."""
+        if self.spikes is not None:
+            return self.spikes
+        detrend_vm = sliding_std(self.vm.v, window_len=int(STD_SLIDING_WINDOW * self.vm.fs))
+        peak_indices, _ = signal.find_peaks(
+             x=self.hp_component(SPIKES_BANDWIDTH).v,
+             distance=SPIKE_MIN_DISTANCE * self.vm.fs,
+             height=(detrend_vm * SPIKE_MIN_HEIGHT_STD_RATIO, None),
+             wlen=int(SPIKE_MAX_WINDOW_LEN * self.vm.fs)
+        )
+        return Events(v=np.array(['spike'] * len(peak_indices)), t=self.vm.t[peak_indices])
+
+    def _high_pass_vm(self, cutoff: float) -> TimeSeries:
+        """Apply high-pass filter to membrane potential."""
+        hp_v = high_pass(self.vm.t, self.vm.v, fs=self.vm.fs, cutoff=cutoff)
+        return TimeSeries(v=hp_v, t=self.vm.t)
+
+    def hp_component(self, cutoff: float) -> TimeSeries:
+        """Get high-pass filtered component."""
+        if cutoff not in self._hp_components and self.is_prime:
+            self._hp_components[cutoff] = self._high_pass_vm(cutoff)
+        if cutoff not in self._hp_components:
+            raise ValueError(f"Cutoff {cutoff} not found in hp_components: {self._hp_components.keys()}")
+        return self._hp_components[cutoff]
+
+    @cached_property
+    def num_timepoint(self):
+        return len(self.vm.t)
     
+    @cached_property
+    def num_spikes(self):
+        return len(self.spikes)
+
+    @cached_property
+    def num_hp_components(self):
+        return len(self._hp_components)
+
+    def __repr__(self):
+        """Return string representation."""
+        return self.__str__()
+    
+    def __str__(self) -> str:
+        """Return string representation."""
+        return f"Potential type: {self.potential_type}, with {self.num_spikes} spikes and {self.num_hp_components} high-pass components"
+
+    def __len__(self) -> int:
+        """Return number of time points."""
+        return self.num_timepoint
+    
+    def __bool__(self) -> bool:
+        """Return True if non-empty."""
+        return len(self) > 0
+    
+    def segment(self, start_t: float, end_t: float) -> "Potential":
+        """Extract temporal segment between start_t (inclusive) and end_t (exclusive)."""
+        return Potential(
+            vm=self.vm.segment(start_t, end_t),
+            spikes=self.spikes.segment(start_t, end_t),
+            potential_type=self.potential_type,
+            _hp_components={cutoff: hp_comp.segment(start_t, end_t) for cutoff, hp_comp in self._hp_components.items()},
+            is_prime=False
+        )
+    
+    def aligned_to(self, align_time: float) -> "Potential":
+        """Align potential to a specific time point."""
+        return Potential(
+            vm=self.vm.aligned_to(align_time),
+            spikes=self.spikes.aligned_to(align_time),
+            potential_type=self.potential_type,
+            _hp_components={cutoff: hp_comp.aligned_to(align_time) for cutoff, hp_comp in self._hp_components.items()},
+            is_prime=False
+        )
+
 
 @dataclass
 class NeuralData:
@@ -342,6 +439,9 @@ class NeuralData:
     pupil: Optional[TimeSeries] = None
     tongue: Optional[TimeSeries] = None
     whisker: Optional[TimeSeries] = None
+
+    # Potential
+    potential: Optional[Potential] = None
 
     # Fluorescence
     fluorescence: Optional[Fluorescence] = None

@@ -2,7 +2,7 @@
 Meta Data Structure Module
 
 Core data structures for hierarchical experimental data organization:
-- Hierarchical UID Classes: Spatial (cohort→mice→FOV→cell) and temporal (template→day→session→chunk→event) identifiers
+- Hierarchical UID Classes: Spatial (cohort→mice→FOV→cell) and temporal (template→day→session→chunk→spike) identifiers
 - Coordinate System: Combines spatial and temporal hierarchies for precise data localization
 """
 
@@ -150,16 +150,16 @@ class ObjectUID(HierarchicalUID):
 @dataclass(frozen=True)
 class TemporalUID(HierarchicalUID):
     """
-    Temporal hierarchy identifier: template → day → session → chunk → event.
+    Temporal hierarchy identifier: template → day → session → chunk → spike.
     Allows flexible identification at different temporal scales.
     """
     template_id: Optional[str] = None
     day_id: Optional[str] = None
     session_id: Optional[str] = None
     chunk_id: Optional[int] = None
-    event_id: Optional[int] = None
+    spike_id: Optional[int] = None
 
-    _HIERARCHY_FIELDS = ('template', 'day', 'session', 'chunk', 'event')
+    _HIERARCHY_FIELDS = ('template', 'day', 'session', 'chunk', 'spike')
 
 
 @dataclass(frozen=True, order=True)

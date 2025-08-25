@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from scipy.interpolate import interp1d
 from numpy.lib.stride_tricks import sliding_window_view
 
@@ -68,3 +69,7 @@ def smart_interp(x_new, xp, fp, method: str = "previous"):
     else:
         raise ValueError(f"Unknown interpolation method: {method}")
     return f_new(x_new)
+
+
+def sliding_std(x: np.ndarray, window_len: int) -> np.ndarray:
+    return np.array(pd.Series(x).rolling(window=window_len).std())
