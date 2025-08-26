@@ -4,7 +4,7 @@ from typing import Dict, Generator, Optional, Any, Self, Tuple, Iterable
 from functools import cached_property
 from scipy import signal
 
-from kitchen.settings.potential import COMPONENTS_BANDWIDTH, SPIKE_MAX_WINDOW_LEN, SPIKE_MIN_DISTANCE, SPIKE_MIN_HEIGHT_STD_RATIO, SPIKES_BANDWIDTH, STD_SLIDING_WINDOW, PotentialType
+from kitchen.settings.potential import COMPONENTS_BANDWIDTH, SPIKE_MAX_WINDOW_LEN, SPIKE_MIN_DISTANCE, SPIKE_MIN_HEIGHT_STD_RATIO, SPIKES_BANDWIDTH, STD_SLIDING_WINDOW
 from kitchen.settings.timeline import SUPPORTED_TIMELINE_EVENT
 from kitchen.settings.fluorescence import DEFAULT_RECORDING_DURATION, DF_F0_RANGE, TRIAL_DF_F0_WINDOW
 from kitchen.utils.numpy_kit import sliding_std, smart_interp
@@ -96,7 +96,28 @@ class TimeSeries:
     def aligned_to(self, align_time: float) -> "TimeSeries":
         """Align time series to a specific time point."""
         return self.__class__(v=self.v.copy(), t=self.t - align_time)
-
+    
+    def threshold(self, threshold: float, up_crossing_event: Any, down_crossing_event: Any) -> "Events":
+        """
+        Convert time series to events based on threshold crossing.
+        
+        Detects threshold crossing events and assigns up_crossing_event when crossing above threshold
+        and down_crossing_event when crossing below threshold.
+        """
+        assert self.v.ndim == 1, f"values should be 1-d array, got {self.v.shape}"
+        
+        if len(self.v) < 2:
+            return Events(v=np.array([]), t=np.array([]))
+        
+        sign_diff = np.diff(np.sign(self.v - threshold))
+        crossing_indices = np.where(sign_diff != 0)[0]
+        
+        if len(crossing_indices) == 0:
+            return Events(v=np.array([]), t=np.array([]))
+        
+        events_v = [up_crossing_event if sign_diff[i] > 0 else down_crossing_event for i in crossing_indices]        
+        return Events(v=np.array(events_v), t=self.t[crossing_indices])
+    
 
 @dataclass
 class Events:
@@ -134,16 +155,18 @@ class Events:
         for t, v in zip(self.t, self.v):
             yield t, v
 
-    def __add__(self, other: "Events") -> "Events":
+    def __add__(self, other: "Events") -> Self:
         """Concatenate two events with same value type."""
-        assert self.v.dtype == other.v.dtype, f"Cannot concatenate events with different value types {self.v.dtype} and {other.v.dtype}"
+        assert np.can_cast(self.v.dtype, other.v.dtype, 'same_kind') or \
+            np.can_cast(other.v.dtype, self.v.dtype, 'same_kind'), \
+                f"Cannot concatenate events with incompatible value types {self.v.dtype} and {other.v.dtype}"
         new_t = np.concatenate([self.t, other.t])
         new_v = np.concatenate([self.v, other.v])
         # sort t and v together
         sort_idx = np.argsort(new_t)
-        return Events(v=new_v[sort_idx], t=new_t[sort_idx])
+        return self.__class__(v=new_v[sort_idx], t=new_t[sort_idx])
     
-    def __radd__(self, other: "Events") -> "Events":
+    def __radd__(self, other: "Events") -> Self:
         """Concatenate two events with same value type."""
         if other == 0:
             return self
@@ -159,18 +182,18 @@ class Events:
             t=self.t[segment_start_index: segment_end_index]
         )        
 
-    def inactivation_window_filter(self, inactivation_window: float) -> "Events":
+    def inactivation_window_filter(self, inactivation_window: float) -> Self:
         """Filter out events within inactivation_window seconds of previous events."""
         assert inactivation_window > 0, "inactivation window should be positive"
         if len(self.t) == 0:
-            return Events(v=np.array([]), t=np.array([]))
+            return self.__class__(v=np.array([]), t=np.array([]))
 
         new_v, new_t = [self.v[0]], [self.t[0]]
         for i in range(1, len(self.t)):
             if self.t[i] - self.t[i-1] >= inactivation_window:
                 new_v.append(self.v[i])
                 new_t.append(self.t[i])
-        return Events(v=np.array(new_v), t=np.array(new_t))
+        return self.__class__(v=np.array(new_v), t=np.array(new_t))
 
     def frequency(self, bin_size: float) -> TimeSeries:
         """Compute event frequency (events/sec) within bin_size seconds."""
@@ -189,9 +212,17 @@ class Events:
         sum_in_bin, bin_edges = np.histogram(self.t, bins=bins, weights=self.v)
         return TimeSeries(v=sum_in_bin / bin_size, t=bin_edges[:-1] + bin_size/2)
 
-    def aligned_to(self, align_time: float) -> "Events":
+    def aligned_to(self, align_time: float) -> Self:
         """Align events to a specific time point."""
-        return Events(v=self.v.copy(), t=self.t - align_time)
+        return self.__class__(v=self.v.copy(), t=self.t - align_time)
+
+    def to_timeline(self) -> "Timeline":
+        """
+        Convert Events to Timeline with dtype validation.
+        """
+        if len(self) == 0:
+            return Timeline(v=np.array([]), t=np.array([]))
+        return Timeline(v=self.v.copy(), t=self.t.copy())
 
 
 @dataclass
@@ -226,9 +257,6 @@ class Timeline(Events):
         task_end = self.filter("task end").t[0] if "task end" in self.v else DEFAULT_RECORDING_DURATION
         return task_start, task_end
 
-    def aligned_to(self, align_time: float) -> "Timeline":
-        """Align events to a specific time point."""
-        return Timeline(v=self.v.copy(), t=self.t - align_time)
 
 
 @dataclass
@@ -330,7 +358,6 @@ class Fluorescence:
 @dataclass
 class Potential:
     vm: TimeSeries
-    potential_type: PotentialType
     spikes: Events = field(default_factory=lambda: Events(v=np.array([]), t=np.array([])))
     _hp_components: Dict[float, TimeSeries] = field(default_factory=dict)
     is_prime: bool = False
@@ -344,16 +371,16 @@ class Potential:
                     self._hp_components[cutoff] = self._high_pass_vm(cutoff)
             if not self.spikes:
                 self.spikes = self._compute_spikes()
-
         assert self.vm.v.ndim == 1, f"vm should be 1-d array for one single cell, got {self.vm.v.shape} shape"
   
     def _compute_spikes(self) -> Events:
         """Compute spikes from membrane potential."""
-        if self.spikes is not None:
+        if self.spikes:
             return self.spikes
-        detrend_vm = sliding_std(self.vm.v, window_len=int(STD_SLIDING_WINDOW * self.vm.fs))
+        spike_component = self.hp_component(SPIKES_BANDWIDTH)
+        detrend_vm = sliding_std(spike_component.v, window_len=int(STD_SLIDING_WINDOW * self.vm.fs))
         peak_indices, _ = signal.find_peaks(
-             x=self.hp_component(SPIKES_BANDWIDTH).v,
+             x=spike_component.v,
              distance=SPIKE_MIN_DISTANCE * self.vm.fs,
              height=(detrend_vm * SPIKE_MIN_HEIGHT_STD_RATIO, None),
              wlen=int(SPIKE_MAX_WINDOW_LEN * self.vm.fs)
@@ -391,7 +418,7 @@ class Potential:
     
     def __str__(self) -> str:
         """Return string representation."""
-        return f"Potential type: {self.potential_type}, with {self.num_spikes} spikes and {self.num_hp_components} high-pass components"
+        return f"Potential with {self.num_spikes} spikes and {self.num_hp_components} high-pass components"
 
     def __len__(self) -> int:
         """Return number of time points."""
@@ -406,7 +433,6 @@ class Potential:
         return Potential(
             vm=self.vm.segment(start_t, end_t),
             spikes=self.spikes.segment(start_t, end_t),
-            potential_type=self.potential_type,
             _hp_components={cutoff: hp_comp.segment(start_t, end_t) for cutoff, hp_comp in self._hp_components.items()},
             is_prime=False
         )
@@ -416,7 +442,6 @@ class Potential:
         return Potential(
             vm=self.vm.aligned_to(align_time),
             spikes=self.spikes.aligned_to(align_time),
-            potential_type=self.potential_type,
             _hp_components={cutoff: hp_comp.aligned_to(align_time) for cutoff, hp_comp in self._hp_components.items()},
             is_prime=False
         )

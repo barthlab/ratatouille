@@ -9,7 +9,8 @@ STD_SLIDING_WINDOW = 5  # s
 SPIKES_BANDWIDTH: float = 300  # Hz
 COMPONENTS_BANDWIDTH: tuple[float, ...] = (0.5, 4, 80, 300, 1000)  # Hz
 
-
+# Airpuff
+JS_AIRPUFF_THRESHOLD: float = 2.5
 
 class PotentialType(str, Enum):
     WholeCell = "WholeCell"

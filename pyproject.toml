@@ -30,3 +30,7 @@ dependencies = [
     "send2trash>=1.8.0",
     "typing-extensions>=4.5.0",
 ]
+
+[tool.setuptools.packages.find]
+include = ["kitchen*"]
+exclude = ["cook*", "critic*", "cuisine*", "ingredients*"]
