@@ -8,7 +8,7 @@ from kitchen.plotter.plotting_manual import PlotManual
 from kitchen.structure.hierarchical_data_structure import Fov, Session
 from kitchen.video import format_converter
 import kitchen.video.custom_extraction as custom_extraction
-import kitchen.loader.hierarchical_loader as hier_loader
+import kitchen.loader.two_photon_loader as hier_loader
 
 warnings.filterwarnings("ignore")
 

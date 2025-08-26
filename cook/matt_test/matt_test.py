@@ -3,7 +3,7 @@ import os
 import os.path as path
 import warnings
 
-import kitchen.loader.hierarchical_loader as hier_loader
+import kitchen.loader.two_photon_loader as hier_loader
 from kitchen.operator.select_trial_rules import PREDEFINED_FOVTRIAL_RULES, PREDEFINED_TRIAL_RULES
 from kitchen.plotter.plotting_manual import PlotManual
 from kitchen.plotter.macros.basic_macros import fov_overview, single_node_trial_avg_default, fov_summary_trial_avg_default

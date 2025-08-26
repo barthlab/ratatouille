@@ -61,7 +61,7 @@ For example (see `kitchen/structure/hierarchical_data_structure.py`):
 
 **Data Loading** (`kitchen/loader/`):
 
-- `hierarchical_loader.py`: Main entry point for loading complete experimental hierarchies
+- `two_photon_loader.py`: Main entry point for loading complete experimental hierarchies
 - `fluorescence_loader.py`: Suite2p/Fall.mat integration with TTL synchronization
 - `behavior_loader.py`: Multi-modal behavioral data processing (lick, locomotion, pupil, etc.)
 - `timeline_loader.py`: Event timeline parsing and validation
@@ -84,7 +84,7 @@ pip install -e .
 ### Basic Usage
 
 ```python
-import kitchen.loader.hierarchical_loader as hier_loader
+import kitchen.loader.two_photon_loader as hier_loader
 
 # Load complete experimental hierarchy
 dataset = hier_loader.cohort_loader(
@@ -437,7 +437,7 @@ The framework supports two data file organization modes:
 **Complete Data Loading**:
 
 ```python
-import kitchen.loader.hierarchical_loader as hier_loader
+import kitchen.loader.two_photon_loader as hier_loader
 
 # Load full experimental hierarchy
 dataset = hier_loader.cohort_loader(
