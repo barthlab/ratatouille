@@ -9,7 +9,7 @@ from send2trash import send2trash
 
 from kitchen.configs import routing
 from kitchen.structure.hierarchical_data_structure import Cohort, DataSet
-from kitchen.video.video_settings import INPUT_VIDEO_FPS, OUTPUT_VIDEO_FPS, SUPPORT_VIDEO_FORMAT
+from kitchen.video.video_settings import INPUT_VIDEO_FPS, OUTPUT_VIDEO_FPS, SUPPORT_VIDEO_FORMAT, TIFF_STACK_FPS, TIFF_STACK_CRF
 
 
 def find_all_video_path(dir_path: str, format: str) -> List[str]:
@@ -38,6 +38,7 @@ def video_convert(dir_path: str, src_format: str = ".h264", dst_format: str = ".
         output_file = tmp_file.replace(src_format, dst_format)
         output_path = path.join(tmp_dir, output_file)
         if path.exists(output_path):
+            print(f"Video {output_path} already exists, skipping...")
             continue
         
         command = (r"ffmpeg -framerate {} -i {} -q:v 6 -vf fps={} "
@@ -63,3 +64,76 @@ def dataset_interface_h264_2_avi(data_set: DataSet):
         for cohort_node in data_set.select("cohort"):
             assert isinstance(cohort_node, Cohort)
             video_convert(dir_path=routing.default_data_path(cohort_node), src_format=".h264", dst_format=".avi")
+
+
+def stack_tiff_to_video(dir_path: str):
+    """
+    Convert TIFF stacks in subdirectories to MP4 videos.
+    
+    Enumerates all folders under dir_path, finds TIFF files matching the Basler_*.tiff pattern
+    in each folder, sorts them numerically, and converts them to MP4 videos using ffmpeg.
+    Output videos are saved as {folder_name}.mp4 in the parent directory.
+    """
+    print(f"Converting TIFF stacks to videos in {dir_path}...")
+    
+    # Find all subdirectories
+    subdirs = [d for d in os.listdir(dir_path) if path.isdir(path.join(dir_path, d))]
+    
+    if not subdirs:
+        print("No subdirectories found.")
+        return
+    
+    for folder_name in tqdm(subdirs, desc="Processing folders", unit="folder"):
+        folder_path = os.path.join(dir_path, folder_name)
+        output_video = os.path.join(dir_path, f"VIDEO_{folder_name}.mp4")
+        
+        # Skip if video already exists
+        if path.exists(output_video):
+            print(f"Video {output_video} already exists, skipping...")
+            continue
+        
+        # Find TIFF files with Basler pattern
+        tiff_pattern = os.path.join(folder_path, 'Basler_*.tiff')
+        tiff_files = glob(tiff_pattern)
+        
+        if not tiff_files:
+            print(f"No TIFF files found in {folder_path}, skipping...")
+            continue
+        
+        # Sort files numerically by the frame number
+        try:
+            sorted_files = sorted(
+                tiff_files,
+                key=lambda f: int(path.splitext(path.basename(f))[0].split('_')[-1])
+            )
+            print(f"Found and sorted {len(sorted_files)} TIFF files in {folder_name}")
+        except (ValueError, IndexError):
+            print(f"Error: Could not parse frame numbers from filenames in {folder_path}")
+            continue
+        
+        # Create temporary file list for FFMPEG
+        temp_filelist = path.join(folder_path, 'filelist.txt')
+        
+        with open(temp_filelist, 'w', encoding='ascii') as f:
+            for filename in sorted_files:
+                # Use absolute path and escape for FFMPEG
+                abs_path = path.abspath(filename).replace('\\', '/')
+                f.write(f"file '{abs_path}'\nduration {1/TIFF_STACK_FPS:.6f}\n")
+        
+        # Build FFMPEG command using string format like video_convert
+        command = (r"ffmpeg -y -r {} -f concat -safe 0 -i {} -c:v libx264 "
+                  r"-pix_fmt yuv420p -crf {} -hide_banner -loglevel warning {}").format(
+                      TIFF_STACK_FPS, temp_filelist, TIFF_STACK_CRF, output_video)
+        
+        print(f"Creating video: {output_video}")
+        print(command)
+        time_start = time.time()
+        try:
+            subprocess.run(command, check=True, shell=True)
+            print(f"Conversion successful: {output_video}, takes {time.time()-time_start:.2f}s")
+        except Exception as e:
+            print(f"Error during FFMPEG execution for {folder_name}: {e}")
+        finally:
+            # Clean up temporary file
+            if path.exists(temp_filelist):
+                os.remove(temp_filelist)

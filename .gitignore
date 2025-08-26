@@ -3,6 +3,7 @@
 !/ingredients/dataset_template/*
 /ingredients/dataset_template/*.avi
 /ingredients/dataset_template/*.h264
+/ingredients/dataset_template/*.mp4
 ai_code.py
 
 # Byte-compiled / optimized / DLL files

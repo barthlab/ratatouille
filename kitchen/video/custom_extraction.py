@@ -260,12 +260,12 @@ class BodyPartExtractor:
         save_dict.to_csv(self.result_save_path, index_label="Frame")
 
 
-def default_collection(data_set: DataSet, overwrite=False):
+def default_collection(data_set: DataSet, format: str = ".avi", overwrite=False):
     """Preload all body parts for motion extraction."""
     all_body_parts = []
     for cohort_node in data_set.select("cohort"):
         assert isinstance(cohort_node, Cohort)
-        all_video_path = find_all_video_path(routing.default_data_path(cohort_node), ".avi")
+        all_video_path = find_all_video_path(routing.default_data_path(cohort_node), format)
         for video_path in all_video_path:
             for body_part in OPTICAL_FLOW_EXTRACTED_BEHAVIOR_TYPES:
                 all_body_parts.append(BodyPartExtractor(video_path, body_part, overwrite=overwrite))
