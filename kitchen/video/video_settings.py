@@ -8,7 +8,7 @@ INPUT_VIDEO_FPS = 30
 OUTPUT_VIDEO_FPS = 30
 
 # TIFF STACK CONVERSION
-TIFF_STACK_FPS = 30
+TIFF_STACK_FPS = 169 
 TIFF_STACK_CRF = 19  # Constant Rate Factor (lower is better quality)
 
 

@@ -8,19 +8,19 @@ import pandas as pd
 from kitchen.configs import routing
 from kitchen.settings.behavior import LICK_INACTIVATE_WINDOW, LOCOMOTION_CIRCUMFERENCE, LOCOMOTION_NUM_TICKS, VIDEO_EXTRACTED_BEHAVIOR_MIN_MAX_PERCENTILE, VIDEO_EXTRACTED_BEHAVIOR_TYPES
 from kitchen.settings.loaders import DATA_HODGEPODGE_MODE, SPECIFIED_BEHAVIOR_LOADER, io_enumerator
-from kitchen.structure.hierarchical_data_structure import Fov
+from kitchen.structure.hierarchical_data_structure import Node
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate
 from kitchen.structure.neural_data_structure import Events, TimeSeries, Timeline
 from kitchen.utils.sequence_kit import find_only_one
 
 
 
-def behavior_loader_from_fov(
-        fov_node: Fov,
+def behavior_loader_from_node(
+        node: Node,
         timeline_dict: Dict[TemporalObjectCoordinate, Timeline]) -> \
             Generator[Dict[str, Any], None, None]:
     """
-    Load behavioral data (lick, locomotion, pupil, etc.) for all sessions within a FOV.
+    Load behavioral data (lick, locomotion, pupil, etc.) for all sessions within a Node.
     
     All custom io function should follow the same strucutre:
     1. For each session, load all behavioral data.
@@ -107,10 +107,40 @@ def behavior_loader_from_fov(
 
             yield session_behavior
  
-    
-    default_fov_data_path = routing.default_data_path(fov_node)
+    def io_video_only(dir_path: str) -> Generator[Dict[str, Optional[TimeSeries | Events]], None, None]:
+        for session_coordinate, timeline in timeline_dict.items():
+            session_behavior = {}
 
-    """Load behavior from fov node."""
-    yield from io_enumerator(default_fov_data_path, 
-                             [io_default, ], 
+            """load video extracted behavior"""
+            for behavior_type in VIDEO_EXTRACTED_BEHAVIOR_TYPES:                
+                try:                    
+                    if DATA_HODGEPODGE_MODE:
+                        behavior_path = find_only_one(routing.search_pattern_file(
+                            pattern=f"{behavior_type}_{session_coordinate.temporal_uid.session_id}.csv", search_dir=dir_path))
+                    else:
+                        behavior_path = path.join(dir_path, behavior_type.lower(),
+                                                  f"{behavior_type}_{session_coordinate.temporal_uid.session_id}.csv")
+                    
+                    # check if behavior file exists               
+                    assert path.exists(behavior_path), f"Cannot find {behavior_type} path: {behavior_path}"
+                    behavior_data = pd.read_csv(behavior_path, header=0).to_numpy()
+                    assert behavior_data.shape[1] == 2, f"Cannot find 2 column in {behavior_path}"
+
+                    # create behavior timeseries
+                    behavior_values = np.array(behavior_data[:, 1], dtype=np.float32)
+                    down_value, up_value = np.nanpercentile(behavior_values, VIDEO_EXTRACTED_BEHAVIOR_MIN_MAX_PERCENTILE)
+                    normalized_values = np.clip((behavior_values - down_value) / (up_value - down_value), 0, 1)                         
+                    video_time = timeline.t[:len(behavior_values)]
+                    behavior_timeseries = TimeSeries(v=normalized_values, t=video_time)
+                    session_behavior[behavior_type.lower()] = behavior_timeseries
+                except Exception as e:
+                    warnings.warn(f"Cannot load {behavior_type} from {dir_path}: {e}")           
+
+            yield session_behavior
+ 
+    default_data_path = routing.default_data_path(node)
+
+    """Load behavior from node."""
+    yield from io_enumerator(default_data_path, 
+                             [io_default, io_video_only ], 
                              SPECIFIED_BEHAVIOR_LOADER)

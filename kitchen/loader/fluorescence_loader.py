@@ -9,14 +9,14 @@ from kitchen.configs import routing
 from kitchen.settings.fluorescence import CROP_BEGGINNG, DEFAULT_RECORDING_DURATION, FAST_MATCHING_MODE, NULL_TTL_OFFSET
 from kitchen.settings.loaders import DATA_HODGEPODGE_MODE, SPECIFIED_FLUORESCENCE_LOADER, io_enumerator
 from kitchen.settings.timeline import TTL_EVENT_DEFAULT
-from kitchen.structure.hierarchical_data_structure import Fov
+from kitchen.structure.hierarchical_data_structure import Node
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate
 from kitchen.structure.neural_data_structure import Fluorescence, TimeSeries, Timeline
 from kitchen.utils.sequence_kit import find_only_one
 
 
-def fluorescence_loader_from_fov(
-        fov_node: Fov, timeline_dict: Dict[TemporalObjectCoordinate, Timeline]) -> Generator[Optional[Fluorescence], None, None]:
+def fluorescence_loader_from_node(
+        node: Node, timeline_dict: Dict[TemporalObjectCoordinate, Timeline]) -> Generator[Optional[Fluorescence], None, None]:
 
     def load_fall_mat(data_dir: str, session_duration: float,
                       n_session: Optional[int] = None, num_frames_per_session: Optional[int] = None,
@@ -184,9 +184,9 @@ def fluorescence_loader_from_fov(
       
 
 
-    default_fov_data_path = routing.default_data_path(fov_node)
+    default_data_path = routing.default_data_path(node)
 
-    """Load fluorescence from fov node."""
-    yield from io_enumerator(default_fov_data_path, 
+    """Load fluorescence from node."""
+    yield from io_enumerator(default_data_path, 
                              [io_default, io_lost_ttl, io_split_fall, io_classic], 
                              SPECIFIED_FLUORESCENCE_LOADER, strict_mode=True)

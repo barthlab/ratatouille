@@ -97,7 +97,7 @@ class TimeSeries:
         """Align time series to a specific time point."""
         return self.__class__(v=self.v.copy(), t=self.t - align_time)
     
-    def threshold(self, threshold: float, up_crossing_event: Any, down_crossing_event: Any) -> "Events":
+    def threshold(self, threshold: float, up_crossing_event: Any = None, down_crossing_event: Any = None) -> "Events":
         """
         Convert time series to events based on threshold crossing.
         
@@ -115,8 +115,15 @@ class TimeSeries:
         if len(crossing_indices) == 0:
             return Events(v=np.array([]), t=np.array([]))
         
-        events_v = [up_crossing_event if sign_diff[i] > 0 else down_crossing_event for i in crossing_indices]        
-        return Events(v=np.array(events_v), t=self.t[crossing_indices])
+        events_v, events_t = [], []
+        for i in crossing_indices:
+            if sign_diff[i] > 0 and up_crossing_event is not None:
+                events_v.append(up_crossing_event)
+                events_t.append(self.t[i + 1])
+            elif sign_diff[i] < 0 and down_crossing_event is not None:
+                events_v.append(down_crossing_event)
+                events_t.append(self.t[i + 1])
+        return Events(v=np.array(events_v), t=np.array(events_t))
     
 
 @dataclass

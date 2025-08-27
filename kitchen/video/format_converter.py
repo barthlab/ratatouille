@@ -4,6 +4,7 @@ import time
 from glob import glob
 import subprocess
 from typing import List
+import numpy as np
 from tqdm import tqdm
 from send2trash import send2trash
 
@@ -99,7 +100,7 @@ def stack_tiff_to_video(dir_path: str):
         if not tiff_files:
             print(f"No TIFF files found in {folder_path}, skipping...")
             continue
-        
+
         # Sort files numerically by the frame number
         try:
             sorted_files = sorted(
@@ -107,6 +108,7 @@ def stack_tiff_to_video(dir_path: str):
                 key=lambda f: int(path.splitext(path.basename(f))[0].split('_')[-1])
             )
             print(f"Found and sorted {len(sorted_files)} TIFF files in {folder_name}")
+            frame_diffs = np.diff([int(path.splitext(path.basename(f))[0].split('_')[-1]) for f in sorted_files])
         except (ValueError, IndexError):
             print(f"Error: Could not parse frame numbers from filenames in {folder_path}")
             continue
@@ -115,15 +117,15 @@ def stack_tiff_to_video(dir_path: str):
         temp_filelist = path.join(folder_path, 'filelist.txt')
         
         with open(temp_filelist, 'w', encoding='ascii') as f:
-            for filename in sorted_files:
+            for filename, frame_diff in zip(sorted_files, frame_diffs):
                 # Use absolute path and escape for FFMPEG
                 abs_path = path.abspath(filename).replace('\\', '/')
-                f.write(f"file '{abs_path}'\nduration {1/TIFF_STACK_FPS:.6f}\n")
+                f.write(f"file '{abs_path}'\nduration {frame_diff/TIFF_STACK_FPS:.6f}\n")
         
         # Build FFMPEG command using string format like video_convert
-        command = (r"ffmpeg -y -r {} -f concat -safe 0 -i {} -c:v libx264 "
-                  r"-pix_fmt yuv420p -crf {} -hide_banner -loglevel warning {}").format(
-                      TIFF_STACK_FPS, temp_filelist, TIFF_STACK_CRF, output_video)
+        command = (r"ffmpeg -y -f concat -safe 0 -i {} -c:v libx264 "
+                  r"-pix_fmt yuv420p -crf {} -r {} -hide_banner -loglevel warning {}").format(
+                      temp_filelist, TIFF_STACK_CRF, TIFF_STACK_FPS, output_video)
         
         print(f"Creating video: {output_video}")
         print(command)

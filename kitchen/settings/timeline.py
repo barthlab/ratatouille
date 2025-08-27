@@ -19,6 +19,7 @@ SUPPORTED_TIMELINE_EVENT = {
     "task end",
     "Puff",
     "Blank",
+    "Frame",
 }
 
 TTL_EVENT_DEFAULT = (

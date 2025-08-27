@@ -21,7 +21,7 @@ DATA_HODGEPODGE_MODE = True
 
 SPECIFIED_TIMELINE_LOADER = "io_default"  # io_default, io_old, io_classic
 SPECIFIED_FLUORESCENCE_LOADER = "io_default"  # io_default, io_lost_ttl, io_split_fall, io_classic
-SPECIFIED_BEHAVIOR_LOADER = "io_default"  # io_default
+SPECIFIED_BEHAVIOR_LOADER = "io_video_only"  # io_default, io_video_only
 SPECIFIED_POTENTIAL_LOADER = "io_default"  # io_default
 
 MATT_NAME_STYLE_FLAG = False  # Flag for day_id detection from TIMELINE file, at position 2 start with D

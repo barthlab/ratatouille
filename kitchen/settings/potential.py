@@ -12,6 +12,9 @@ COMPONENTS_BANDWIDTH: tuple[float, ...] = (0.5, 4, 80, 300, 1000)  # Hz
 # Airpuff
 JS_AIRPUFF_THRESHOLD: float = 2.5
 
+# Cam timeline
+JS_CAM_THRESHOLD: float = 1.5
+
 class PotentialType(str, Enum):
     WholeCell = "WholeCell"
     PatchClamp = "PatchClamp"

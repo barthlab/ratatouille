@@ -1,17 +1,17 @@
-import os
 import pandas as pd
 import numpy as np
 from typing import Generator, Tuple
 
 from kitchen.configs import routing
 from kitchen.settings.loaders import SPECIFIED_POTENTIAL_LOADER, io_enumerator
-from kitchen.settings.potential import JS_AIRPUFF_THRESHOLD
-from kitchen.structure.neural_data_structure import Events, Potential, TimeSeries, Timeline
+from kitchen.settings.potential import JS_AIRPUFF_THRESHOLD, JS_CAM_THRESHOLD
+from kitchen.structure.meta_data_structure import TemporalObjectCoordinate
+from kitchen.structure.neural_data_structure import Potential, TimeSeries, Timeline
 from kitchen.structure.hierarchical_data_structure import Cohort
 
 
 def potential_loader_from_cohort(cohort_node: Cohort) -> \
-    Generator[Tuple[str, str, str, Timeline, Potential], None, None]:
+    Generator[Tuple[TemporalObjectCoordinate, Timeline, Timeline, Potential], None, None]:
     """
     Load timeline and potential data from a cohort node.
     
@@ -19,10 +19,10 @@ def potential_loader_from_cohort(cohort_node: Cohort) -> \
         cohort_node: Cohort node containing the path information
         
     Yields:
-        Tuple[cell_name, mice_name, day_name, timeline, potential]
+        Tuple[cell_coordinate, timeline, cam_timeline, potential]
     """
     
-    def io_default(dir_path: str) -> Generator[Tuple[str, str, str, Timeline, Potential], None, None]:
+    def io_default(dir_path: str) -> Generator[Tuple[TemporalObjectCoordinate, Timeline, Timeline, Potential], None, None]:
         """Find all cell data pickle files and extract potential/timeline data."""
         
         # Search for all pickle files with the pattern *_datafile.pkl
@@ -33,11 +33,12 @@ def potential_loader_from_cohort(cohort_node: Cohort) -> \
         for filepath in cell_data_filepaths:
             # Load pickle file
             with open(filepath, 'rb') as f:
-                data = pd.read_pickle(f)  
+                data = pd.read_pickle(f) 
+
             # Extract mice_name, day_name and cell_name
             mice_name = data.loc["mouse", 0]
             filename = data.loc["filename", 0]
-            day_name, cell_name, _ = filename.split('_')
+            day_name, cell_name, session_name = filename.split('_')
 
             """Extract timeline"""
             # Stim information
@@ -52,14 +53,23 @@ def potential_loader_from_cohort(cohort_node: Cohort) -> \
             
             # composite timeline
             timeline = start_end_events + stimulus_events
+            
+            # camera timeline
+            cam_timeseries = TimeSeries(v=data.loc["cam", 0], t=data.loc["stim_time", 0]).segment(start_exp_t, end_exp_t)
+            cam_timeline = cam_timeseries.threshold(JS_CAM_THRESHOLD, "Frame", None).to_timeline()
 
             """Extract potential"""
             potential = Potential(
                 vm=TimeSeries(v=data.loc["Vm1", 0], t=data.loc["vm_time", 0]).segment(start_exp_t, end_exp_t),
                 is_prime=True
             )
+            
+            cell_coordinate = TemporalObjectCoordinate(
+                temporal_uid=cohort_node.coordinate.temporal_uid.child_uid(day_id=day_name, session_id=filename),
+                object_uid=cohort_node.coordinate.object_uid.child_uid(mice_id=mice_name, fov_id="only", cell_id=cell_name)
+            )
 
-            yield cell_name, mice_name, day_name, timeline, potential
+            yield cell_coordinate, timeline, cam_timeline, potential
             
           
     

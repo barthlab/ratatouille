@@ -4,11 +4,11 @@ import os
 import os.path as path
 from tqdm import tqdm
 
-from kitchen.loader.fluorescence_loader import fluorescence_loader_from_fov
+from kitchen.loader.fluorescence_loader import fluorescence_loader_from_node
 from kitchen.settings.timeline import TRIAL_ALIGN_EVENT_DEFAULT
 from kitchen.settings.trials import TRIAL_RANGE_RELATIVE_TO_ALIGNMENT
 from kitchen.loader.timeline_loader import timeline_loader_from_fov
-from kitchen.loader.behavior_loader import behavior_loader_from_fov
+from kitchen.loader.behavior_loader import behavior_loader_from_node
 from kitchen.structure.hierarchical_data_structure import DataSet, Cohort, Day, FovDay, FovTrial, Mice, Fov, Session, CellSession, Trial
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate, TemporalUID, ObjectUID
 from kitchen.structure.neural_data_structure import NeuralData
@@ -83,8 +83,8 @@ def _SplitFov2Session(fov_node: Fov) -> List[Session]:
     """Load fluorescence and behavior from fov node."""
     session_nodes = []
     for fluorescence, behavior_dict, (session_coordinate, timeline) in zip_longest(
-        fluorescence_loader_from_fov(fov_node, timeline_dict),
-        behavior_loader_from_fov(fov_node, timeline_dict),
+        fluorescence_loader_from_node(fov_node, timeline_dict),
+        behavior_loader_from_node(fov_node, timeline_dict),
         timeline_dict.items()
     ):
         session_nodes.append(
