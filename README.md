@@ -6,7 +6,7 @@ A neuroscience data analysis framework for hierarchical calcium imaging and beha
 
 ## Overview
 
-Ratatouille is designed to handle neuroscience experiments involving calcium imaging, behavioral tracking, and timeline synchronization.
+Ratatouille is designed to handle neuroscience experiments involving calcium imaging, electrophysiological recordings, behavioral tracking, and timeline synchronization.
 
 **Core Philosophy**: Data flows through a well-defined hierarchy (Cohort → Mice → FOV → Session → Cell → Trial) where each level encapsulates appropriate temporal and spatial constraints. This design ensures data integrity while providing flexible access patterns for different analysis needs.
 
@@ -61,8 +61,10 @@ For example (see `kitchen/structure/hierarchical_data_structure.py`):
 
 **Data Loading** (`kitchen/loader/`):
 
-- `two_photon_loader.py`: Main entry point for loading complete experimental hierarchies
+- `two_photon_loader.py`: Main entry point for loading calcium imaging experimental hierarchies
+- `ephys_loader.py`: Main entry point for loading electrophysiological experimental hierarchies
 - `fluorescence_loader.py`: Suite2p/Fall.mat integration with TTL synchronization
+- `potential_loader.py`: Electrophysiological data loading with spike detection and filtering
 - `behavior_loader.py`: Multi-modal behavioral data processing (lick, locomotion, pupil, etc.)
 - `timeline_loader.py`: Event timeline parsing and validation
 
@@ -84,12 +86,18 @@ pip install -e .
 ### Basic Usage
 
 ```python
+# For calcium imaging experiments
 import kitchen.loader.two_photon_loader as hier_loader
-
-# Load complete experimental hierarchy
 dataset = hier_loader.cohort_loader(
     template_id="RandPuff",
     cohort_id="HighFreqImaging_202507"
+)
+
+# For electrophysiology experiments
+import kitchen.loader.ephys_loader as ephys_loader
+dataset = ephys_loader.cohort_loader(
+    template_id="PassivePuff_JuxtaCelluar_FromJS",
+    cohort_id="SST_EXAMPLE"
 )
 
 # Generate comprehensive status report
@@ -128,6 +136,13 @@ Each session integrates three primary data streams:
 - FOV motion correction vectors (xoff, yoff)
 - Cell spatial coordinates and selection masks
 - Automatic session splitting and temporal alignment
+
+**Electrophysiological Data** (from pickle files):
+
+- Membrane potential recordings with configurable filtering
+- Automatic spike detection with customizable thresholds
+- Multi-bandwidth component analysis (0.5Hz - 1kHz)
+- Support for juxtacellular, whole-cell, and patch-clamp recordings
 
 **Behavioral Data** (from CSV/video files):
 
@@ -312,6 +327,7 @@ class NeuralData:
 
     # Neural data
     fluorescence: Optional[Fluorescence] = None
+    potential: Optional[Potential] = None
 
     # Experimental timeline
     timeline: Optional[Timeline] = None
@@ -322,6 +338,7 @@ class NeuralData:
 - `TimeSeries`: Base class for continuous temporal data with validation
 - `Events`: Discrete event data with timestamps and values
 - `Fluorescence`: Calcium imaging data with motion correction and cell metadata
+- `Potential`: Electrophysiological recordings with spike detection and filtering
 - `Timeline`: Experimental event sequences with supported event validation
 
 ### DataSet Management
@@ -503,8 +520,9 @@ for fov in dataset.select("fov"):
 import kitchen.video.format_converter as format_converter
 import kitchen.video.custom_extraction as custom_extraction
 
-# Convert video formats
+# Convert video formats (including TIFF stacks)
 format_converter.dataset_interface_h264_2_avi(dataset)
+format_converter.stack_tiff_to_video(data_path)  # New: TIFF stack conversion
 
 # Extract behavioral features
 custom_extraction.default_collection(dataset)
