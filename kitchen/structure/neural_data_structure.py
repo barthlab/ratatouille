@@ -370,15 +370,20 @@ class Potential:
     is_prime: bool = False
 
     def __post_init__(self):
-        assert self.is_prime or self.spikes, f"Only prime potentials can be created without spikes, got {self.spikes}"
-        assert self.is_prime or len(self._hp_components) > 0, f"Only prime potentials can be created without hp_components, got {self._hp_components}"
-        if self.is_prime:
-            if not self._hp_components:
-                for cutoff in COMPONENTS_BANDWIDTH:
-                    self._hp_components[cutoff] = self._high_pass_vm(cutoff)
-            if not self.spikes:
-                self.spikes = self._compute_spikes()
         assert self.vm.v.ndim == 1, f"vm should be 1-d array for one single cell, got {self.vm.v.shape} shape"
+    
+    @classmethod
+    def create_master(cls, vm: TimeSeries) -> "Potential":
+        """Create a master potential, will initiate component and spike computation."""
+        dummy_potential = cls(vm=vm, is_prime=True)
+        dummy_hp_components = {cutoff: dummy_potential._high_pass_vm(cutoff) for cutoff in COMPONENTS_BANDWIDTH}
+        dummy_spikes = dummy_potential._compute_spikes()
+        return cls(vm=vm, spikes=dummy_spikes, _hp_components=dummy_hp_components, is_prime=True)
+    
+    @classmethod
+    def create_slave(cls, vm: TimeSeries, spikes: Events, hp_components: Dict[float, TimeSeries]) -> "Potential":
+        """Create a slave potential, will not initiate component and spike computation."""
+        return cls(vm=vm, spikes=spikes, _hp_components=hp_components, is_prime=False)
   
     def _compute_spikes(self) -> Events:
         """Compute spikes from membrane potential."""
@@ -437,20 +442,18 @@ class Potential:
     
     def segment(self, start_t: float, end_t: float) -> "Potential":
         """Extract temporal segment between start_t (inclusive) and end_t (exclusive)."""
-        return Potential(
+        return Potential.create_slave(
             vm=self.vm.segment(start_t, end_t),
             spikes=self.spikes.segment(start_t, end_t),
-            _hp_components={cutoff: hp_comp.segment(start_t, end_t) for cutoff, hp_comp in self._hp_components.items()},
-            is_prime=False
+            hp_components={cutoff: hp_comp.segment(start_t, end_t) for cutoff, hp_comp in self._hp_components.items()},
         )
     
     def aligned_to(self, align_time: float) -> "Potential":
         """Align potential to a specific time point."""
-        return Potential(
+        return Potential.create_slave(
             vm=self.vm.aligned_to(align_time),
             spikes=self.spikes.aligned_to(align_time),
-            _hp_components={cutoff: hp_comp.aligned_to(align_time) for cutoff, hp_comp in self._hp_components.items()},
-            is_prime=False
+            hp_components={cutoff: hp_comp.aligned_to(align_time) for cutoff, hp_comp in self._hp_components.items()},
         )
 
 

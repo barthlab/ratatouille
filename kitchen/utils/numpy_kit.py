@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
+from scipy.signal.windows import gaussian
 from numpy.lib.stride_tricks import sliding_window_view
 
 def numpy_percentile_filter(input_array: np.ndarray, s: int, q: float) -> np.ndarray:
@@ -73,3 +74,17 @@ def smart_interp(x_new, xp, fp, method: str = "previous"):
 
 def sliding_std(x: np.ndarray, window_len: int) -> np.ndarray:
     return np.array(pd.Series(x).rolling(window=window_len).std())
+
+
+def smooth_uniform(arr, window_len):
+    """Smoothes with a uniform moving average."""
+    window = np.ones(window_len) / window_len
+    smoothed_valid = np.convolve(arr, window, mode='same')
+    return smoothed_valid
+
+def smooth_gaussian(arr, window_len, std):
+    """Smoothes with a Gaussian window. Requires SciPy."""
+    window = gaussian(window_len, std=std)
+    window /= np.sum(window)
+    smoothed_valid = np.convolve(arr, window, mode='same')
+    return smoothed_valid

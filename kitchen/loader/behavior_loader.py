@@ -11,6 +11,7 @@ from kitchen.settings.loaders import DATA_HODGEPODGE_MODE, SPECIFIED_BEHAVIOR_LO
 from kitchen.structure.hierarchical_data_structure import Node
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate
 from kitchen.structure.neural_data_structure import Events, TimeSeries, Timeline
+from kitchen.utils.numpy_kit import smooth_uniform
 from kitchen.utils.sequence_kit import find_only_one
 
 
@@ -128,8 +129,12 @@ def behavior_loader_from_node(
 
                     # create behavior timeseries
                     behavior_values = np.array(behavior_data[:, 1], dtype=np.float32)
+
+                    ## Test
+                    behavior_values = smooth_uniform(behavior_values, window_len=5)
+
                     down_value, up_value = np.nanpercentile(behavior_values, VIDEO_EXTRACTED_BEHAVIOR_MIN_MAX_PERCENTILE)
-                    normalized_values = np.clip((behavior_values - down_value) / (up_value - down_value), 0, 1)                         
+                    normalized_values = np.clip((behavior_values - down_value) / (up_value - down_value), 0, 1)               
                     video_time = timeline.t[:len(behavior_values)]
                     behavior_timeseries = TimeSeries(v=normalized_values, t=video_time)
                     session_behavior[behavior_type.lower()] = behavior_timeseries

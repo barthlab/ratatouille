@@ -59,9 +59,8 @@ def potential_loader_from_cohort(cohort_node: Cohort) -> \
             cam_timeline = cam_timeseries.threshold(JS_CAM_THRESHOLD, "Frame", None).to_timeline()
 
             """Extract potential"""
-            potential = Potential(
-                vm=TimeSeries(v=data.loc["Vm1", 0], t=data.loc["vm_time", 0]).segment(start_exp_t, end_exp_t),
-                is_prime=True
+            potential = Potential.create_master(
+                vm=TimeSeries(v=data.loc["Vm1", 0], t=data.loc["vm_time", 0]).segment(start_exp_t, end_exp_t)
             )
             
             cell_coordinate = TemporalObjectCoordinate(
