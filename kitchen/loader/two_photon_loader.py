@@ -27,15 +27,15 @@ Each split function takes a parent node and creates child nodes by scanning
 the file system structure and loading appropriate data.
 """
 
-def _SplitCohort2Mice(corhort_node: Cohort) -> List[Mice]:
+def _SplitCohort2Mice(cohort_node: Cohort) -> List[Mice]:
     """Split a cohort node into multiple mice nodes."""
-    default_cohort_data_path = routing.default_data_path(corhort_node)
+    default_cohort_data_path = routing.default_data_path(cohort_node)
 
     mice_id_list = [name for name in os.listdir(default_cohort_data_path) 
                     if path.isdir(path.join(default_cohort_data_path, name))]
     mice_nodes = []
-    cur_temporal_uid = corhort_node.coordinate.temporal_uid
-    cur_object_uid = corhort_node.coordinate.object_uid
+    cur_temporal_uid = cohort_node.coordinate.temporal_uid
+    cur_object_uid = cohort_node.coordinate.object_uid
     for mice_id in mice_id_list:
         mice_nodes.append(
             Mice(coordinate=TemporalObjectCoordinate(

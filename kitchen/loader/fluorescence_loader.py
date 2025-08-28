@@ -6,7 +6,7 @@ from scipy.io import loadmat
 
 
 from kitchen.configs import routing
-from kitchen.settings.fluorescence import CROP_BEGGINNG, DEFAULT_RECORDING_DURATION, FAST_MATCHING_MODE, NULL_TTL_OFFSET
+from kitchen.settings.fluorescence import CROP_BEGGINNG, DEFAULT_RECORDING_DURATION, FAST_MATCHING_MODE, NULL_TTL_OFFSET, NEUROPIL_SUBTRACTION_COEFFICIENT, DEFAULT_FRAMES_PER_SESSION
 from kitchen.settings.loaders import DATA_HODGEPODGE_MODE, SPECIFIED_FLUORESCENCE_LOADER, io_enumerator
 from kitchen.settings.timeline import TTL_EVENT_DEFAULT
 from kitchen.structure.hierarchical_data_structure import Node
@@ -33,7 +33,7 @@ def fluorescence_loader_from_node(
         F = mat_dict['F'].copy()
         Fneu = mat_dict['Fneu'].copy()
         is_cell = np.argwhere(mat_dict['iscell'][:, 0] == 1)[:, 0]
-        raw_f = F[is_cell] - 0.7 * Fneu[is_cell]
+        raw_f = F[is_cell] - NEUROPIL_SUBTRACTION_COEFFICIENT * Fneu[is_cell]
         
         """get fov motion"""
         ops = mat_dict['ops'][0][0]
@@ -168,7 +168,7 @@ def fluorescence_loader_from_node(
 
     def io_classic(dir_path: str) -> Generator[Fluorescence, None, None]:
         n_session = len(timeline_dict) 
-        all_fluorescence = list(load_fall_mat(dir_path, DEFAULT_RECORDING_DURATION, num_frames_per_session=3061, hodgepodge_mode=True))
+        all_fluorescence = list(load_fall_mat(dir_path, DEFAULT_RECORDING_DURATION, num_frames_per_session=DEFAULT_FRAMES_PER_SESSION, hodgepodge_mode=True))
         if len(all_fluorescence) == n_session:
             for fluorescence in all_fluorescence:
                 yield fluorescence

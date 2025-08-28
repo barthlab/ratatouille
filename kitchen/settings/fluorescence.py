@@ -3,6 +3,10 @@ DEFAULT_RECORDING_DURATION = 600  # s - the default recording duration for each 
 FAST_MATCHING_MODE = True  # only match the first event
 
 NULL_TTL_OFFSET = 0.5  # s - if no ttl is found, align the fluorescence to the timeline by this offset
+
+# Constants for fluorescence processing
+NEUROPIL_SUBTRACTION_COEFFICIENT = 0.7  # coefficient for subtracting neuropil signal
+DEFAULT_FRAMES_PER_SESSION = 3061  # default number of frames per session for classic loader
 DF_F0_SIGN = r"$\Delta F/F_0$"
 Z_SCORE_SIGN = r"$z$-score"
 
