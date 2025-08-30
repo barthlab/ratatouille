@@ -17,11 +17,8 @@ def find_all_video_path(dir_path: str, format: str) -> List[str]:
     """Find all video file under dir_path with specific format."""
     assert format[0] == ".", f"format should start with ., but got '{format}'"
     assert format in SUPPORT_VIDEO_FORMAT, f"format {format} not supported, should be one of {SUPPORT_VIDEO_FORMAT}"
-    all_video_path = []
-    for dir_path, _ , _ in os.walk(dir_path):
-        pattern = os.path.join(dir_path, '**', 'video', f'*{format}')
-        all_video_path.extend(glob(pattern, recursive=True))
-    all_video_path = list(set(all_video_path))
+    pattern = os.path.join('video', f'*{format}')
+    all_video_path = routing.search_pattern_file(pattern, dir_path)
     return all_video_path
 
 
@@ -94,8 +91,7 @@ def stack_tiff_to_video(dir_path: str):
             continue
         
         # Find TIFF files with Basler pattern
-        tiff_pattern = os.path.join(folder_path, 'Basler_*.tiff')
-        tiff_files = glob(tiff_pattern)
+        tiff_files = routing.search_pattern_file('Basler_*.tiff', folder_path)
         
         if not tiff_files:
             print(f"No TIFF files found in {folder_path}, skipping...")
