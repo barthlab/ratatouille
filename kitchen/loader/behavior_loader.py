@@ -1,9 +1,11 @@
 import os.path as path
 from typing import Any, Dict, Generator, Optional
-import warnings
+import logging
 
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 from kitchen.configs import routing
 from kitchen.settings.behavior import LICK_INACTIVATE_WINDOW, LOCOMOTION_CIRCUMFERENCE, LOCOMOTION_NUM_TICKS, VIDEO_EXTRACTED_BEHAVIOR_MIN_MAX_PERCENTILE, VIDEO_EXTRACTED_BEHAVIOR_TYPES
@@ -51,7 +53,7 @@ def behavior_loader_from_node(
                     t=np.array(lick_data[:, 0] / 1000, dtype=np.float32)).inactivation_window_filter(LICK_INACTIVATE_WINDOW)
                 session_behavior["lick"] = lick_events
             except Exception as e:
-                warnings.warn(f"Cannot load lick from {dir_path}: {e}")
+                logger.warning(f"Cannot load lick from {dir_path}: {e}")
 
             """load locomotion"""                
             try:
@@ -78,7 +80,7 @@ def behavior_loader_from_node(
                 session_behavior["position"] = position_events
                 session_behavior["locomotion"] = locomotion_events
             except Exception as e:
-                warnings.warn(f"Cannot load locomotion from {dir_path}: {e}")     
+                logger.warning(f"Cannot load locomotion from {dir_path}: {e}")
 
             """load video extracted behavior"""
             for behavior_type in VIDEO_EXTRACTED_BEHAVIOR_TYPES:                
@@ -104,7 +106,7 @@ def behavior_loader_from_node(
                     behavior_timeseries = TimeSeries(v=normalized_values, t=video_time)
                     session_behavior[behavior_type.lower()] = behavior_timeseries
                 except Exception as e:
-                    warnings.warn(f"Cannot load {behavior_type} from {dir_path}: {e}")           
+                    logger.warning(f"Cannot load {behavior_type} from {dir_path}: {e}")
 
             yield session_behavior
  
@@ -139,7 +141,7 @@ def behavior_loader_from_node(
                     behavior_timeseries = TimeSeries(v=normalized_values, t=video_time)
                     session_behavior[behavior_type.lower()] = behavior_timeseries
                 except Exception as e:
-                    warnings.warn(f"Cannot load {behavior_type} from {dir_path}: {e}")           
+                    logger.warning(f"Cannot load {behavior_type} from {dir_path}: {e}")
 
             yield session_behavior
  

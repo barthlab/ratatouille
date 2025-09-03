@@ -1,6 +1,9 @@
 import pandas as pd
+import logging
 
 from kitchen.plotter.color_scheme import TABLEAU_10
+
+logger = logging.getLogger(__name__)
 
 
 def write_boolean_dataframe(df: pd.DataFrame, sheet_name: str, save_path: str, color_second_column: bool = True):
@@ -23,4 +26,4 @@ def write_boolean_dataframe(df: pd.DataFrame, sheet_name: str, save_path: str, c
         worksheet.set_column('A:E', 20)
         worksheet.set_column('F:Z', 10)
 
-    print(f"Saved to {save_path}")
+    logger.info(f"Dataframe saved to {save_path}")

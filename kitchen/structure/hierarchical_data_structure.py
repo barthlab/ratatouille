@@ -26,7 +26,7 @@ Each enforces appropriate coordinate constraints for its hierarchy level.
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Generator, List, Optional, Dict, Self, Sequence, Union
-import warnings
+import logging
 import pandas as pd
 
 from kitchen.settings.structure import NULL_STRUCTURE_NAME
@@ -35,6 +35,8 @@ from kitchen.structure.neural_data_structure import NeuralData
 from kitchen.utils.sequence_kit import filter_by
 from kitchen.writer.excel_writer import write_boolean_dataframe
 
+
+logger = logging.getLogger(__name__)
 
 @dataclass(eq=False)  # eq=False is needed because we define a custom __eq__
 class Node:
@@ -195,7 +197,7 @@ class DataSet:
         elif isinstance(nodes, Node):
             # Add single node with duplicate detection
             if nodes in self._fast_lookup[nodes.hash_key]:
-                warnings.warn(f"Node {nodes} already exists in the dataset")
+                logger.warning(f"Node {nodes} already exists in the dataset")
                 return
             self.nodes.append(nodes)
             self._root_coordinate = self._root_coordinate + nodes.coordinate
@@ -238,14 +240,14 @@ class DataSet:
         """Filter all nodes by criterion function."""
         selected_nodes = filter_by(self.nodes, **criterion)
         if _empty_warning and len(selected_nodes) == 0:
-            warnings.warn("Subset operation resulted in 0 nodes, check your criterion function")
+            logger.warning("Subset operation resulted in 0 nodes, check your criterion function")
         return DataSet(name=_specified_name, nodes=selected_nodes)
 
     def subtree(self, root_node: Node, _specified_name: str = NULL_STRUCTURE_NAME, _empty_warning: bool = True) -> "DataSet":
         """Extract a subtree rooted at a specific node."""
         selected_nodes = [node for node in self if root_node.coordinate.contains(node.coordinate)]
         if _empty_warning and len(selected_nodes) == 0:
-            warnings.warn("Subtree operation resulted in 0 nodes, check your root node")
+            logger.warning("Subtree operation resulted in 0 nodes, check your root node")
         return DataSet(name=_specified_name, nodes=selected_nodes)
 
     def select(self, hash_key: str, _specified_name: str = NULL_STRUCTURE_NAME, _empty_warning: bool = True, **criterion: Any) -> "DataSet":
@@ -253,7 +255,7 @@ class DataSet:
         assert hash_key == hash_key.lower(), f"hash_key must be lower case, but got {hash_key}"
         selected_nodes = filter_by(self._fast_lookup[hash_key], **criterion)
         if _empty_warning and len(selected_nodes) == 0:
-            warnings.warn("Select operation resulted in 0 nodes, check your criterion function")
+            logger.warning("Select operation resulted in 0 nodes, check your criterion function")
         return DataSet(name=_specified_name, nodes=selected_nodes)
     
     def rule_based_selection(self, rule_dict: Dict[str, dict]) -> Dict[str, "DataSet"]:

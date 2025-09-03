@@ -1,4 +1,5 @@
 from typing import List, Optional, overload
+import logging
 
 from kitchen.loader.behavior_loader import behavior_loader_from_node
 from kitchen.loader.potential_loader import potential_loader_from_cohort
@@ -26,7 +27,6 @@ def _SplitCohort2CellSession(cohort_node: Cohort) -> List[CellSession]:
                             **behavior_dict,
                         ))
         )
-        print(f"Loaded {cell_session_nodes[-1]}")
     return cell_session_nodes
 
 @overload

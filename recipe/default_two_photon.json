@@ -1,0 +1,11 @@
+{
+    "name": "default two-photon",
+    "description": "Default template for all two-photon experiments",
+    "data_type": "two_photon",
+    "loaders": {
+        "timeline": "io_default",
+        "fluorescence": "io_default",
+        "behavior": "io_default"
+    },
+    "trial split by": "timeline"
+}

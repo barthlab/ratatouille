@@ -1,0 +1,11 @@
+{
+    "name": "custom first puff analysis",
+    "description": "Custom recipe for first puff response analysis",
+    "data_type": "two_photon",
+    "loaders": {
+        "timeline": "io_default",
+        "fluorescence": "io_default",
+        "behavior": "io_default"
+    },
+    "trial split by": "timeline"
+}

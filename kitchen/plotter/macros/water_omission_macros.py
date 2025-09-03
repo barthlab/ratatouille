@@ -2,7 +2,7 @@
 
 from functools import partial
 from typing import Tuple
-import warnings
+import logging
 from kitchen.calculator.basic_metric import AVERAGE_VALUE
 from kitchen.calculator.calculator_interface import calculate_metric
 from kitchen.configs import routing
@@ -18,6 +18,7 @@ from kitchen.plotter.unit_plotter.unit_trace_advance import SUBTRACT_MANUAL
 from kitchen.settings.timeline import ALIGNMENT_STYLE
 from kitchen.structure.hierarchical_data_structure import DataSet, Day, Mice
 
+logger = logging.getLogger(__name__)
 
 
 def find_omission_day_id(dataset: DataSet) -> dict[str, Tuple[Day, Day, Day]]:
@@ -87,7 +88,7 @@ def mice_water_omission_overview(
                     save_path=routing.default_fig_path(mice_dataset, f"WaterOmission_{{}}_{alignment_name}.png"),
                 )
             except Exception as e:
-                warnings.warn(f"Cannot plot water omission for {get_node_name(mice_node)} with {alignment_name}: {e}")
+                logger.warning(f"Cannot plot water omission for {get_node_name(mice_node)} with {alignment_name}: {e}")
 
 
 
@@ -130,7 +131,7 @@ def mice_water_omission_summary(
                 save_path=routing.default_fig_path(dataset, f"AllMiceWaterOmission_{alignment_name}.png"),
             )
         except Exception as e:
-            warnings.warn(f"Cannot plot all mice water omission for with {alignment_name}: {e}")
+            logger.warning(f"Cannot plot all mice water omission for with {alignment_name}: {e}")
 
 
 def water_omission_response_compare(

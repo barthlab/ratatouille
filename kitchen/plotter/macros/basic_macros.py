@@ -12,7 +12,7 @@ Functions:
 """
 
 from functools import partial
-import warnings
+import logging
 
 from kitchen.configs import routing
 from kitchen.configs.naming import get_node_name
@@ -27,6 +27,8 @@ from kitchen.plotter.ax_plotter.basic_plot import flat_view, stack_view
 from kitchen.operator.select_trial_rules import PREDEFINED_FOVTRIAL_RULES, PREDEFINED_TRIAL_RULES
 from kitchen.utils.sequence_kit import select_from_value
 
+
+logger = logging.getLogger(__name__)
 
 def session_overview(
         session_node: Session,
@@ -61,7 +63,7 @@ def session_overview(
             save_path=routing.default_fig_path(session_dataset, "SessionOverview_{}.png"),
         )
     except Exception as e:
-        warnings.warn(f"Cannot plot session overview for {get_node_name(session_node)}: {e}")
+        logger.warning(f"Cannot plot session overview for {get_node_name(session_node)}: {e}")
 
 def fov_overview(
         fov_node: Fov,
@@ -98,7 +100,7 @@ def fov_overview(
             save_path=routing.default_fig_path(session_nodes, "FovOverview_{}.png"),
         )
     except Exception as e:
-        warnings.warn(f"Cannot plot fov overview for {get_node_name(fov_node)}: {e}")
+        logger.warning(f"Cannot plot fov overview for {get_node_name(fov_node)}: {e}")
 
 
 def single_node_trial_avg_default(
@@ -146,7 +148,7 @@ def single_node_trial_avg_default(
                 save_path=routing.default_fig_path(subtree, f"TrialAvg_{{}}_{alignment_name}.png"),
             )
         except Exception as e:
-            warnings.warn(f"Cannot plot trial average for {get_node_name(node)} with {alignment_name}: {e}")
+            logger.warning(f"Cannot plot trial average for {get_node_name(node)} with {alignment_name}: {e}")
 
 
 def fov_summary_trial_avg_default(
@@ -217,4 +219,4 @@ def fov_summary_trial_avg_default(
                 save_path=routing.default_fig_path(dataset.subtree(fov_node), f"FOVSummary_{{}}_{alignment_name}.png"),
             )
         except Exception as e:
-            warnings.warn(f"Cannot plot trial average for {get_node_name(fov_node)} with {alignment_name}: {e}")
+            logger.warning(f"Cannot plot trial average for {get_node_name(fov_node)} with {alignment_name}: {e}")

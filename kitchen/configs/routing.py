@@ -10,6 +10,7 @@ ROOT_PATH = (r"C:\Users\maxyc\PycharmProjects\Ratatouille")
 DATA_PATH = path.join(ROOT_PATH, "ingredients")
 FIGURE_PATH = path.join(ROOT_PATH, "cuisine")
 TEST_PATH = path.join(ROOT_PATH, "critic")
+RECIPE_PATH = path.join(ROOT_PATH, "recipe")
 
 
 
@@ -56,6 +57,10 @@ def default_fig_path(dataset: DataSet, fig_name: Optional[str] = None) -> str:
     if fig_name is not None:
         fig_path = smart_path_append(fig_path, fig_name)
     return fig_path
+
+
+def default_recipe_path(recipe_name: str) -> str:
+    return robust_path_join(RECIPE_PATH, f"{recipe_name}.json")
 
 
 def search_pattern_file(pattern: str, search_dir: str) -> List[str]:

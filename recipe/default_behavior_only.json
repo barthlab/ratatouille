@@ -1,0 +1,10 @@
+{
+    "name": "default behavior only",
+    "description": "Default template for all behavioral only experiments",
+    "data_type": "two_photon",
+    "loaders": {
+        "timeline": "io_default",
+        "behavior": "io_default"
+    },
+    "trial split by": "timeline"
+}

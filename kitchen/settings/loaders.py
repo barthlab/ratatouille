@@ -14,7 +14,9 @@ This provides more flexibility but requires unique file naming conventions to id
 
 from typing import Callable, Dict, Generator, List
 import inspect
-import warnings
+import logging
+
+logger = logging.getLogger(__name__)
 
 DATA_HODGEPODGE_MODE = True 
 
@@ -38,7 +40,7 @@ def io_enumerator(dir_path: str, io_funcs: List[Callable[[str], Generator]], spe
         error_msg = f"Cannot find specified I/O function: {specified_io} in {io_dispatch} during {inspect.stack()[1].function}"
         if strict_mode:
             raise ValueError(error_msg)
-        warnings.warn(error_msg)
+        logger.warning(error_msg)
         return 
 
     try:
@@ -46,5 +48,5 @@ def io_enumerator(dir_path: str, io_funcs: List[Callable[[str], Generator]], spe
     except Exception as e:
         if strict_mode:
             raise 
-        warnings.warn(f"Error executing {inspect.stack()[1].function} ->'{specified_io}': {e}")
+        logger.warning(f"Error executing {inspect.stack()[1].function} ->'{specified_io}': {e}")
 

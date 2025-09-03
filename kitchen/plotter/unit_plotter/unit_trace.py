@@ -1,6 +1,6 @@
 from collections import defaultdict
 import random
-import warnings
+import logging
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -16,6 +16,8 @@ from kitchen.plotter.utils.tick_labels import TICK_PAIR, add_new_yticks
 from kitchen.settings.plotting import PLOTTING_OVERLAP_HARSH_MODE
 from kitchen.structure.neural_data_structure import Events, Fluorescence, TimeSeries, Timeline
 
+
+logger = logging.getLogger(__name__)
 
 def sanity_check(data) -> bool:
     """Check if data is not None"""
@@ -141,7 +143,7 @@ def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes,
             ax.set_xticks(np.arange(task_start, task_end, TIME_TICK_DURATION, dtype=int), 
                         np.arange(0, task_end - task_start, TIME_TICK_DURATION, dtype=int))
         except Exception as e:
-            warnings.warn(f"Cannot set start to end x ticks for timeline: {e}")
+            logger.warning(f"Cannot set start to end x ticks for timeline: {e}")
         return ratio
     
     # plot multiple timelines

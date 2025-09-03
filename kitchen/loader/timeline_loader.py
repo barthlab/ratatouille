@@ -2,7 +2,7 @@ import os
 import re
 import os.path as path
 from typing import Generator, Tuple
-
+import logging
 import numpy as np
 import pandas as pd
 
@@ -12,6 +12,7 @@ from kitchen.structure.hierarchical_data_structure import Fov
 from kitchen.structure.neural_data_structure import Timeline
 
 
+logger = logging.getLogger(__name__)
 
 def timeline_loader_from_fov(fov_node: Fov) -> Generator[Tuple[str, str, Timeline], None, None]:
     """
@@ -123,7 +124,7 @@ def timeline_loader_from_fov(fov_node: Fov) -> Generator[Tuple[str, str, Timelin
                     t=np.array(df_t / 1000, dtype=np.float32)
                 )
             except Exception as e:
-                print(f"Error loading timeline in {dir_path} at {type_sheet_name} and {t_sheet_name}: {e}")
+                logger.warning(f"Error loading timeline in {dir_path} at {type_sheet_name} and {t_sheet_name}: {e}")
                 extracted_timeline = Timeline(v=np.array([]), t=np.array([]))
             day_id = str(sheet_id // 2)
             yield f"{day_id}".zfill(2), f"{sheet_id}".zfill(2), extracted_timeline

@@ -1,10 +1,13 @@
 import os
 from typing import Generator, List, Mapping, Tuple, Callable, Any, Optional
 from matplotlib import pyplot as plt
+import logging
 
 from kitchen.plotter.plotting_params import DPI, NORMALIZED_PROGRESS_YLIM
 from kitchen.structure.hierarchical_data_structure import DataSet
 from kitchen.utils.sequence_kit import zip_dicts
+
+logger = logging.getLogger(__name__)
 
 
 def default_style(
@@ -116,7 +119,7 @@ def default_style(
     if save_path:        
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         fig.savefig(save_path, dpi=DPI)
-        print(f"Plot saved to {save_path}")
+        logger.info(f"Plot saved to {save_path}")
     else:
         plt.show()
     

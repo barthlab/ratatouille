@@ -1,0 +1,11 @@
+{
+    "name": "default two-photon locomotion trials",
+    "description": "Default template for two-photon experiments split by locomotion",
+    "data_type": "two_photon",
+    "loaders": {
+        "timeline": "io_default",
+        "fluorescence": "io_default",
+        "behavior": "io_default"
+    },
+    "trial split by": "locomotion"
+}

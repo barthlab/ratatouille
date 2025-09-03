@@ -1,7 +1,9 @@
 from collections import defaultdict
 from functools import reduce
 from typing import Callable, Generator, Iterable, Dict, Any, List, Mapping, Optional, Tuple, TypeVar
-import warnings
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 T = TypeVar('T')
@@ -59,7 +61,7 @@ def split_by(datalist: Iterable, attr_name: str, _none_warning: bool = True) -> 
     for item in datalist:
         attr_value = reduce(lambda obj, attr: getattr(obj, attr, None), attr_name.split('.'), item)
         if attr_value is None and _none_warning:
-            warnings.warn(f"Cannot find attribute {attr_name} in {item}")
+            logger.warning(f"Cannot find attribute {attr_name} in {item}")
         split_dict[attr_value].append(item)
     return split_dict
 
@@ -69,7 +71,7 @@ def group_by(datalist: Iterable[T], key_func: Callable[[T], K], _none_warning: b
     for item in datalist:
         key = key_func(item)
         if key is None and _none_warning:
-            warnings.warn(f"Cannot find key for {item}")            
+            logger.warning(f"Cannot find key for {item}")
         group_dict[key].append(item)
     return group_dict
 

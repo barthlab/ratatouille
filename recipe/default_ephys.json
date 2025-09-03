@@ -1,0 +1,11 @@
+{
+    "name": "default ephys",
+    "description": "Default template for all ephys experiments",
+    "data_type": "ephys",
+    "loaders": {
+        "timeline": "io_default",
+        "behavior": "io_default",
+        "potential": "io_default"
+    },
+    "trial split by": "timeline"
+}
