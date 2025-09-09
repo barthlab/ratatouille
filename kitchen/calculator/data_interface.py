@@ -73,9 +73,6 @@ def get_data(
         - 'timeline': Iterator[Timeline]
         - 'position', 'locomotion', 'lick': Iterator[Events]
         - 'pupil', 'tongue', 'whisker': Iterator[TimeSeries]
-
-    Raises:
-        AssertionError: If number of nodes changes during synchronization
     """
     dataset_synced = left_align_nodes(dataset) if sync_events is None else \
         sync_nodes(dataset, sync_events, plot_manual=PlotManual(**{data_name: True}))

@@ -1,5 +1,4 @@
 from typing import List, Optional, overload
-import logging
 
 from kitchen.loader.behavior_loader import behavior_loader_from_node
 from kitchen.loader.potential_loader import potential_loader_from_cohort
@@ -67,7 +66,7 @@ def _SplitSession2FovTrial(session_node: Session) -> List[FovTrial]:
     """Split a session node into multiple fov trial nodes."""
     return _trial_splitter_default(session_node)
 
-def cohort_loader(template_id: str, cohort_id: str, name: Optional[str] = None) -> DataSet:
+def cohort_loader(template_id: str, cohort_id: str, recipe: dict, name: Optional[str] = None) -> DataSet:
     """
     Load a specific cohort, including all its children nodes.
 

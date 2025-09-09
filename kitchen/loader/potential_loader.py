@@ -1,16 +1,20 @@
 import pandas as pd
 import numpy as np
 from typing import Generator, Tuple
+import logging
 
 from kitchen.configs import routing
-from kitchen.settings.loaders import SPECIFIED_POTENTIAL_LOADER, io_enumerator
+from kitchen.settings.loaders import LOADER_STRICT_MODE
 from kitchen.settings.potential import JS_AIRPUFF_THRESHOLD, JS_CAM_THRESHOLD
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate
 from kitchen.structure.neural_data_structure import Potential, TimeSeries, Timeline
 from kitchen.structure.hierarchical_data_structure import Cohort
 
 
-def potential_loader_from_cohort(cohort_node: Cohort) -> \
+logger = logging.getLogger(__name__)
+
+
+def potential_loader_from_cohort(cohort_node: Cohort, potential_loader_name: str = "default") -> \
     Generator[Tuple[TemporalObjectCoordinate, Timeline, Timeline, Potential], None, None]:
     """
     Load timeline and potential data from a cohort node.
@@ -71,9 +75,22 @@ def potential_loader_from_cohort(cohort_node: Cohort) -> \
             yield cell_coordinate, timeline, cam_timeline, potential
             
           
-    
     """Load timeline from fov node."""
+    potential_loader_options = {
+        "default": io_default,
+    }
     default_cohort_data_path = routing.default_data_path(cohort_node)
-    yield from io_enumerator(default_cohort_data_path, 
-                             [io_default,], 
-                             SPECIFIED_POTENTIAL_LOADER, strict_mode=True)
+    
+    if potential_loader_name is None:
+        logger.info("No potential loader specified, skip loading potential")
+        return
+    loader_to_use = potential_loader_options.get(potential_loader_name)
+    if loader_to_use is None:
+        raise ValueError(f"Unknown potential loader: {potential_loader_name}. Available options: {potential_loader_options.keys()}")
+    
+    try:
+        yield from loader_to_use(default_cohort_data_path)
+    except Exception as e:
+        if LOADER_STRICT_MODE:
+            raise ValueError(f"Error loading potential in {default_cohort_data_path} with {potential_loader_name}: {e}")
+        logger.debug(f"Error loading potential in {default_cohort_data_path} with {potential_loader_name}: {e}")

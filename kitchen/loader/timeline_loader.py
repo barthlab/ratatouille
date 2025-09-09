@@ -7,14 +7,14 @@ import numpy as np
 import pandas as pd
 
 from kitchen.configs import routing
-from kitchen.settings.loaders import DATA_HODGEPODGE_MODE, MATT_NAME_STYLE_FLAG, SPECIFIED_TIMELINE_LOADER, io_enumerator
+from kitchen.settings.loaders import DATA_HODGEPODGE_MODE, LOADER_STRICT_MODE, MATT_NAME_STYLE_FLAG
 from kitchen.structure.hierarchical_data_structure import Fov
 from kitchen.structure.neural_data_structure import Timeline
 
 
 logger = logging.getLogger(__name__)
 
-def timeline_loader_from_fov(fov_node: Fov) -> Generator[Tuple[str, str, Timeline], None, None]:
+def timeline_loader_from_fov(fov_node: Fov, timeline_loader_name: str = "default") -> Generator[Tuple[str, str, Timeline], None, None]:
     """
     Load timeline from fov node.
 
@@ -124,7 +124,7 @@ def timeline_loader_from_fov(fov_node: Fov) -> Generator[Tuple[str, str, Timelin
                     t=np.array(df_t / 1000, dtype=np.float32)
                 )
             except Exception as e:
-                logger.warning(f"Error loading timeline in {dir_path} at {type_sheet_name} and {t_sheet_name}: {e}")
+                logger.debug(f"Error loading timeline in {dir_path} at {type_sheet_name} and {t_sheet_name}: {e}")
                 extracted_timeline = Timeline(v=np.array([]), t=np.array([]))
             day_id = str(sheet_id // 2)
             yield f"{day_id}".zfill(2), f"{sheet_id}".zfill(2), extracted_timeline
@@ -132,7 +132,16 @@ def timeline_loader_from_fov(fov_node: Fov) -> Generator[Tuple[str, str, Timelin
  
 
     """Load timeline from fov node."""
+    timeline_loader_options = {
+        "default": io_default,
+        "old": io_old,
+        "classic": io_classic,
+    }
     default_fov_data_path = routing.default_data_path(fov_node)
-    yield from io_enumerator(default_fov_data_path, 
-                             [io_default, io_old, io_classic], 
-                             SPECIFIED_TIMELINE_LOADER, strict_mode=True)
+
+    loader_to_use = timeline_loader_options.get(timeline_loader_name)
+    if loader_to_use is None:
+        raise ValueError(f"Unknown timeline loader: {timeline_loader_name}. Available options: {timeline_loader_options.keys()}")
+    
+    yield from timeline_loader_options[timeline_loader_name](default_fov_data_path)
+    

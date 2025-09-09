@@ -15,6 +15,14 @@ SUPPORTED_TIMELINE_EVENT = {
     "NoWaterOff",
     "BuzzerOn",
     "BuzzerOff",
+    "FakeRelayOn",
+    "FakeRelayOff",
+    "PeltierLeftOn",
+    "PeltierLeftOff",
+    "PeltierRightOn",
+    "PeltierRightOff",
+    "PeltierBothOn",
+    "PeltierBothOff",
     "task start",
     "task end",
     "Puff",
@@ -67,6 +75,10 @@ STIMULUS_EVENTS_DEFAULT = (
     "BlankOn",
     "Puff",
     "Blank",
+    "PeltierLeftOn",
+    "PeltierRightOn",
+    "PeltierBothOn",
+    "FakeRelayOn",
 )
 
 REWARD_EVENTS_DEFAULT = (

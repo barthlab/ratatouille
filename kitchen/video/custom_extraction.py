@@ -32,9 +32,6 @@ def AvgMultipleFrames(capture: cv2.VideoCapture, frame_num: int =10) -> np.ndarr
 
     Returns:
         Averaged frame as uint8 array
-
-    Raises:
-        EOFError: If video ends before collecting required frames
     """
     frame_list = []
     for i in range(frame_num):

@@ -1,0 +1,10 @@
+{
+    "name": "custom thermal analysis",
+    "description": "Custom recipe for thermal analysis",
+    "data_type": "two_photon",
+    "loaders": {
+        "timeline": "default",
+        "behavior": "default"
+    },
+    "trial split": ["timeline"]
+}

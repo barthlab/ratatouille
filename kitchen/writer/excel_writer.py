@@ -20,7 +20,7 @@ def write_boolean_dataframe(df: pd.DataFrame, sheet_name: str, save_path: str, c
         return ''
     
     with pd.ExcelWriter(save_path, engine='xlsxwriter') as writer:
-        df_display.style.applymap(lambda _: 'font-weight: bold').applymap(set_color).to_excel(writer, sheet_name=sheet_name, index=False)
+        df_display.style.map(lambda _: 'font-weight: bold').map(set_color).to_excel(writer, sheet_name=sheet_name, index=False)
         worksheet = writer.sheets[sheet_name]
 
         worksheet.set_column('A:E', 20)

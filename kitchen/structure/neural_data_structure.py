@@ -1,12 +1,13 @@
 import numpy as np
 from dataclasses import dataclass, field
-from typing import Dict, Generator, Optional, Any, Self, Tuple, Iterable
+from typing import Dict, Generator, Iterator, Optional, Any, Self, Tuple, Iterable
 from functools import cached_property
 from scipy import signal
 
 from kitchen.settings.potential import COMPONENTS_BANDWIDTH, SPIKE_MAX_WINDOW_LEN, SPIKE_MIN_DISTANCE, SPIKE_MIN_HEIGHT_STD_RATIO, SPIKES_BANDWIDTH, STD_SLIDING_WINDOW
-from kitchen.settings.timeline import SUPPORTED_TIMELINE_EVENT
+from kitchen.settings.timeline import SUPPORTED_TIMELINE_EVENT, TRIAL_ALIGN_EVENT_DEFAULT
 from kitchen.settings.fluorescence import DEFAULT_RECORDING_DURATION, DF_F0_RANGE, TRIAL_DF_F0_WINDOW
+from kitchen.settings.trials import BOUT_FILTER_PARAMETERS
 from kitchen.utils.numpy_kit import sliding_std, smart_interp
 from kitchen.utils.pass_filter import high_pass
 
@@ -189,18 +190,27 @@ class Events:
             t=self.t[segment_start_index: segment_end_index]
         )        
 
-    def inactivation_window_filter(self, inactivation_window: float) -> Self:
-        """Filter out events within inactivation_window seconds of previous events."""
-        assert inactivation_window > 0, "inactivation window should be positive"
+    def bout_filter(self, bout_sticky_window: float, minimal_bout_size: int = 1) -> Tuple[Self, Self]:  # bout_start, bout_end
+        """Filter out events within bout_stick_window seconds of previous events."""
+        assert bout_sticky_window > 0, "sticky bout window should be positive"
         if len(self.t) == 0:
-            return self.__class__(v=np.array([]), t=np.array([]))
+            return self.__class__(v=np.array([]), t=np.array([])), self.__class__(v=np.array([]), t=np.array([]))
 
-        new_v, new_t = [self.v[0]], [self.t[0]]
-        for i in range(1, len(self.t)):
-            if self.t[i] - self.t[i-1] >= inactivation_window:
-                new_v.append(self.v[i])
-                new_t.append(self.t[i])
-        return self.__class__(v=np.array(new_v), t=np.array(new_t))
+        time_diffs = np.diff(self.t)
+        split_indices = np.where(time_diffs >= bout_sticky_window)[0] + 1
+        start_indices = np.concatenate(([0], split_indices))
+        end_indices = np.concatenate((split_indices - 1, [len(self.t) - 1]))
+
+        # filter out small bouts
+        if minimal_bout_size > 1:
+            bout_sizes = end_indices - start_indices + 1
+            mask = bout_sizes >= minimal_bout_size
+            start_indices = start_indices[mask]
+            end_indices = end_indices[mask]
+
+        bout_start = self.__class__(v=self.v[start_indices], t=self.t[start_indices])
+        bout_end = self.__class__(v=self.v[end_indices], t=self.t[end_indices])
+        return bout_start, bout_end
 
     def frequency(self, bin_size: float) -> TimeSeries:
         """Compute event frequency (events/sec) within bin_size seconds."""
@@ -548,3 +558,17 @@ class NeuralData:
                     raise NotImplementedError(f"Cannot align {name} of type {type(value)}")
         return NeuralData(**new_neural_data_dict)
     
+    def iterablize(self, data_name: str, *args) -> Iterator[float]:
+        assert getattr(self, data_name) is not None, f"Cannot iterate over None {data_name}"
+        if data_name == "timeline":
+            assert self.timeline is not None, "Cannot iterate over None timeline"
+            for trial_t in self.timeline.advanced_filter(TRIAL_ALIGN_EVENT_DEFAULT).t:
+                yield trial_t
+        elif data_name in ["locomotion", "lick"]:
+            bout_filter_parameters = BOUT_FILTER_PARAMETERS[data_name]
+            bout_start, bout_end = getattr(self, data_name).bout_filter(**bout_filter_parameters)
+            trial_times = bout_start if "onset" in args else bout_end
+            for bout_t in trial_times.t:
+                yield bout_t
+        else:
+            raise NotImplementedError(f"Cannot iterate over {data_name}")

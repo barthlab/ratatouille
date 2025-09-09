@@ -143,7 +143,7 @@ def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes,
             ax.set_xticks(np.arange(task_start, task_end, TIME_TICK_DURATION, dtype=int), 
                         np.arange(0, task_end - task_start, TIME_TICK_DURATION, dtype=int))
         except Exception as e:
-            logger.warning(f"Cannot set start to end x ticks for timeline: {e}")
+            logger.debug(f"Cannot set start to end x ticks for timeline: {e}")
         return ratio
     
     # plot multiple timelines

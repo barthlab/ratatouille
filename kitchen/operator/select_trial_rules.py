@@ -31,6 +31,22 @@ PREDEFINED_RULES: Dict[str, dict] = {
     "ClassicBlank": {
         "timeline": lambda x: (len(x.filter("Blank")) == 1) & (len(x.filter(REWARD_EVENTS_DEFAULT)) == 0),
     },
+    "FakeRelayNoWater": {
+        "timeline": lambda x: (len(x.filter("NoWaterOn")) == 1) & (len(x.filter("FakeRelayOn")) == 1),
+    },
+    "FakeRelayWater": {
+        "timeline": lambda x: (len(x.filter("WaterOn")) == 1) & (len(x.filter("FakeRelayOn")) == 1),
+    },
+    "PeltierLeftWater": {
+        "timeline": lambda x: (len(x.filter("PeltierLeftOn")) == 1) & (len(x.filter("WaterOn")) == 1),
+    },
+    "PeltierRightNoWater": {
+        "timeline": lambda x: (len(x.filter("PeltierRightOn")) == 1) & (len(x.filter("NoWaterOn")) == 1),
+    },
+    "PeltierBothWater": {
+        "timeline": lambda x: (len(x.filter("PeltierBothOn")) == 1) & (len(x.filter("WaterOn")) == 1),
+    },
+
 }
 
 PREDEFINED_TRIAL_RULES = {

@@ -19,11 +19,13 @@ BLANK_COLOR = "lightgray"
 WATER_COLOR = "cornflowerblue"
 NOWATER_COLOR = "orangered"
 BUZZER_COLOR = "darkorange"
+PELTIER_COLOR = "aqua"
 DARK_PUFF_COLOR = "gray"
 DARK_BLANK_COLOR = "gray"
 DARK_WATER_COLOR = "blue"
 DARK_NOWATER_COLOR = "red"
 DARK_BUZZER_COLOR = "chocolate"
+DARK_PELTIER_COLOR = "cyan"
 
 # Event color scheme
 REWARD_TRIAL_COLOR = "#298c8c"
@@ -39,6 +41,10 @@ GRAND_COLOR_SCHEME = {
     "WaterOn": WATER_COLOR,
     "NoWaterOn": NOWATER_COLOR,
     "BuzzerOn": BUZZER_COLOR,
+    "FakeRelayOn": BLANK_COLOR,
+    "PeltierLeftOn": DARK_PELTIER_COLOR,
+    "PeltierRightOn": DARK_PELTIER_COLOR,
+    "PeltierBothOn": DARK_PELTIER_COLOR,
 }
 
 TABLEAU_10 = (

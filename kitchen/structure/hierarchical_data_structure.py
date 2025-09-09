@@ -258,11 +258,11 @@ class DataSet:
             logger.warning("Select operation resulted in 0 nodes, check your criterion function")
         return DataSet(name=_specified_name, nodes=selected_nodes)
     
-    def rule_based_selection(self, rule_dict: Dict[str, dict]) -> Dict[str, "DataSet"]:
+    def rule_based_selection(self, rule_dict: Dict[str, dict], _empty_warning: bool = False) -> Dict[str, "DataSet"]:
         """Select nodes based on pre-defined rules."""    
         selected_nodes = {}    
         for name, rule_definition in rule_dict.items():
-            this_type_nodes = self.select(**rule_definition)      
+            this_type_nodes = self.select(**rule_definition, _empty_warning=_empty_warning)      
             if len(this_type_nodes) > 0:
                 selected_nodes[name] = this_type_nodes      
         return selected_nodes

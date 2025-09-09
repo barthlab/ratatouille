@@ -7,5 +7,5 @@
         "fluorescence": "io_default",
         "behavior": "io_default"
     },
-    "trial split by": "timeline"
+    "trial split": "timeline"
 }

@@ -1,11 +1,11 @@
 from itertools import zip_longest
-from typing import List, Optional, overload
+from typing import Any, Dict, List, Optional, overload
 import os
 import os.path as path
 from tqdm import tqdm
+import logging
 
 from kitchen.loader.fluorescence_loader import fluorescence_loader_from_node
-from kitchen.settings.timeline import TRIAL_ALIGN_EVENT_DEFAULT
 from kitchen.settings.trials import TRIAL_RANGE_RELATIVE_TO_ALIGNMENT
 from kitchen.loader.timeline_loader import timeline_loader_from_fov
 from kitchen.loader.behavior_loader import behavior_loader_from_node
@@ -15,19 +15,40 @@ from kitchen.structure.neural_data_structure import NeuralData
 import kitchen.configs.routing as routing
 from kitchen.utils.sequence_kit import split_by
 
+logger = logging.getLogger(__name__)
+
 """
 Hierarchical data loading and splitting functions.
 
 Supports the complete experimental hierarchy:
-                               /-> FovTrial
-Cohort -> Mice -> Fov -> Session -> CellSession -> Trial
-               Day <- FovDay </   Cell </  
+                        object
+                    Cohort      mice       fov        cell
+                    ________________________________________
+          template  | Cohort -> Mice -> Fov           Cell
+ temporal           |                    |              ^
+               day  |            Day <---|-- FovDay     |
+                    |                    V    ^         |
+           session  |                   Session -> CellSession
+                    |                      V           V
+             chunk  |                   FovTrial     Trial
 
+
+                                /-> FovTrial
+Cohort -> Mice -> Fov -> Session -> CellSession -> Trial
+                 Day <- FovDay </       Cell </  
+
+[Cohort] → [Mice] → [Fov] → [Session] ┬─→ [FovDay] ───→ [Day]
+                                      │
+                                      ├─→ [FovTrial]
+                                      │
+                                      └─→ [CellSession] ┬─→ [Trial]
+                                                        │
+                                                        └─→ [Cell]
 Each split function takes a parent node and creates child nodes by scanning
 the file system structure and loading appropriate data.
 """
 
-def _SplitCohort2Mice(cohort_node: Cohort) -> List[Mice]:
+def _SplitCohort2Mice(cohort_node: Cohort, **kwargs: Any) -> List[Mice]:
     """Split a cohort node into multiple mice nodes."""
     default_cohort_data_path = routing.default_data_path(cohort_node)
 
@@ -45,7 +66,7 @@ def _SplitCohort2Mice(cohort_node: Cohort) -> List[Mice]:
         )
     return mice_nodes
 
-def _SplitMice2Fov(mice_node: Mice) -> List[Fov]:
+def _SplitMice2Fov(mice_node: Mice, **kwargs: Any) -> List[Fov]:
     """Split a mice node into multiple fov nodes."""
     default_mice_data_path = routing.default_data_path(mice_node)
 
@@ -63,7 +84,7 @@ def _SplitMice2Fov(mice_node: Mice) -> List[Fov]:
         )
     return fov_nodes
 
-def _SplitFov2Session(fov_node: Fov) -> List[Session]:
+def _SplitFov2Session(fov_node: Fov, loaders: Dict[str, str], **kwargs: Any) -> List[Session]:
     """
     Split a fov node into multiple session nodes.
     All data are aligned to timeline files.
@@ -71,20 +92,21 @@ def _SplitFov2Session(fov_node: Fov) -> List[Session]:
 
     # Load timeline from fov node
     timeline_dict = {}
-    for day_name, session_name, timeline in timeline_loader_from_fov(fov_node):
+    assert 'timeline' in loaders, "Timeline loader must be specified"
+    for day_name, session_name, timeline in timeline_loader_from_fov(fov_node, loaders['timeline']):
         session_coordinate = TemporalObjectCoordinate(
             temporal_uid=fov_node.coordinate.temporal_uid.child_uid(
                 day_id=day_name, session_id=session_name),
             object_uid=fov_node.coordinate.object_uid)
         timeline_dict[session_coordinate] = timeline
     num_session = len(timeline_dict)
-    assert num_session > 0, f"Cannot find any session in {fov_node}"
+    assert num_session > 0, f"Cannot find any timeline in {fov_node}"
 
     """Load fluorescence and behavior from fov node."""
     session_nodes = []
     for fluorescence, behavior_dict, (session_coordinate, timeline) in zip_longest(
-        fluorescence_loader_from_node(fov_node, timeline_dict),
-        behavior_loader_from_node(fov_node, timeline_dict),
+        fluorescence_loader_from_node(fov_node, timeline_dict, loaders.get('fluorescence')),
+        behavior_loader_from_node(fov_node, timeline_dict, loaders.get('behavior')),
         timeline_dict.items()
     ):
         session_nodes.append(
@@ -98,7 +120,7 @@ def _SplitFov2Session(fov_node: Fov) -> List[Session]:
         )
     return session_nodes
 
-def _SplitSession2CellSession(session_node: Session) -> List[CellSession]: 
+def _SplitSession2CellSession(session_node: Session, **kwargs: Any) -> List[CellSession]: 
     """Split a session node into multiple cell session nodes."""
     cell_session_nodes = []
     if session_node.data.fluorescence is not None:
@@ -125,7 +147,7 @@ def _SplitSession2CellSession(session_node: Session) -> List[CellSession]:
         )
     return cell_session_nodes
 
-def _MergeSession2FovDay(dataset: DataSet) -> List[FovDay]:
+def _MergeSession2FovDay(dataset: DataSet, **kwargs: Any) -> List[FovDay]:
     """Merge session nodes into fov day nodes."""
     fov_day_nodes = []
     
@@ -152,7 +174,7 @@ def _MergeSession2FovDay(dataset: DataSet) -> List[FovDay]:
             )            
     return fov_day_nodes
 
-def _MergeFovDay2Day(dataset: DataSet) -> List[Day]:
+def _MergeFovDay2Day(dataset: DataSet, **kwargs: Any) -> List[Day]:
     """Merge fov day nodes into day nodes."""
     day_nodes = []
     
@@ -180,21 +202,21 @@ def _MergeFovDay2Day(dataset: DataSet) -> List[Day]:
     return day_nodes
 
 @overload
-def _trial_splitter_default(session_level_node: Session) -> List[FovTrial]: ...
+def _trial_splitter(session_level_node: Session, split_by: list[str]) -> List[FovTrial]: ...
 
 @overload
-def _trial_splitter_default(session_level_node: CellSession) -> List[Trial]: ...
+def _trial_splitter(session_level_node: CellSession, split_by: list[str]) -> List[Trial]: ...
 
-def _trial_splitter_default(session_level_node: CellSession | Session) -> List[Trial] | List[FovTrial]:
+def _trial_splitter(session_level_node: CellSession | Session, split_by: list[str]) -> List[Trial] | List[FovTrial]:
     assert session_level_node.data.timeline is not None, f"Cannot find timeline in {session_level_node}"
     target_node_type = Trial if isinstance(session_level_node, CellSession) else FovTrial
 
     # find the all trial align event
-    trial_aligns = session_level_node.data.timeline.advanced_filter(TRIAL_ALIGN_EVENT_DEFAULT)
+    trial_aligns = session_level_node.data.iterablize(*split_by)
 
     # split the session level node into trial level nodes
     trial_nodes = []
-    for trial_id, (trial_t, trial_v) in enumerate(trial_aligns):
+    for trial_id, trial_t in enumerate(trial_aligns):
         trial_coordinate = TemporalObjectCoordinate(
             temporal_uid=session_level_node.coordinate.temporal_uid.child_uid(chunk_id=trial_id),
             object_uid=session_level_node.coordinate.object_uid)
@@ -209,16 +231,16 @@ def _trial_splitter_default(session_level_node: CellSession | Session) -> List[T
         )
     return trial_nodes
 
-def _SplitCellSession2Trial(cell_session_node: CellSession) -> List[Trial]: 
+def _SplitCellSession2Trial(cell_session_node: CellSession, **kwargs: Any) -> List[Trial]: 
     """Split a cell session node into multiple trial nodes."""
-    return _trial_splitter_default(cell_session_node)
+    return _trial_splitter(cell_session_node, **kwargs)
 
-def _SplitSession2FovTrial(session_node: Session) -> List[FovTrial]: 
+def _SplitSession2FovTrial(session_node: Session, **kwargs: Any) -> List[FovTrial]: 
     """Split a session node into multiple fov trial nodes."""
-    return _trial_splitter_default(session_node)
+    return _trial_splitter(session_node, **kwargs)
 
 
-def cohort_loader(template_id: str, cohort_id: str, name: Optional[str] = None) -> DataSet:
+def cohort_loader(template_id: str, cohort_id: str, recipe: dict, name: Optional[str] = None) -> DataSet:
     """
     Load data for a cohort, including all its children nodes.
 
@@ -233,6 +255,8 @@ def cohort_loader(template_id: str, cohort_id: str, name: Optional[str] = None) 
     Returns:
         DataSet: A DataSet containing all the nodes for the cohort and its children.
     """
+    assert recipe['data_type'] == "two_photon", f"Expected two photon recipe, got {recipe['data_type']}"
+
     # Initialize the cohort node
     init_cohort_node = Cohort(
         coordinate=TemporalObjectCoordinate(
@@ -250,11 +274,17 @@ def cohort_loader(template_id: str, cohort_id: str, name: Optional[str] = None) 
     for mice_node in loaded_data.select("mice"):
         assert isinstance(mice_node, Mice)
         loaded_data.add_node(_SplitMice2Fov(mice_node))
+    
+    # Return if recipe doesn't specify trial spliter
+    if "trial split" not in recipe or recipe['trial split'] == "none":
+        logger.info("Recipe doesn't specify trial spliter, stop loading at fov level.")
+        return loaded_data
 
     # Fov to Session
+    assert "loaders" in recipe, "Recipe doesn't specify timeline loader"
     for fov_node in loaded_data.select("fov"):
         assert isinstance(fov_node, Fov)
-        loaded_data.add_node(_SplitFov2Session(fov_node))
+        loaded_data.add_node(_SplitFov2Session(fov_node, loaders=recipe['loaders']))
 
     # Session to FovDay
     loaded_data.add_node(_MergeSession2FovDay(loaded_data))
@@ -271,46 +301,13 @@ def cohort_loader(template_id: str, cohort_id: str, name: Optional[str] = None) 
     for cell_session_node in tqdm(loaded_data.select("cellsession"), 
                                   desc="Splitting cell session to trials", unit="cell session"):
         assert isinstance(cell_session_node, CellSession)
-        loaded_data.add_node(_SplitCellSession2Trial(cell_session_node))
+        loaded_data.add_node(_SplitCellSession2Trial(cell_session_node, split_by=recipe['trial split']))
         
     # Session to FovTrial
     for session_node in tqdm(loaded_data.select("session"), 
                                   desc="Splitting session to fov trials", unit="session"):
         assert isinstance(session_node, Session)
-        loaded_data.add_node(_SplitSession2FovTrial(session_node))
+        loaded_data.add_node(_SplitSession2FovTrial(session_node, split_by=recipe['trial split']))
 
     return loaded_data
 
-
-def naive_loader(template_id: str, cohort_id: str, name: Optional[str] = None) -> DataSet:
-    """
-    Load data for a cohort to FOV level, for basic diagnosis & data manipulation.
-
-    Loader follows such a hierarchy:
-    Cohort -> Mice -> Fov 
-    Args:
-        template_id (str): The template ID for initial cohort node.
-        cohort_id (str): The cohort ID for initial cohort node.
-
-    Returns:
-        DataSet: A DataSet containing all the nodes for the cohort.
-    """
-    # Initialize the cohort node
-    init_cohort_node = Cohort(
-        coordinate=TemporalObjectCoordinate(
-            temporal_uid=TemporalUID(template_id=template_id), 
-            object_uid=ObjectUID(cohort_id=cohort_id)),
-        data=NeuralData(),)    
-    loaded_data = DataSet(name=name if name is not None else cohort_id, nodes=[init_cohort_node])
-
-    # Cohort to Mice
-    for cohort_node in loaded_data.select("cohort"):
-        assert isinstance(cohort_node, Cohort)
-        loaded_data.add_node(_SplitCohort2Mice(cohort_node))
-    
-    # Mice to Fov
-    for mice_node in loaded_data.select("mice"):
-        assert isinstance(mice_node, Mice)
-        loaded_data.add_node(_SplitMice2Fov(mice_node))
-
-    return loaded_data

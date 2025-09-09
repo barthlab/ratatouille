@@ -63,7 +63,7 @@ def session_overview(
             save_path=routing.default_fig_path(session_dataset, "SessionOverview_{}.png"),
         )
     except Exception as e:
-        logger.warning(f"Cannot plot session overview for {get_node_name(session_node)}: {e}")
+        logger.debug(f"Cannot plot session overview for {get_node_name(session_node)}: {e}")
 
 def fov_overview(
         fov_node: Fov,
@@ -100,7 +100,7 @@ def fov_overview(
             save_path=routing.default_fig_path(session_nodes, "FovOverview_{}.png"),
         )
     except Exception as e:
-        logger.warning(f"Cannot plot fov overview for {get_node_name(fov_node)}: {e}")
+        logger.debug(f"Cannot plot fov overview for {get_node_name(fov_node)}: {e}")
 
 
 def single_node_trial_avg_default(
@@ -148,7 +148,7 @@ def single_node_trial_avg_default(
                 save_path=routing.default_fig_path(subtree, f"TrialAvg_{{}}_{alignment_name}.png"),
             )
         except Exception as e:
-            logger.warning(f"Cannot plot trial average for {get_node_name(node)} with {alignment_name}: {e}")
+            logger.debug(f"Cannot plot trial average for {get_node_name(node)} with {alignment_name}: {e}")
 
 
 def fov_summary_trial_avg_default(
@@ -219,4 +219,4 @@ def fov_summary_trial_avg_default(
                 save_path=routing.default_fig_path(dataset.subtree(fov_node), f"FOVSummary_{{}}_{alignment_name}.png"),
             )
         except Exception as e:
-            logger.warning(f"Cannot plot trial average for {get_node_name(fov_node)} with {alignment_name}: {e}")
+            logger.debug(f"Cannot plot trial average for {get_node_name(fov_node)} with {alignment_name}: {e}")

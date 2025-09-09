@@ -3,20 +3,23 @@ from typing import Dict, Generator, Optional
 import numpy as np
 import pandas as pd
 from scipy.io import loadmat
-
+import logging
 
 from kitchen.configs import routing
 from kitchen.settings.fluorescence import CROP_BEGGINNG, DEFAULT_RECORDING_DURATION, FAST_MATCHING_MODE, NULL_TTL_OFFSET, NEUROPIL_SUBTRACTION_COEFFICIENT, DEFAULT_FRAMES_PER_SESSION
-from kitchen.settings.loaders import DATA_HODGEPODGE_MODE, SPECIFIED_FLUORESCENCE_LOADER, io_enumerator
+from kitchen.settings.loaders import DATA_HODGEPODGE_MODE, LOADER_STRICT_MODE
 from kitchen.settings.timeline import TTL_EVENT_DEFAULT
 from kitchen.structure.hierarchical_data_structure import Node
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate
 from kitchen.structure.neural_data_structure import Fluorescence, TimeSeries, Timeline
 from kitchen.utils.sequence_kit import find_only_one
 
+logger = logging.getLogger(__name__)
+
 
 def fluorescence_loader_from_node(
-        node: Node, timeline_dict: Dict[TemporalObjectCoordinate, Timeline]) -> Generator[Optional[Fluorescence], None, None]:
+        node: Node, timeline_dict: Dict[TemporalObjectCoordinate, Timeline], fluorescence_loader_name: Optional[str] = None) \
+            -> Generator[Optional[Fluorescence], None, None]:
 
     def load_fall_mat(data_dir: str, session_duration: float,
                       n_session: Optional[int] = None, num_frames_per_session: Optional[int] = None,
@@ -183,10 +186,25 @@ def fluorescence_loader_from_node(
             raise ValueError(f"Cannot match fluorescence and timeline in {dir_path}")
       
 
-
-    default_data_path = routing.default_data_path(node)
-
     """Load fluorescence from node."""
-    yield from io_enumerator(default_data_path, 
-                             [io_default, io_lost_ttl, io_split_fall, io_classic], 
-                             SPECIFIED_FLUORESCENCE_LOADER, strict_mode=True)
+    fluorescence_loader_options = {
+        "default": io_default,
+        "lost_ttl": io_lost_ttl,
+        "split_fall": io_split_fall,
+        "classic": io_classic,
+    }
+    default_data_path = routing.default_data_path(node)
+    
+    if fluorescence_loader_name is None:
+        logger.info("No fluorescence loader specified, skip loading fluorescence")
+        return
+    loader_to_use = fluorescence_loader_options.get(fluorescence_loader_name)
+    if loader_to_use is None:
+        raise ValueError(f"Unknown fluorescence loader: {fluorescence_loader_name}. Available options: {fluorescence_loader_options.keys()}")
+    
+    try:
+        yield from loader_to_use(default_data_path)
+    except Exception as e:
+        if LOADER_STRICT_MODE:
+            raise ValueError(f"Error loading fluorescence in {default_data_path} with {fluorescence_loader_name}: {e}")
+        logger.debug(f"Error loading fluorescence in {default_data_path} with {fluorescence_loader_name}: {e}")

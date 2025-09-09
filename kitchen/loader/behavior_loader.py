@@ -1,26 +1,26 @@
 import os.path as path
 from typing import Any, Dict, Generator, Optional
 import logging
-
 import numpy as np
 import pandas as pd
 
-logger = logging.getLogger(__name__)
-
 from kitchen.configs import routing
 from kitchen.settings.behavior import LICK_INACTIVATE_WINDOW, LOCOMOTION_CIRCUMFERENCE, LOCOMOTION_NUM_TICKS, VIDEO_EXTRACTED_BEHAVIOR_MIN_MAX_PERCENTILE, VIDEO_EXTRACTED_BEHAVIOR_TYPES
-from kitchen.settings.loaders import DATA_HODGEPODGE_MODE, SPECIFIED_BEHAVIOR_LOADER, io_enumerator
+from kitchen.settings.loaders import DATA_HODGEPODGE_MODE, LOADER_STRICT_MODE
 from kitchen.structure.hierarchical_data_structure import Node
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate
 from kitchen.structure.neural_data_structure import Events, TimeSeries, Timeline
 from kitchen.utils.numpy_kit import smooth_uniform
 from kitchen.utils.sequence_kit import find_only_one
 
+logger = logging.getLogger(__name__)
+
 
 
 def behavior_loader_from_node(
         node: Node,
-        timeline_dict: Dict[TemporalObjectCoordinate, Timeline]) -> \
+        timeline_dict: Dict[TemporalObjectCoordinate, Timeline],
+        behavior_loader_name: Optional[str] = None) -> \
             Generator[Dict[str, Any], None, None]:
     """
     Load behavioral data (lick, locomotion, pupil, etc.) for all sessions within a Node.
@@ -48,12 +48,12 @@ def behavior_loader_from_node(
                 assert lick_data.shape[1] == 1, f"Cannot find 1 column in {lick_path}"
 
                 # create lick events
-                lick_events = Events(
+                lick_events, _ = Events(
                     v=np.ones_like(lick_data[:, 0], dtype=np.float32), 
-                    t=np.array(lick_data[:, 0] / 1000, dtype=np.float32)).inactivation_window_filter(LICK_INACTIVATE_WINDOW)
+                    t=np.array(lick_data[:, 0] / 1000, dtype=np.float32)).bout_filter(LICK_INACTIVATE_WINDOW)
                 session_behavior["lick"] = lick_events
             except Exception as e:
-                logger.warning(f"Cannot load lick from {dir_path}: {e}")
+                logger.debug(f"Cannot load lick from {dir_path}: {e}")
 
             """load locomotion"""                
             try:
@@ -80,7 +80,7 @@ def behavior_loader_from_node(
                 session_behavior["position"] = position_events
                 session_behavior["locomotion"] = locomotion_events
             except Exception as e:
-                logger.warning(f"Cannot load locomotion from {dir_path}: {e}")
+                logger.debug(f"Cannot load locomotion from {dir_path}: {e}")
 
             """load video extracted behavior"""
             for behavior_type in VIDEO_EXTRACTED_BEHAVIOR_TYPES:                
@@ -106,7 +106,7 @@ def behavior_loader_from_node(
                     behavior_timeseries = TimeSeries(v=normalized_values, t=video_time)
                     session_behavior[behavior_type.lower()] = behavior_timeseries
                 except Exception as e:
-                    logger.warning(f"Cannot load {behavior_type} from {dir_path}: {e}")
+                    logger.debug(f"Cannot load {behavior_type} from {dir_path}: {e}")
 
             yield session_behavior
  
@@ -141,13 +141,27 @@ def behavior_loader_from_node(
                     behavior_timeseries = TimeSeries(v=normalized_values, t=video_time)
                     session_behavior[behavior_type.lower()] = behavior_timeseries
                 except Exception as e:
-                    logger.warning(f"Cannot load {behavior_type} from {dir_path}: {e}")
+                    logger.debug(f"Cannot load {behavior_type} from {dir_path}: {e}")
 
             yield session_behavior
  
-    default_data_path = routing.default_data_path(node)
-
     """Load behavior from node."""
-    yield from io_enumerator(default_data_path, 
-                             [io_default, io_video_only ], 
-                             SPECIFIED_BEHAVIOR_LOADER)
+    behavior_loader_options = {
+        "default": io_default,
+        "video_only": io_video_only,
+    }
+    default_data_path = routing.default_data_path(node)
+    
+    if behavior_loader_name is None:
+        logger.info("No behavior loader specified, skip loading behavior")
+        return
+    loader_to_use = behavior_loader_options.get(behavior_loader_name)
+    if loader_to_use is None:
+        raise ValueError(f"Unknown behavior loader: {behavior_loader_name}. Available options: {behavior_loader_options.keys()}")
+    
+    try:
+        yield from loader_to_use(default_data_path)
+    except Exception as e:
+        if LOADER_STRICT_MODE:
+            raise ValueError(f"Error loading behavior in {default_data_path} with {behavior_loader_name}: {e}")
+        logger.debug(f"Error loading behavior in {default_data_path} with {behavior_loader_name}: {e}")

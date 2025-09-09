@@ -88,7 +88,7 @@ def mice_water_omission_overview(
                     save_path=routing.default_fig_path(mice_dataset, f"WaterOmission_{{}}_{alignment_name}.png"),
                 )
             except Exception as e:
-                logger.warning(f"Cannot plot water omission for {get_node_name(mice_node)} with {alignment_name}: {e}")
+                logger.debug(f"Cannot plot water omission for {get_node_name(mice_node)} with {alignment_name}: {e}")
 
 
 
@@ -131,7 +131,7 @@ def mice_water_omission_summary(
                 save_path=routing.default_fig_path(dataset, f"AllMiceWaterOmission_{alignment_name}.png"),
             )
         except Exception as e:
-            logger.warning(f"Cannot plot all mice water omission for with {alignment_name}: {e}")
+            logger.debug(f"Cannot plot all mice water omission for with {alignment_name}: {e}")
 
 
 def water_omission_response_compare(

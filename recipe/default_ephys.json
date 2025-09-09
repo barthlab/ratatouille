@@ -7,5 +7,5 @@
         "behavior": "io_default",
         "potential": "io_default"
     },
-    "trial split by": "timeline"
+    "trial split": "timeline"
 }

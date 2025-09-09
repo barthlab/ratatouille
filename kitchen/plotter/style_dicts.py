@@ -1,5 +1,5 @@
 from kitchen.settings.timeline import SUPPORTED_TIMELINE_EVENT
-from kitchen.plotter.color_scheme import FLUORESCENCE_COLOR, INDIVIDUAL_FLUORESCENCE_COLOR, LOCOMOTION_COLOR, POSITION_COLOR, LICK_COLOR, PUPIL_COLOR, \
+from kitchen.plotter.color_scheme import DARK_PELTIER_COLOR, FLUORESCENCE_COLOR, INDIVIDUAL_FLUORESCENCE_COLOR, LOCOMOTION_COLOR, POSITION_COLOR, LICK_COLOR, PUPIL_COLOR, \
         SUBTRACT_COLOR, WHISKER_COLOR, DARK_PUFF_COLOR, DARK_BLANK_COLOR, DARK_WATER_COLOR, DARK_NOWATER_COLOR, DARK_BUZZER_COLOR
 
 DEFAULT_ALPHA = 0.9
@@ -158,6 +158,30 @@ TIMELINE_SCATTER_STYLE = {
         "lw": 0.5,
         "zorder": 10,
     },
+    "PeltierLeftOn": {
+        "color": DARK_PELTIER_COLOR,
+        "s": 8,
+        "marker": "|",
+        "alpha": 1,
+        "lw": 0.5,
+        "zorder": 10,
+    },
+    "PeltierRightOn": {
+        "color": DARK_PELTIER_COLOR,
+        "s": 8,
+        "marker": "|",
+        "alpha": 1,
+        "lw": 0.5,
+        "zorder": 10,
+    },
+    "PeltierBothOn": {
+        "color": DARK_PELTIER_COLOR,
+        "s": 8,
+        "marker": "|",
+        "alpha": 1,
+        "lw": 0.5,
+        "zorder": 10,
+    },
     "HorizontalPuffOn": {
         "color": DARK_PUFF_COLOR,
         "s": 5,
@@ -167,6 +191,15 @@ TIMELINE_SCATTER_STYLE = {
         "zorder": 10,
     },
     "BlankOn": {
+        "facecolors": 'none',
+        "edgecolors": DARK_BLANK_COLOR,
+        "s": 4,
+        "marker": "o",
+        "alpha": 1,
+        "lw": 0.5,
+        "zorder": 10,
+    },
+    "FakeRelayOn": {
         "facecolors": 'none',
         "edgecolors": DARK_BLANK_COLOR,
         "s": 4,
@@ -208,6 +241,8 @@ TIMELINE_SCATTER_STYLE = {
         "lw": 0,
         "zorder": 10,
     },
+    
+
 
 }
 
