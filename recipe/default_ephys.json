@@ -4,7 +4,6 @@
     "data_type": "ephys",
     "loaders": {
         "timeline": "io_default",
-        "behavior": "io_default",
         "potential": "io_default"
     },
     "trial split": "timeline"

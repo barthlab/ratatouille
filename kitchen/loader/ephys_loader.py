@@ -1,4 +1,5 @@
 from typing import List, Optional, overload
+import logging
 
 from kitchen.loader.behavior_loader import behavior_loader_from_node
 from kitchen.loader.potential_loader import potential_loader_from_cohort
@@ -8,6 +9,7 @@ from kitchen.structure.hierarchical_data_structure import CellSession, Cohort, D
 from kitchen.structure.meta_data_structure import ObjectUID, TemporalObjectCoordinate, TemporalUID
 from kitchen.structure.neural_data_structure import NeuralData
 
+logger = logging.getLogger(__name__)
 
 """
 Ephys loading loads data at cell-level
@@ -17,6 +19,7 @@ def _SplitCohort2CellSession(cohort_node: Cohort) -> List[CellSession]:
     """Split a cohort node into multiple cell session nodes."""
     cell_session_nodes = []
     for cell_coordinate, timeline, cam_timeline, potential in potential_loader_from_cohort(cohort_node): 
+        logger.info(f"Loading {cell_coordinate}...")
         behavior_dict = next(behavior_loader_from_node(cohort_node, {cell_coordinate: cam_timeline}))        
         cell_session_nodes.append(
             CellSession(coordinate=cell_coordinate,

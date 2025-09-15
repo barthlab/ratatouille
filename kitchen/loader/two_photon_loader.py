@@ -9,11 +9,10 @@ from kitchen.loader.fluorescence_loader import fluorescence_loader_from_node
 from kitchen.settings.trials import TRIAL_RANGE_RELATIVE_TO_ALIGNMENT
 from kitchen.loader.timeline_loader import timeline_loader_from_fov
 from kitchen.loader.behavior_loader import behavior_loader_from_node
-from kitchen.structure.hierarchical_data_structure import DataSet, Cohort, Day, FovDay, FovTrial, Mice, Fov, Session, CellSession, Trial
+from kitchen.structure.hierarchical_data_structure import DataSet, Cohort, FovTrial, MergeFovDay2Day, MergeSession2FovDay, Mice, Fov, Session, CellSession, Trial
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate, TemporalUID, ObjectUID
 from kitchen.structure.neural_data_structure import NeuralData
 import kitchen.configs.routing as routing
-from kitchen.utils.sequence_kit import split_by
 
 logger = logging.getLogger(__name__)
 
@@ -147,59 +146,6 @@ def _SplitSession2CellSession(session_node: Session, **kwargs: Any) -> List[Cell
         )
     return cell_session_nodes
 
-def _MergeSession2FovDay(dataset: DataSet, **kwargs: Any) -> List[FovDay]:
-    """Merge session nodes into fov day nodes."""
-    fov_day_nodes = []
-    
-    # split sessions by day id
-    dict_session_by_day = split_by(dataset.select("session"), attr_name= "temporal_uid.parent_uid")
-    for day_id, session_nodes in dict_session_by_day.items():
-        assert day_id is not None, f"Cannot find day id in {session_nodes}"
-
-        # split sessions within same day by object_uid
-        dict_same_day_sessions_by_fov = split_by(session_nodes, attr_name= "object_uid")
-        for object_uid, same_fov_day_session_nodes in dict_same_day_sessions_by_fov.items():
-            assert object_uid is not None, f"Cannot find object_uid in {same_fov_day_session_nodes}"
-            example_session_node = same_fov_day_session_nodes[0]
-            
-            # create fov day node
-            fov_day_coordinate = TemporalObjectCoordinate(
-                temporal_uid=example_session_node.coordinate.temporal_uid.parent_uid,
-                object_uid=object_uid)            
-            fov_day_nodes.append(
-                FovDay(
-                    coordinate=fov_day_coordinate,
-                    data=NeuralData(),
-                )
-            )            
-    return fov_day_nodes
-
-def _MergeFovDay2Day(dataset: DataSet, **kwargs: Any) -> List[Day]:
-    """Merge fov day nodes into day nodes."""
-    day_nodes = []
-    
-    # split fov day by mice id
-    dict_fov_day_by_mice = split_by(dataset.select("fovday"), attr_name= "object_uid.parent_uid")
-    for mice_id, fov_day_nodes in dict_fov_day_by_mice.items():
-        assert mice_id is not None, f"Cannot find mice id in {fov_day_nodes}"
-
-        # split fov day within same mice by day id
-        dict_same_mice_fov_day_by_day = split_by(fov_day_nodes, attr_name= "temporal_uid")
-        for temporal_uid, same_day_fov_day_nodes in dict_same_mice_fov_day_by_day.items():
-            assert temporal_uid is not None, f"Cannot find temporal_uid in {same_day_fov_day_nodes}"
-            example_fov_day_node = same_day_fov_day_nodes[0]
-            
-            # create day node
-            day_coordinate = TemporalObjectCoordinate(
-                temporal_uid=temporal_uid,
-                object_uid=example_fov_day_node.coordinate.object_uid.parent_uid)
-            day_nodes.append(
-                Day(
-                    coordinate=day_coordinate,
-                    data=NeuralData(),
-                )
-            )
-    return day_nodes
 
 @overload
 def _trial_splitter(session_level_node: Session, split_by: list[str]) -> List[FovTrial]: ...
@@ -287,10 +233,10 @@ def cohort_loader(template_id: str, cohort_id: str, recipe: dict, name: Optional
         loaded_data.add_node(_SplitFov2Session(fov_node, loaders=recipe['loaders']))
 
     # Session to FovDay
-    loaded_data.add_node(_MergeSession2FovDay(loaded_data))
+    loaded_data.add_node(MergeSession2FovDay(loaded_data))
 
     # FovDay to Day
-    loaded_data.add_node(_MergeFovDay2Day(loaded_data))
+    loaded_data.add_node(MergeFovDay2Day(loaded_data))
 
     # Session to CellSession
     for session_node in loaded_data.select("session"):

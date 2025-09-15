@@ -153,7 +153,8 @@ def behavior_loader_from_node(
     default_data_path = routing.default_data_path(node)
     
     if behavior_loader_name is None:
-        logger.info("No behavior loader specified, skip loading behavior")
+        logger.debug("No behavior loader specified, skip loading behavior")
+        yield {}
         return
     loader_to_use = behavior_loader_options.get(behavior_loader_name)
     if loader_to_use is None:

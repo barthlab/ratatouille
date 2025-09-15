@@ -25,14 +25,14 @@ Each enforces appropriate coordinate constraints for its hierarchy level.
 
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, Generator, List, Optional, Dict, Self, Sequence, Union
+from typing import Any, ClassVar, Generator, List, Optional, Dict, Self, Sequence, Type, TypeVar, Union
 import logging
 import pandas as pd
 
 from kitchen.settings.structure import NULL_STRUCTURE_NAME
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate
 from kitchen.structure.neural_data_structure import NeuralData
-from kitchen.utils.sequence_kit import filter_by
+from kitchen.utils.sequence_kit import filter_by, split_by
 from kitchen.writer.excel_writer import write_boolean_dataframe
 
 
@@ -268,11 +268,12 @@ class DataSet:
         return selected_nodes
 
 
-    def status(self, save_path: Optional[str] = None):
+    def status(self, save_path: Optional[str] = None, row_level: str="session"):
         """Return string representation of dataset status."""
+        assert len(self.select(row_level)) > 0, f"Status report expects at least one {row_level} node."
+
         status_list = []
-        for session_node in self.select("session"):
-            assert isinstance(session_node, Session)
+        for session_node in self.select(row_level):
             status_list.append({"Cohort": session_node.coordinate.object_uid.cohort_id,
                                 "Mice": session_node.coordinate.object_uid.mice_id,
                                 "FOV": session_node.coordinate.object_uid.fov_id,
@@ -282,10 +283,107 @@ class DataSet:
         df = pd.DataFrame(status_list)
         
         save_path = "status_report.xlsx" if save_path is None else save_path
-        write_boolean_dataframe(df, "Status Report", save_path)
+        write_boolean_dataframe(df, f"Status Report @ {row_level}", save_path)
 
     @property
     def root_coordinate(self) -> TemporalObjectCoordinate:
         """Return root coordinate of the dataset."""
         assert isinstance(self._root_coordinate, TemporalObjectCoordinate), f"Dataset is empty, with root: {self._root_coordinate}"
         return self._root_coordinate
+
+
+
+# Hierachical merger
+TargetNode = TypeVar("TargetNode", bound=Node)
+
+def _generalized_temporal_merger(
+    dataset: DataSet,
+    source_node_type: str, TargetNodeClass: Type[TargetNode],
+    **kwargs: Any
+) -> List[TargetNode]:
+    """
+    Merges nodes along the temporal hierarchy.
+
+    Groups nodes first by their parent temporal UID, then by their object UID,
+    creating a new higher-level node for each group.
+
+    Example: Sesson: (Session, Fov) -> FovDay: (Day, Fov)
+    """
+    target_nodes = []
+    source_nodes = dataset.select(source_node_type)
+    if not source_nodes:
+        logger.warning(f"Find no {source_node_type} nodes to merge.")
+        return []
+
+    # Group by the target temporal level (e.g., day_id)
+    nodes_by_parent_temporal = split_by(source_nodes, attr_name="temporal_uid.parent_uid")
+
+    for parent_temporal_uid, child_nodes in nodes_by_parent_temporal.items():
+        # Further group by the specific spatial object (e.g., fov_id)
+        assert parent_temporal_uid is not None, f"Cannot find parent temporal uid in {child_nodes}"
+        nodes_by_object = split_by(child_nodes, attr_name="object_uid")
+
+        for object_uid, group in nodes_by_object.items():
+            # Create the new coordinate for the merged node
+            new_coordinate = TemporalObjectCoordinate(
+                temporal_uid=parent_temporal_uid,
+                object_uid=object_uid
+            )
+            target_nodes.append(
+                TargetNodeClass(
+                    coordinate=new_coordinate,
+                    data=NeuralData(),
+                )
+            )
+    return target_nodes
+
+def MergeSession2FovDay(dataset: DataSet, **kwargs: Any) -> List[FovDay]:
+    """Merge session nodes into fov day nodes."""
+    return _generalized_temporal_merger(dataset, source_node_type="session", TargetNodeClass=FovDay, **kwargs)
+
+
+def _generalized_object_merger(
+    dataset: DataSet,
+    source_node_type: str, TargetNodeClass: Type[TargetNode],
+    **kwargs: Any
+) -> List[TargetNode]:
+    """
+    Merges nodes along the object hierarchy.
+
+    Groups nodes first by their parent object UID, then by their temporal UID,
+    creating a new higher-level node for each group.
+
+    Example: FovDay: (Day, Fov) -> Day: (Day, Mice)
+    """
+    target_nodes = []
+    source_nodes = dataset.select(source_node_type)
+    if not source_nodes:
+        logger.warning(f"Find no {source_node_type} nodes to merge.")
+        return []
+
+    # Group by the target object level (e.g., mice_id)
+    nodes_by_parent_object = split_by(source_nodes, attr_name="object_uid.parent_uid")
+
+    for parent_object_uid, child_nodes in nodes_by_parent_object.items():
+        # Further group by the specific temporal object (e.g., day_id)
+        nodes_by_temporal = split_by(child_nodes, attr_name="temporal_uid")
+
+        for temporal_uid, group in nodes_by_temporal.items():
+            # Create the new coordinate for the merged node
+            new_coordinate = TemporalObjectCoordinate(
+                temporal_uid=temporal_uid,
+                object_uid=parent_object_uid
+            )
+            target_nodes.append(
+                TargetNodeClass(
+                    coordinate=new_coordinate,
+                    data=NeuralData(),
+                )
+            )
+    return target_nodes
+
+def MergeFovDay2Day(dataset: DataSet, **kwargs: Any) -> List[Day]:
+    return _generalized_object_merger(dataset, source_node_type="fovday", TargetNodeClass=Day, **kwargs)
+
+def MergeCellSession2Session(dataset: DataSet, **kwargs: Any) -> List[Session]:
+    return _generalized_object_merger(dataset, source_node_type="cellsession", TargetNodeClass=Session, **kwargs)

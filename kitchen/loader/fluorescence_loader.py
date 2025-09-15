@@ -196,7 +196,7 @@ def fluorescence_loader_from_node(
     default_data_path = routing.default_data_path(node)
     
     if fluorescence_loader_name is None:
-        logger.info("No fluorescence loader specified, skip loading fluorescence")
+        logger.debug("No fluorescence loader specified, skip loading fluorescence")
         return
     loader_to_use = fluorescence_loader_options.get(fluorescence_loader_name)
     if loader_to_use is None:
