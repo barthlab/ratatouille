@@ -16,7 +16,7 @@ def write_boolean_dataframe(df: pd.DataFrame, sheet_name: str, save_path: str, c
         elif symbol == '❌':
             return 'color: red'
         elif symbol in df_color_column:
-            return f"color: {TABLEAU_10[df_color_column.index(symbol)]}"
+            return f"color: {TABLEAU_10[df_color_column.index(symbol)%len(TABLEAU_10)]}"
         return ''
     
     with pd.ExcelWriter(save_path, engine='xlsxwriter') as writer:

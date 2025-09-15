@@ -7,6 +7,7 @@ from kitchen.loader.general_loader_interface import load_dataset
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
+# handler = logging.FileHandler(path.join(path.dirname(__file__), "overview.log"), mode="w")
 handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s:\n%(message)s\n')
 handler.setFormatter(formatter)
@@ -14,6 +15,7 @@ logger.addHandler(handler)
 
 
 def main():
+    # for dataset_name in ("SST_JUX", "SST_WC"):
     for dataset_name in ("PV_JUX", "PYR_JUX", "SST_JUX", "SST_WC"):
 
         dataset = load_dataset(template_id="PassivePuff_JuxtaCellular_FromJS_202509", cohort_id=dataset_name, 
