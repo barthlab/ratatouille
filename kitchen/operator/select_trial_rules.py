@@ -1,6 +1,7 @@
 
 from typing import Dict
 from kitchen.settings.timeline import REWARD_EVENTS_DEFAULT, STIMULUS_EVENTS_DEFAULT
+from kitchen.structure.neural_data_structure import Timeline
 
 # pre-defined rules
 PREDEFINED_RULES: Dict[str, dict] = {
@@ -57,6 +58,26 @@ PREDEFINED_TRIAL_RULES = {
 PREDEFINED_FOVTRIAL_RULES = {
     name: rule_definition | {"hash_key": "fovtrial"}
     for name, rule_definition in PREDEFINED_RULES.items()
+}
+
+
+def _puff_duration(timeline: Timeline) -> float:
+    puff_on = timeline.filter("VerticalPuffOn")
+    puff_off = timeline.filter("VerticalPuffOff")
+    assert len(puff_on) == 1, f"Expected 1 puff on, got {len(puff_on)}"
+    assert len(puff_off) == 1, f"Expected 1 puff off, got {len(puff_off)}"
+    return float(puff_off.t[0] - puff_on.t[0])
+
+
+PREDEFINED_PASSIVEPUFF_RULES = {
+    "500msPuff": {
+        "timeline": lambda x: 0.48 <_puff_duration(x) < 0.52,
+        "hash_key": "trial"
+    },
+    "100msPuff": {
+        "timeline": lambda x: 0.08 <_puff_duration(x) < 0.12,
+        "hash_key": "trial"
+    },
 }
 
 

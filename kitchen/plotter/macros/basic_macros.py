@@ -19,12 +19,12 @@ from kitchen.configs import routing
 from kitchen.configs.naming import get_node_name
 from kitchen.plotter.ax_plotter.advance_plot import subtract_view
 from kitchen.plotter.plotting_manual import CHECK_PLOT_MANUAL, PlotManual
-from kitchen.plotter.plotting_params import FLAT_X_INCHES, UNIT_X_INCHES, UNIT_Y_INCHES
+from kitchen.plotter.plotting_params import FLAT_X_INCHES, PARALLEL_Y_INCHES, UNIT_X_INCHES, UNIT_Y_INCHES
 from kitchen.plotter.unit_plotter.unit_trace_advance import SUBTRACT_MANUAL
 from kitchen.settings.timeline import ALIGNMENT_STYLE
 from kitchen.structure.hierarchical_data_structure import Fov, Node, Session, DataSet
 from kitchen.plotter.decorators.default_decorators import default_style
-from kitchen.plotter.ax_plotter.basic_plot import flat_view, stack_view
+from kitchen.plotter.ax_plotter.basic_plot import beam_view, flat_view, stack_view
 from kitchen.operator.select_trial_rules import PREDEFINED_FOVTRIAL_RULES, PREDEFINED_TRIAL_RULES
 from kitchen.utils.sequence_kit import select_from_value
 
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 def session_overview(
         session_node: Session,
         plot_manual: PlotManual,
-        special_keyword: Optional[str] = None,
+        prefix_keyword: Optional[str] = None,
 ) -> None:
     """
     Generate a flat view overview plot for a single session.
@@ -53,7 +53,7 @@ def session_overview(
     """
     session_name = get_node_name(session_node)
     session_dataset = DataSet(name=session_name, nodes=[session_node])
-    prefix_str = f"{special_keyword}_SeesionOverview" if special_keyword is not None else "SessionOverview"
+    prefix_str = f"{prefix_keyword}_SeesionOverview" if prefix_keyword is not None else "SessionOverview"
     try:
         default_style(
             mosaic_style=[[session_name,],],
@@ -100,7 +100,7 @@ def fov_overview(
                 for session_node in session_nodes
                 },
             figsize=(FLAT_X_INCHES * n_session, UNIT_Y_INCHES),
-            save_path=routing.default_fig_path(session_nodes, "FovOverview_{}.png"),
+            save_path=routing.default_fig_path(fov_node, "FovOverview_{}.png"),
         )
     except Exception as e:
         logger.debug(f"Cannot plot fov overview for {get_node_name(fov_node)}: {e}")
@@ -111,6 +111,7 @@ def single_node_trial_avg_default(
         dataset: DataSet,
         plot_manual: PlotManual,
         trial_rules: dict = PREDEFINED_TRIAL_RULES,
+        prefix_keyword: Optional[str] = None,
 ) -> None:
     """
     Generate trial-averaged plots for all trial types within a node's subtree.
@@ -135,9 +136,13 @@ def single_node_trial_avg_default(
                                     _self = lambda x: CHECK_PLOT_MANUAL(x, plot_manual))
 
     n_trial_types = len(trial_types)
+    if n_trial_types == 0:
+        logger.debug(f"Cannot plot trial average for {get_node_name(node)}: no trial type found")
+        return
+    
+    prefix_str = f"{prefix_keyword}_TrialAvg" if prefix_keyword is not None else "TrialAvg"
     for alignment_name, alignment_events in ALIGNMENT_STYLE.items():
         try:
-            assert n_trial_types > 0, f"Cannot find any trial type for {get_node_name(node)}"
             default_style(
                 mosaic_style=[[f"{get_node_name(node)}\n{trial_type}"
                             for trial_type in trial_types.keys()],],
@@ -148,17 +153,20 @@ def single_node_trial_avg_default(
                     for trial_type, trial_dataset in trial_types.items()
                     },
                 figsize=(n_trial_types * UNIT_X_INCHES, UNIT_Y_INCHES),
-                save_path=routing.default_fig_path(subtree, f"TrialAvg_{{}}_{alignment_name}.png"),
+                save_path=routing.default_fig_path(node, prefix_str + f"_{{}}_{alignment_name}.png"),
             )
         except Exception as e:
             logger.debug(f"Cannot plot trial average for {get_node_name(node)} with {alignment_name}: {e}")
 
 
-def fov_summary_trial_avg_default(
-        fov_node: Fov,
+def subtree_summary_trial_avg_default(
+        root_node: Node,
         dataset: DataSet,
         plot_manual: PlotManual,
         trial_rules: dict = PREDEFINED_FOVTRIAL_RULES,
+        enumerate_hash_key: str = "fovday",
+        subtract_appendix: bool = True,
+        prefix_keyword: Optional[str] = None,
 ) -> None:
     """
     Generate trial-averaged plots organized by FOV days and trial types.
@@ -177,12 +185,13 @@ def fov_summary_trial_avg_default(
         >>> fov_trial_avg_default(my_fov_node, complete_dataset, plot_config)
     """
     max_n_col = 0
-    fovday_nodes = dataset.subtree(fov_node).select("fovday")
+    enumerate_nodes = dataset.subtree(root_node).select(enumerate_hash_key)
+    prefix_str = f"{prefix_keyword}_SubtreeSummary" if prefix_keyword is not None else "SubtreeSummary"
     for alignment_name, alignment_events in ALIGNMENT_STYLE.items():
         try:
             total_mosaic, content_dict = [], {}
-            for fovday_node in fovday_nodes:
-                subtree = dataset.subtree(fovday_node)                
+            for row_node in enumerate_nodes:
+                subtree = dataset.subtree(row_node)                
                 all_possible_trial_types = subtree.rule_based_selection(trial_rules)
 
                 # filter out trial types that cannot be plotted
@@ -190,20 +199,20 @@ def fov_summary_trial_avg_default(
                                                 _self = lambda dataset: CHECK_PLOT_MANUAL(dataset, plot_manual))
 
                 # update total_mosaic and content_dict
-                total_mosaic.append([f"{get_node_name(fovday_node)}\n{trial_type}"
+                total_mosaic.append([f"{get_node_name(row_node)}\n{trial_type}"
                                     for trial_type in trial_types.keys()])
                 content_dict.update({
-                    f"{get_node_name(fovday_node)}\n{trial_type}": (
+                    f"{get_node_name(row_node)}\n{trial_type}": (
                         partial(stack_view, plot_manual=plot_manual, sync_events=alignment_events),
                         trial_dataset)
                     for trial_type, trial_dataset in trial_types.items()
                     })
 
                 # add subtract view is two trial types are available
-                if len(trial_types) == 2:
+                if subtract_appendix and len(trial_types) == 2:
                     trial_type1, trial_type2 = trial_types.keys()
-                    total_mosaic[-1].append(f"{get_node_name(fovday_node)}\nSubtraction")
-                    content_dict[f"{get_node_name(fovday_node)}\nSubtraction"] = (
+                    total_mosaic[-1].append(f"{get_node_name(row_node)}\nSubtraction")
+                    content_dict[f"{get_node_name(row_node)}\nSubtraction"] = (
                         partial(subtract_view, plot_manual=plot_manual, sync_events=alignment_events, 
                                 subtract_manual=SUBTRACT_MANUAL(name1=trial_type1, name2=trial_type2)),
                         list(trial_types.values())
@@ -219,7 +228,45 @@ def fov_summary_trial_avg_default(
                 mosaic_style=total_mosaic,
                 content_dict=content_dict,
                 figsize=(max_n_col * UNIT_X_INCHES, UNIT_Y_INCHES * len(total_mosaic)),
-                save_path=routing.default_fig_path(dataset.subtree(fov_node), f"FOVSummary_{{}}_{alignment_name}.png"),
+                save_path=routing.default_fig_path(root_node, prefix_str + f"_{{}}_{alignment_name}.png"),
             )
         except Exception as e:
-            logger.debug(f"Cannot plot trial average for {get_node_name(fov_node)} with {alignment_name}: {e}")
+            logger.debug(f"Cannot plot subtree summary for {get_node_name(root_node)} with {alignment_name}: {e}")
+
+
+def single_node_trial_parallel_default(
+        node: Node,
+        dataset: DataSet,
+        plot_manual: PlotManual,
+        trial_rules: dict = PREDEFINED_TRIAL_RULES,
+        prefix_keyword: Optional[str] = None,
+) -> None:
+    subtree = dataset.subtree(node)
+
+    # filter out trial types that cannot be plotted
+    trial_types = select_from_value(subtree.rule_based_selection(trial_rules),
+                                    _self = lambda x: CHECK_PLOT_MANUAL(x, plot_manual))
+
+    n_trial_types = len(trial_types)
+    if n_trial_types == 0:
+        logger.debug(f"Cannot plot trial parallel for {get_node_name(node)}: no trial type found")
+        return
+    
+    prefix_str = f"{prefix_keyword}_TrialParallel" if prefix_keyword is not None else "TrialParallel"
+    for alignment_name, alignment_events in ALIGNMENT_STYLE.items():
+        try:
+            default_style(
+                mosaic_style=[[f"{get_node_name(node)}\n{trial_type}"
+                            for trial_type in trial_types.keys()],],
+                content_dict={
+                    f"{get_node_name(node)}\n{trial_type}": (
+                        partial(beam_view, plot_manual=plot_manual, sync_events=alignment_events),
+                        trial_dataset)
+                    for trial_type, trial_dataset in trial_types.items()
+                    },
+                figsize=(n_trial_types * UNIT_X_INCHES, PARALLEL_Y_INCHES),
+                save_path=routing.default_fig_path(node, prefix_str + f"_{{}}_{alignment_name}.png"),
+            )
+        except Exception as e:
+            logger.debug(f"Cannot plot trial parallel for {get_node_name(node)} with {alignment_name}: {e}")
+

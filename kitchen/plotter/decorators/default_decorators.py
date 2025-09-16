@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 import logging
 
 from kitchen.plotter.plotting_params import DPI, NORMALIZED_PROGRESS_YLIM
+from kitchen.plotter.utils.setup_plot import apply_plot_settings
 from kitchen.structure.hierarchical_data_structure import DataSet
 from kitchen.utils.sequence_kit import zip_dicts
 
@@ -29,6 +30,9 @@ def default_style(
         auto_title: bool = True,
         auto_yscale: bool = True,
         default_padding: float = 0.1,
+
+        # Overide style
+        plot_settings: Optional[dict[str, dict]] = None,
 ):
     # Set default font size
     plt.rcParams["font.family"] = "Arial"
@@ -115,6 +119,11 @@ def default_style(
     if auto_yscale:
         fig.set_size_inches(figsize[0], figsize[1] * progress / NORMALIZED_PROGRESS_YLIM)
 
+    # Apply plot settings
+    if plot_settings is not None:
+        for ax_name, ax_setup_dict in plot_settings.items():
+            apply_plot_settings(axs[ax_name], ax_setup_dict)
+            
     # Save or show the figure
     if save_path:        
         os.makedirs(os.path.dirname(save_path), exist_ok=True)

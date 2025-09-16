@@ -7,8 +7,8 @@ def ind_alpha(total_alpha: float, num_overlaps: int):
     """Calculate the individual alpha required to reach the total_alpha"""
     if num_overlaps <= 0:
         return 0
-    if total_alpha <= 0.0:
-        return 0.0
+    if total_alpha <= 1./255:
+        return 1./255
     if total_alpha >= 1.0:
         return 1.0
     return -math.expm1(math.log1p(-total_alpha) / num_overlaps)

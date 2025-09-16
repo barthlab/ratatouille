@@ -42,9 +42,9 @@ def default_data_path(node: Node, check_exist: bool = True) -> str:
     return node_data_path
 
 
-def default_fig_path(dataset: DataSet, fig_name: Optional[str] = None) -> str:
+def default_fig_path(root: DataSet | Node, fig_name: Optional[str] = None) -> str:
     """Generate the default file system path for a dataset's figures."""
-    root_coordinate = dataset.root_coordinate
+    root_coordinate = root.root_coordinate if isinstance(root, DataSet) else root.coordinate
     obj_uid = root_coordinate.object_uid
     tmp_uid = root_coordinate.temporal_uid
     # substitute fov_id if it is "only"

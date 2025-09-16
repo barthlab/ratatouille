@@ -88,7 +88,7 @@ def stack_view(
             timeline=select_truthy_items([node.data.timeline for node in dataset_synced]), 
             ax=ax, y_offset=y_offset, ratio=TIMELINE_RATIO)    
 
-    # 2. plot fluorescence
+    # 2. plot fluorescence / potential
     if plot_manual.fluorescence:    
         valid_fluorescence = select_truthy_items([node.data.fluorescence for node in dataset_synced])    
         cell_id_flag = valid_fluorescence[0].num_cell > 1
@@ -96,6 +96,11 @@ def stack_view(
             y_offset = yield unit_plot_single_cell_fluorescence(
                 fluorescence=[fluorescence.extract_cell(cell_id) for fluorescence in valid_fluorescence], 
                 ax=ax, y_offset=y_offset, ratio=FLUORESCENCE_RATIO, cell_id_flag=cell_id_flag)
+    elif plot_manual.potential:    
+        valid_potential = select_truthy_items([node.data.potential for node in dataset_synced])    
+        y_offset = yield unit_plot_potential(
+            potential=valid_potential, ax=ax, y_offset=y_offset, ratio=POTENTIAL_RATIO, 
+            aspect=plot_manual.potential, spike_mark=True)
 
     # 3. plot behavior  
     if plot_manual.lick:    
@@ -122,4 +127,33 @@ def stack_view(
             ax=ax, y_offset=y_offset, ratio=PUPIL_RATIO)
 
   
+def beam_view(
+        ax: plt.Axes,
+        datasets: DataSet,
+        sync_events: Tuple[str],
+
+        plot_manual: PlotManual = PlotManual(),
+):
+    """Beam view of all nodes in the dataset"""
+    try:
+        dataset_synced = sync_nodes(datasets, sync_events, plot_manual)
+    except Exception as e:
+        raise ValueError(f"Cannot sync nodes: {e}")
     
+    """main logic"""
+    y_offset = 0
+
+    # 1. plot_timeline    
+    if plot_manual.timeline:    
+        y_offset = yield unit_plot_timeline(    
+            timeline=select_truthy_items([node.data.timeline for node in dataset_synced]), 
+            ax=ax, y_offset=y_offset, ratio=TIMELINE_RATIO)    
+    
+    # 2. plot fluorescence / potential
+    if plot_manual.fluorescence:    
+        raise NotImplementedError
+    elif plot_manual.potential:    
+        for node_index, node in enumerate(dataset_synced):
+            y_offset = yield unit_plot_potential(
+                potential=node.data.potential, ax=ax, y_offset=y_offset, ratio=POTENTIAL_RATIO, 
+                aspect=plot_manual.potential, spike_mark=True, yticks_flag=(node_index == 0))

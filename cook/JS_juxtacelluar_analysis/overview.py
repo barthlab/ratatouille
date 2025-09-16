@@ -30,9 +30,9 @@ def main():
         plot_manual_spike300Hz = PlotManual(potential=300.)
         for session_node in dataset.select(hash_key="cellsession"):
             print(session_node)
-            session_overview(session_node, plot_manual=plot_manual_raw, special_keyword="raw")
-            session_overview(session_node, plot_manual=plot_manual_spike4Hz, special_keyword="spike4Hz")
-            session_overview(session_node, plot_manual=plot_manual_spike300Hz, special_keyword="spike300Hz")
+            session_overview(session_node, plot_manual=plot_manual_raw, prefix_keyword="raw")
+            session_overview(session_node, plot_manual=plot_manual_spike4Hz, prefix_keyword="spike4Hz")
+            session_overview(session_node, plot_manual=plot_manual_spike300Hz, prefix_keyword="spike300Hz")
 
 
 if __name__ == "__main__":

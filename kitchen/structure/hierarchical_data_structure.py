@@ -164,6 +164,9 @@ class Cohort(Node):
     _expected_object_uid_level = 'cohort'
 
 
+NodeTypeVar = TypeVar("NodeTypeVar", bound=Node)
+
+
 @dataclass
 class DataSet:
     """
@@ -179,9 +182,13 @@ class DataSet:
 
     def __post_init__(self):
         """Initialize fast lookup dictionary for efficient querying."""
+        # sort nodes
+        self.nodes.sort(key=lambda node: node.coordinate)
+        # fill fast lookup
         self._fast_lookup = defaultdict(set)
         for node in self.nodes:
             self._fast_lookup[node.hash_key].add(node)
+        # fill root coordinate
         self._root_coordinate = sum([node.coordinate for node in self.nodes], 0)
 
     def add_node(self, nodes: Union[Node, Sequence[Node], "DataSet"]):
@@ -267,6 +274,18 @@ class DataSet:
                 selected_nodes[name] = this_type_nodes      
         return selected_nodes
 
+    def enumerate_by(self, target_pseudo_node_type: Type[NodeTypeVar]) -> List[NodeTypeVar]:
+        """Enumerate nodes by a pseudo node type."""
+        target_hierarchy = (target_pseudo_node_type._expected_object_uid_level, 
+                            target_pseudo_node_type._expected_temporal_uid_level)
+        pseudo_node_coordinate_set = []
+        for node in self:
+            if node.coordinate.is_ancestor_hierarchy(*target_hierarchy):
+                pseudo_node_coordinate_set.append(node.coordinate.transit(*target_hierarchy))
+        pseudo_node_coordinate_set = sorted(list(set(pseudo_node_coordinate_set)))
+        pseudo_node_list = [target_pseudo_node_type(coordinate=coord, data=NeuralData()) 
+                            for coord in pseudo_node_coordinate_set]
+        return pseudo_node_list
 
     def status(self, save_path: Optional[str] = None, row_level: str="session"):
         """Return string representation of dataset status."""
@@ -294,13 +313,13 @@ class DataSet:
 
 
 # Hierachical merger
-TargetNode = TypeVar("TargetNode", bound=Node)
+"""TODO: replace mergers by the enumerate_by() function."""
 
 def _generalized_temporal_merger(
     dataset: DataSet,
-    source_node_type: str, TargetNodeClass: Type[TargetNode],
+    source_node_type: str, TargetNodeClass: Type[NodeTypeVar],
     **kwargs: Any
-) -> List[TargetNode]:
+) -> List[NodeTypeVar]:
     """
     Merges nodes along the temporal hierarchy.
 
@@ -344,9 +363,9 @@ def MergeSession2FovDay(dataset: DataSet, **kwargs: Any) -> List[FovDay]:
 
 def _generalized_object_merger(
     dataset: DataSet,
-    source_node_type: str, TargetNodeClass: Type[TargetNode],
+    source_node_type: str, TargetNodeClass: Type[NodeTypeVar],
     **kwargs: Any
-) -> List[TargetNode]:
+) -> List[NodeTypeVar]:
     """
     Merges nodes along the object hierarchy.
 

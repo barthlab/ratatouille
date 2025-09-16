@@ -7,7 +7,7 @@ MAX_OVERLAP_ALPHA_NUM_DUE_TO_MATPLOTLLIB_BUG = 200 # 255, see matplotlib alpha b
 
 REFERENCE_LINE_STYLE = {
     "color": "gray",
-    "linewidth": 0.5,
+    "linewidth": 0.2,
     "linestyle": "--",
     "alpha": 0.7,
     "zorder": -5,
@@ -58,45 +58,45 @@ FLUORESCENCE_TRACE_STYLE = {
 
 POTENTIAL_TRACE_STYLE = {
     "color": POTENTIAL_COLOR,
-    "lw": 0.3,
+    "lw": 0.1,
     "alpha": 0.7,
 }
 
 SPIKE_POTENTIAL_TRACE_STYLE = {
     "spike":{
         "color": REGULAR_SPIKE_COLOR,
-        "lw": 0.3,
+        "lw": 0.1,
         "alpha": 0.7,
         "zorder": 8,
     },
     "early_spike": {
         "color": EARLY_SPIKE_COLOR,
-        "lw": 0.3,
+        "lw": 0.1,
         "alpha": 0.7,
         "zorder": 10,
     },
     "sustained_spike": {
         "color": SUSTAINED_SPIKE_COLOR,
-        "lw": 0.3,
+        "lw": 0.1,
         "alpha": 0.7,
         "zorder": 10,
     },
     "regular_spike": {
         "color": REGULAR_SPIKE_COLOR,
-        "lw": 0.3,
+        "lw": 0.1,
         "alpha": 0.7,
         "zorder": 9,
     },
 }
 
 EMPHASIZED_POTENTIAL_ADD_STYLE = {
-    "lw": 0.5,
-    "alpha": 0.7,
+    "alpha": 1,
+    "zorder": 5,
 }
 
 DEEMPHASIZED_POTENTIAL_ADD_STYLE = {
-    "lw": 0.3,
-    "alpha": 0.2,
+    "alpha": 0.7,
+    "zorder": 1,
 }
 
 INDIVIDUAL_FLUORESCENCE_TRACE_STYLE = {

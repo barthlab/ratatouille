@@ -50,7 +50,7 @@ class HierarchicalUID:
 
         new_uid_dict = {}
         for name in self._HIERARCHY_FIELDS:
-            if self.get_hier_value(name) is None or self.get_hier_value(name) != other.get_hier_value(name):                
+            if self.get_hier_value(name) != other.get_hier_value(name):                
                 new_uid_dict[name + "_id"] = None
             else:
                 new_uid_dict[name + "_id"] = self.get_hier_value(name)
@@ -107,11 +107,14 @@ class HierarchicalUID:
                 return False  # Values don't match or other UID doesn't specify this level
         return True
 
+    def is_ancestor_hierarchy(self, target_level: str) -> bool:
+        """Check if this UID is at or below the specified level in the hierarchy."""
+        assert target_level in self._HIERARCHY_FIELDS, f"{target_level} is not a valid level for {self}"
+        return self._HIERARCHY_FIELDS.index(target_level) <= self._HIERARCHY_FIELDS.index(self.level)
+    
     def transit(self, target_level: str) -> Self:
         """Create new UID at higher hierarchy level by removing more specific fields."""
-        assert target_level in self._HIERARCHY_FIELDS, f"{target_level} is not a valid level for {self}"
-        assert self._HIERARCHY_FIELDS.index(target_level) <= self._HIERARCHY_FIELDS.index(self.level), \
-            f"cannot transit from {self.level} to {target_level}"
+        assert self.is_ancestor_hierarchy(target_level), f"cannot transit from {self.level} to {target_level}"
 
         new_uid_dict = {}
         for name in self._HIERARCHY_FIELDS:
@@ -181,6 +184,20 @@ class TemporalObjectCoordinate:
         """
         return (self.object_uid.contains(other.object_uid) and
                 self.temporal_uid.contains(other.temporal_uid))
+
+    def transit(self, target_object_level: Optional[str] = None, target_temporal_level: Optional[str] = None) -> "TemporalObjectCoordinate":
+        """Create new coordinate at higher hierarchy level."""
+        return TemporalObjectCoordinate(
+            object_uid=self.object_uid.transit(target_object_level if target_object_level is not None else self.object_uid.level),
+            temporal_uid=self.temporal_uid.transit(target_temporal_level if target_temporal_level is not None else self.temporal_uid.level)
+        )
+
+    def is_ancestor_hierarchy(self, target_object_level: Optional[str] = None, target_temporal_level: Optional[str] = None) -> bool:
+        """Check if this coordinate is at or below the specified level in the hierarchy."""
+        target_object_level = target_object_level if target_object_level is not None else self.object_uid.level
+        target_temporal_level = target_temporal_level if target_temporal_level is not None else self.temporal_uid.level
+        return (self.object_uid.is_ancestor_hierarchy(target_object_level) and
+                self.temporal_uid.is_ancestor_hierarchy(target_temporal_level))
 
     def __str__(self) -> str:
         """Return readable string representation."""

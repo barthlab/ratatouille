@@ -16,12 +16,18 @@ logger = logging.getLogger(__name__)
 Ephys loading loads data at cell-level
 """
 
-def _SplitCohort2CellSession(cohort_node: Cohort) -> List[CellSession]:
+def _SplitCohort2CellSession(cohort_node: Cohort, loaders: dict[str, str]) -> List[CellSession]:
     """Split a cohort node into multiple cell session nodes."""
     cell_session_nodes = []
     for cell_coordinate, timeline, cam_timeline, potential in potential_loader_from_cohort(cohort_node): 
-        logger.info(f"Loading {cell_coordinate}...")
-        behavior_dict = next(behavior_loader_from_node(cohort_node, {cell_coordinate: cam_timeline}))        
+        logger.info(f"Building {cell_coordinate}...")
+        
+        # load behavior
+        if loaders.get('behavior') is None:
+            behavior_dict = {}
+        else:
+            behavior_dict = next(behavior_loader_from_node(cohort_node, {cell_coordinate: cam_timeline}, loaders.get('behavior')))        
+
         cell_session_nodes.append(
             CellSession(coordinate=cell_coordinate,
                         data=NeuralData(
@@ -88,7 +94,7 @@ def cohort_loader(template_id: str, cohort_id: str, recipe: dict, name: Optional
     # Cohort to Cell Session
     for cohort_node in loaded_data.select("cohort"):
         assert isinstance(cohort_node, Cohort)
-        loaded_data.add_node(_SplitCohort2CellSession(cohort_node))
+        loaded_data.add_node(_SplitCohort2CellSession(cohort_node, loaders=recipe['loaders']))
     
     # Cell Session to Trial
     for cell_session_node in loaded_data.select("cellsession"):
