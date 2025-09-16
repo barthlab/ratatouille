@@ -13,6 +13,7 @@ Functions:
 
 from functools import partial
 import logging
+from typing import Optional
 
 from kitchen.configs import routing
 from kitchen.configs.naming import get_node_name
@@ -33,6 +34,7 @@ logger = logging.getLogger(__name__)
 def session_overview(
         session_node: Session,
         plot_manual: PlotManual,
+        special_keyword: Optional[str] = None,
 ) -> None:
     """
     Generate a flat view overview plot for a single session.
@@ -51,6 +53,7 @@ def session_overview(
     """
     session_name = get_node_name(session_node)
     session_dataset = DataSet(name=session_name, nodes=[session_node])
+    prefix_str = f"{special_keyword}_SeesionOverview" if special_keyword is not None else "SessionOverview"
     try:
         default_style(
             mosaic_style=[[session_name,],],
@@ -60,7 +63,7 @@ def session_overview(
                     session_dataset)
                 },
             figsize=(FLAT_X_INCHES, UNIT_Y_INCHES),
-            save_path=routing.default_fig_path(session_dataset, "SessionOverview_{}.png"),
+            save_path=routing.default_fig_path(session_dataset, prefix_str + "_{}.png"),
         )
     except Exception as e:
         logger.debug(f"Cannot plot session overview for {get_node_name(session_node)}: {e}")

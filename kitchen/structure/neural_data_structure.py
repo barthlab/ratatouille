@@ -241,6 +241,21 @@ class Events:
             return Timeline(v=np.array([]), t=np.array([]))
         return Timeline(v=self.v.copy(), t=self.t.copy())
 
+    def update_value(self, supplementary_events: "Events"):
+        """
+        Update values of events at specified time points using another Events object.
+        """
+        # Validate that all times in supplementary_events exist in self.t
+        indices = np.searchsorted(self.t, supplementary_events.t)
+        valid_mask = (indices < len(self.t)) & (self.t[indices] == supplementary_events.t)
+        if not np.all(valid_mask):
+            raise ValueError(f"Cannot update values, got {self.t=} and {supplementary_events.t=}")
+    
+        # Update values
+        update_map = {t: v for t, v in supplementary_events}
+        new_v = np.array([update_map.get(t, v) for t, v in zip(self.t, self.v)])
+        self.v = new_v
+
 
 @dataclass
 class Timeline(Events):
@@ -422,6 +437,15 @@ class Potential:
             raise ValueError(f"Cutoff {cutoff} not found in hp_components: {self._hp_components.keys()}")
         return self._hp_components[cutoff]
 
+    def aspect(self, keyword: Optional[Any] = None) -> TimeSeries:
+        """Get potential component based on keyword."""
+        if keyword is None:
+            return self.hp_component(SPIKES_BANDWIDTH)
+        elif isinstance(keyword, float):
+            return self.hp_component(keyword)
+        else:
+            return self.vm
+        
     @cached_property
     def num_timepoint(self):
         return len(self.vm.t)

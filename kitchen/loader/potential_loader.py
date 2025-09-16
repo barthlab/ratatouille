@@ -38,7 +38,7 @@ def potential_loader_from_cohort(cohort_node: Cohort, potential_loader_name: str
             # Load pickle file
             with open(filepath, 'rb') as f:
                 data = pd.read_pickle(f) 
-
+                
             # Extract mice_name, day_name and cell_name
             mice_name = data.loc["mouse", 0]
             filename = data.loc["filename", 0]
@@ -82,7 +82,7 @@ def potential_loader_from_cohort(cohort_node: Cohort, potential_loader_name: str
     default_cohort_data_path = routing.default_data_path(cohort_node)
     
     if potential_loader_name is None:
-        logger.info("No potential loader specified, skip loading potential")
+        logger.debug("No potential loader specified, skip loading potential")
         return
     loader_to_use = potential_loader_options.get(potential_loader_name)
     if loader_to_use is None:

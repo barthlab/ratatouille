@@ -1,8 +1,10 @@
 from collections import defaultdict
 import random
 import logging
+from typing import Optional, Any
 import matplotlib.pyplot as plt
 import numpy as np
+from tqdm import tqdm
 
 from kitchen.operator.grouping import grouping_events_rate, grouping_timeseries
 from kitchen.plotter.unit_plotter.unit_yticks import yticks_combo
@@ -10,11 +12,12 @@ from kitchen.plotter.utils.alpha_calculator import calibrate_alpha, ind_alpha
 from kitchen.plotter.utils.fill_plot import oreo_plot
 from kitchen.settings.fluorescence import DF_F0_SIGN, Z_SCORE_SIGN
 from kitchen.plotter.color_scheme import FLUORESCENCE_COLOR, GRAND_COLOR_SCHEME, LICK_COLOR
-from kitchen.plotter.plotting_params import LICK_BIN_SIZE, LOCOMOTION_BIN_SIZE, RAW_FLUORESCENCE_RATIO, TIME_TICK_DURATION
-from kitchen.plotter.style_dicts import FILL_BETWEEN_STYLE, FLUORESCENCE_TRACE_STYLE, INDIVIDUAL_FLUORESCENCE_TRACE_STYLE, LICK_TRACE_STYLE, LOCOMOTION_TRACE_STYLE, MAX_OVERLAP_ALPHA_NUM_DUE_TO_MATPLOTLLIB_BUG, POSITION_SCATTER_STYLE, LICK_VLINES_STYLE, PUPIL_TRACE_STYLE, TIMELINE_SCATTER_STYLE, VLINE_STYLE, VSPAN_STYLE, WHISKER_TRACE_STYLE
+from kitchen.plotter.plotting_params import LICK_BIN_SIZE, LOCOMOTION_BIN_SIZE, RAW_FLUORESCENCE_RATIO, TIME_TICK_DURATION, WC_POTENTIAL_RATIO
+from kitchen.plotter.style_dicts import DEEMPHASIZED_POTENTIAL_ADD_STYLE, EMPHASIZED_POTENTIAL_ADD_STYLE, FILL_BETWEEN_STYLE, FLUORESCENCE_TRACE_STYLE, INDIVIDUAL_FLUORESCENCE_TRACE_STYLE, LICK_TRACE_STYLE, LOCOMOTION_TRACE_STYLE, MAX_OVERLAP_ALPHA_NUM_DUE_TO_MATPLOTLLIB_BUG, POSITION_SCATTER_STYLE, LICK_VLINES_STYLE, POTENTIAL_TRACE_STYLE, PUPIL_TRACE_STYLE, SPIKE_POTENTIAL_TRACE_STYLE, TIMELINE_SCATTER_STYLE, VLINE_STYLE, VSPAN_STYLE, WHISKER_TRACE_STYLE
 from kitchen.plotter.utils.tick_labels import TICK_PAIR, add_new_yticks
 from kitchen.settings.plotting import PLOTTING_OVERLAP_HARSH_MODE
-from kitchen.structure.neural_data_structure import Events, Fluorescence, TimeSeries, Timeline
+from kitchen.settings.potential import SPIKE_RANGE_RELATIVE_TO_ALIGNMENT, WC_POTENTIAL_THRESHOLD
+from kitchen.structure.neural_data_structure import Events, Fluorescence, Potential, TimeSeries, Timeline
 
 
 logger = logging.getLogger(__name__)
@@ -188,7 +191,7 @@ def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes,
 def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[Fluorescence], 
                                        ax: plt.Axes, y_offset: float, ratio: float = 1.0,
                                        cell_id_flag: bool = True, individual_trace_flag: bool = False) -> float:
-    """plot a single cell"""
+    """plot a single cell fluorescence"""
     if not sanity_check(fluorescence):
         return 0
     assert fluorescence is not None, "Sanity check failed"
@@ -227,3 +230,75 @@ def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[
         f"1 {DF_F0_SIGN}" if (np.all(example_fluorescence.cell_order == 0) or (not cell_id_flag)) else "", FLUORESCENCE_COLOR))    
     return max(np.nanmax(group_fluorescence.mean) * ratio, 1*ratio)
         
+
+
+def unit_plot_potential(potential: None | Potential | list[Potential], 
+                        ax: plt.Axes, y_offset: float, ratio: float = 1.0,
+                        spike_mark: bool = True, aspect: Optional[Any] = None, 
+                        emphasize_rule: str = "median") -> float:
+    """plot a single cell potential"""
+    if not sanity_check(potential):
+        return 0
+    assert potential is not None, "Sanity check failed"
+
+    # adjust ratio for whole cell potential and add y ticks
+    example_potential = potential[0] if isinstance(potential, list) else potential
+    if np.min(example_potential.aspect(aspect).v) < WC_POTENTIAL_THRESHOLD:  # adjust for whole cell potential
+        ratio *= WC_POTENTIAL_RATIO
+        yticks_combo("potential_wc", ax, y_offset, ratio)
+    else:
+        yticks_combo("potential_jux", ax, y_offset, ratio)
+    
+    # warning for large spike plotting
+    if spike_mark and len(example_potential.spikes) > 1000:
+        logger.debug(f"Large number of spikes ({len(example_potential.spikes)}) to plot. This may take a long time.")
+
+    if isinstance(potential, Potential):
+        potential_timeseries = potential.aspect(aspect)
+        
+        # plot single potential
+        ax.plot(potential_timeseries.t, potential_timeseries.v * ratio + y_offset, **POTENTIAL_TRACE_STYLE)
+
+        # plot all the spikes
+        if spike_mark:
+            for spike_type, spike_time in tqdm(zip(potential.spikes.v, potential.spikes.t), total=len(potential.spikes)):
+                spike_timeseries = potential_timeseries.aligned_to(spike_time).segment(*SPIKE_RANGE_RELATIVE_TO_ALIGNMENT)
+                ax.plot(spike_timeseries.t + spike_time, spike_timeseries.v * ratio + y_offset, 
+                        **POTENTIAL_TRACE_STYLE | SPIKE_POTENTIAL_TRACE_STYLE[spike_type])
+                
+        # calculate y height
+        y_height = np.nanmax(np.abs(potential.aspect(aspect).v)) * ratio
+    else:
+        # plot multiple potential
+        # determine the emphasize index
+        if emphasize_rule == "median":
+            emphasize_index = int(len(potential) / 2)
+        elif emphasize_rule == "first":
+            emphasize_index = 0
+        elif emphasize_rule == "last":
+            emphasize_index = -1
+        elif emphasize_rule == "random":
+            emphasize_index = random.randint(0, len(potential) - 1)
+        else:
+            raise ValueError(f"Unknown emphasize rule: {emphasize_rule}")
+        # plot all the potential
+        for potential_index, one_potential in enumerate(potential):
+            if potential_index == emphasize_index:
+                additional_style = EMPHASIZED_POTENTIAL_ADD_STYLE.copy()
+            else:
+                additional_style = DEEMPHASIZED_POTENTIAL_ADD_STYLE.copy()
+            one_potential_timeseries = one_potential.aspect(aspect)
+
+            ax.plot(one_potential_timeseries.t, one_potential_timeseries.v * ratio + y_offset, 
+                    **(POTENTIAL_TRACE_STYLE | additional_style))
+            
+            # plot all the spikes
+            if spike_mark:
+                for spike_type, spike_time in tqdm(zip(one_potential.spikes.v, one_potential.spikes.t), total=len(one_potential.spikes)):
+                    spike_timeseries = one_potential_timeseries.aligned_to(spike_time).segment(*SPIKE_RANGE_RELATIVE_TO_ALIGNMENT)
+                    ax.plot(spike_timeseries.t + spike_time, spike_timeseries.v * ratio + y_offset, 
+                            **(POTENTIAL_TRACE_STYLE | SPIKE_POTENTIAL_TRACE_STYLE[spike_type] | additional_style))
+                    
+        # calculate y height
+        y_height = np.nanmax(np.abs(np.concatenate([one_potential.aspect(aspect).v for one_potential in potential]))) * ratio
+    return max(y_height, 1*ratio)

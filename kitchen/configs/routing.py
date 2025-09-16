@@ -45,12 +45,22 @@ def default_data_path(node: Node, check_exist: bool = True) -> str:
 def default_fig_path(dataset: DataSet, fig_name: Optional[str] = None) -> str:
     """Generate the default file system path for a dataset's figures."""
     root_coordinate = dataset.root_coordinate
+    obj_uid = root_coordinate.object_uid
+    tmp_uid = root_coordinate.temporal_uid
+    # substitute fov_id if it is "only"
+    fov_substitute = obj_uid.fov_id if obj_uid.fov_id != "only" else None
+    # substitute day_id if it is in session_id
+    if tmp_uid.session_id is not None and tmp_uid.day_id is not None:
+        day_substitute = tmp_uid.day_id if tmp_uid.day_id not in tmp_uid.session_id else None
+    else:
+        day_substitute = None
+    # construct the path
     fig_path_values = [
         root_coordinate.temporal_uid.template_id,
         root_coordinate.object_uid.cohort_id,
         root_coordinate.object_uid.mice_id,
-        root_coordinate.object_uid.fov_id,
-        root_coordinate.temporal_uid.day_id,
+        fov_substitute,
+        day_substitute,
         root_coordinate.temporal_uid.session_id,
     ]
     fig_path = robust_path_join(FIGURE_PATH, *fig_path_values) 

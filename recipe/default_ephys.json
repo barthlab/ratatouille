@@ -6,5 +6,6 @@
         "timeline": "io_default",
         "potential": "io_default"
     },
-    "trial split": "timeline"
+    "trial split": "timeline",
+    "spike annotation": "default"
 }

@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 
 from kitchen.operator.sync_nodes import left_align_nodes, sync_nodes
 from kitchen.plotter.plotting_manual import PlotManual
-from kitchen.plotter.plotting_params import FLUORESCENCE_RATIO, LICK_RATIO, LOCOMOTION_RATIO, POSITION_RATIO, PUPIL_RATIO, TIMELINE_RATIO, WHISKER_RATIO
-from kitchen.plotter.unit_plotter.unit_trace import unit_plot_lick, unit_plot_locomotion, unit_plot_position, unit_plot_pupil, unit_plot_single_cell_fluorescence, unit_plot_timeline, unit_plot_whisker
+from kitchen.plotter.plotting_params import FLUORESCENCE_RATIO, LICK_RATIO, LOCOMOTION_RATIO, POSITION_RATIO, POTENTIAL_RATIO, PUPIL_RATIO, TIMELINE_RATIO, WHISKER_RATIO
+from kitchen.plotter.unit_plotter.unit_trace import unit_plot_lick, unit_plot_locomotion, unit_plot_position, unit_plot_pupil, unit_plot_single_cell_fluorescence, unit_plot_timeline, unit_plot_whisker, unit_plot_potential
 from kitchen.structure.hierarchical_data_structure import DataSet
 from kitchen.utils.sequence_kit import find_only_one, select_truthy_items
 
@@ -31,7 +31,7 @@ def flat_view(
     if plot_manual.timeline:
         y_offset = yield unit_plot_timeline(timeline=node.data.timeline, ax=ax, y_offset=y_offset, ratio=TIMELINE_RATIO)
     
-    # 2. plot fluorescence
+    # 2. plot fluorescence / potential
     if plot_manual.fluorescence:
         if node.data.fluorescence is None:
             y_offset = yield 0
@@ -39,7 +39,14 @@ def flat_view(
             for cell_id in range(node.data.fluorescence.num_cell):
                 y_offset = yield unit_plot_single_cell_fluorescence(
                     fluorescence=node.data.fluorescence.extract_cell(cell_id), ax=ax, y_offset=y_offset, ratio=FLUORESCENCE_RATIO)
-
+                
+    elif plot_manual.potential:
+        if node.data.potential is None:
+            y_offset = yield 0
+        else:
+            y_offset = yield unit_plot_potential(potential=node.data.potential, ax=ax, y_offset=y_offset, ratio=POTENTIAL_RATIO,
+                                                 aspect=plot_manual.potential, spike_mark=True)
+            
     # 3. plot behavior
     if plot_manual.lick:
         y_offset = yield unit_plot_lick(lick=node.data.lick, ax=ax, y_offset=y_offset, ratio=LICK_RATIO)

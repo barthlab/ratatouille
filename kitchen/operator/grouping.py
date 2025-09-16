@@ -9,7 +9,7 @@ from kitchen.utils.numpy_kit import smart_interp
 
 
 @dataclass
-class AdvacedTimeSeries(TimeSeries):
+class AdvancedTimeSeries(TimeSeries):
     """
     A TimeSeries that models a value as a distribution with a mean and variance.
 
@@ -62,7 +62,7 @@ class AdvacedTimeSeries(TimeSeries):
         )
 
     def segment(self, start_t: float, end_t: float) -> Self:
-        raise NotImplementedError("segment is not allowed for AdvacedTimeSeries")
+        raise NotImplementedError("segment is not allowed for AdvancedTimeSeries")
 
     def aligned_to(self, align_time: float) -> Self:
         return self.__class__(
@@ -81,17 +81,17 @@ class AdvacedTimeSeries(TimeSeries):
         )
 
 
-def calculate_group_tuple(arrs: List[np.ndarray], t: np.ndarray) -> AdvacedTimeSeries:
+def calculate_group_tuple(arrs: List[np.ndarray], t: np.ndarray) -> AdvancedTimeSeries:
     """Group a list of arrays in mean and variance."""
     assert len(arrs) > 0, "Cannot calculate on empty list"
     assert all(arr.shape == arrs[0].shape for arr in arrs), "All arrays should have same shape"
     assert len(t) == arrs[0].shape[-1], f"Time array should have same length as array shape (last dim), got {len(t)} vs {arrs[0].shape}"
     means = np.nanmean(arrs, axis=0)
     variances = stats.sem(arrs, axis=0, nan_policy="omit")
-    return AdvacedTimeSeries(v=means, t=t, variance=variances, raw_array=np.array(arrs))
+    return AdvancedTimeSeries(v=means, t=t, variance=variances, raw_array=np.array(arrs))
 
 
-def grouping_events_rate(events: List[Events], bin_size: float) -> AdvacedTimeSeries:
+def grouping_events_rate(events: List[Events], bin_size: float) -> AdvancedTimeSeries:
     """Group a list of events in rate."""
     assert bin_size > 0, "bin size should be positive"
     group_t = np.sort(np.concatenate([event.t for event in events]))
@@ -100,7 +100,7 @@ def grouping_events_rate(events: List[Events], bin_size: float) -> AdvacedTimeSe
     return calculate_group_tuple(all_rates, bins[:-1] + bin_size/2)
 
 
-def grouping_timeseries(timeseries: List[TimeSeries], scale_factor: float = 2, interp_method: str = "previous") -> AdvacedTimeSeries:
+def grouping_timeseries(timeseries: List[TimeSeries], scale_factor: float = 2, interp_method: str = "previous") -> AdvancedTimeSeries:
     """Group a list of timeseries."""
     min_t, max_t =max(timeseries, key=lambda x: x.t[0]).t[0], min(timeseries, key=lambda x: x.t[-1]).t[-1]
     max_fs = max(timeseries, key=lambda x: x.fs).fs

@@ -1,6 +1,6 @@
 from kitchen.settings.timeline import SUPPORTED_TIMELINE_EVENT
-from kitchen.plotter.color_scheme import DARK_PELTIER_COLOR, FLUORESCENCE_COLOR, INDIVIDUAL_FLUORESCENCE_COLOR, LOCOMOTION_COLOR, POSITION_COLOR, LICK_COLOR, PUPIL_COLOR, \
-        SUBTRACT_COLOR, WHISKER_COLOR, DARK_PUFF_COLOR, DARK_BLANK_COLOR, DARK_WATER_COLOR, DARK_NOWATER_COLOR, DARK_BUZZER_COLOR
+from kitchen.plotter.color_scheme import DARK_PELTIER_COLOR, EARLY_SPIKE_COLOR, FLUORESCENCE_COLOR, INDIVIDUAL_FLUORESCENCE_COLOR, LOCOMOTION_COLOR, POSITION_COLOR, LICK_COLOR, POTENTIAL_COLOR, PUPIL_COLOR, REGULAR_SPIKE_COLOR, \
+        SUBTRACT_COLOR, SUSTAINED_SPIKE_COLOR, WHISKER_COLOR, DARK_PUFF_COLOR, DARK_BLANK_COLOR, DARK_WATER_COLOR, DARK_NOWATER_COLOR, DARK_BUZZER_COLOR
 
 DEFAULT_ALPHA = 0.9
 MAX_OVERLAP_ALPHA_NUM_DUE_TO_MATPLOTLLIB_BUG = 200 # 255, see matplotlib alpha bug
@@ -54,6 +54,49 @@ FLUORESCENCE_TRACE_STYLE = {
     "color": FLUORESCENCE_COLOR,
     "lw": 0.3,
     "alpha": 0.7,
+}
+
+POTENTIAL_TRACE_STYLE = {
+    "color": POTENTIAL_COLOR,
+    "lw": 0.3,
+    "alpha": 0.7,
+}
+
+SPIKE_POTENTIAL_TRACE_STYLE = {
+    "spike":{
+        "color": REGULAR_SPIKE_COLOR,
+        "lw": 0.3,
+        "alpha": 0.7,
+        "zorder": 8,
+    },
+    "early_spike": {
+        "color": EARLY_SPIKE_COLOR,
+        "lw": 0.3,
+        "alpha": 0.7,
+        "zorder": 10,
+    },
+    "sustained_spike": {
+        "color": SUSTAINED_SPIKE_COLOR,
+        "lw": 0.3,
+        "alpha": 0.7,
+        "zorder": 10,
+    },
+    "regular_spike": {
+        "color": REGULAR_SPIKE_COLOR,
+        "lw": 0.3,
+        "alpha": 0.7,
+        "zorder": 9,
+    },
+}
+
+EMPHASIZED_POTENTIAL_ADD_STYLE = {
+    "lw": 0.5,
+    "alpha": 0.7,
+}
+
+DEEMPHASIZED_POTENTIAL_ADD_STYLE = {
+    "lw": 0.3,
+    "alpha": 0.2,
 }
 
 INDIVIDUAL_FLUORESCENCE_TRACE_STYLE = {
@@ -241,8 +284,6 @@ TIMELINE_SCATTER_STYLE = {
         "lw": 0,
         "zorder": 10,
     },
-    
-
 
 }
 

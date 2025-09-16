@@ -10,8 +10,14 @@ LICK_COLOR = "Red"
 PUPIL_COLOR = "Purple"
 WHISKER_COLOR = "Green"
 FLUORESCENCE_COLOR = "Black"
+POTENTIAL_COLOR = "Black"
 INDIVIDUAL_FLUORESCENCE_COLOR = "gray"
 SUBTRACT_COLOR = "dimgray"
+
+# Spike color scheme
+REGULAR_SPIKE_COLOR = "gray"
+EARLY_SPIKE_COLOR = "red"
+SUSTAINED_SPIKE_COLOR = "blue"
 
 # Timeline color scheme
 PUFF_COLOR = "lightgreen"

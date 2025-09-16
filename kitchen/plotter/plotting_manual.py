@@ -12,9 +12,10 @@ PlotManual = namedtuple(
         "pupil", 
         "tongue", 
         "whisker", 
-        "fluorescence"
+        "fluorescence",
+        "potential",
     ], 
-    defaults=[True, False, False, False, False, False, False]
+    defaults=[True, False, False, False, False, False, False, False]
 )
 
 
