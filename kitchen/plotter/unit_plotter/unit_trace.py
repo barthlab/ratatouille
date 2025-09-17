@@ -16,7 +16,7 @@ from kitchen.plotter.plotting_params import LICK_BIN_SIZE, LOCOMOTION_BIN_SIZE, 
 from kitchen.plotter.style_dicts import DEEMPHASIZED_POTENTIAL_ADD_STYLE, EMPHASIZED_POTENTIAL_ADD_STYLE, FILL_BETWEEN_STYLE, FLUORESCENCE_TRACE_STYLE, INDIVIDUAL_FLUORESCENCE_TRACE_STYLE, LICK_TRACE_STYLE, LOCOMOTION_TRACE_STYLE, MAX_OVERLAP_ALPHA_NUM_DUE_TO_MATPLOTLLIB_BUG, POSITION_SCATTER_STYLE, LICK_VLINES_STYLE, POTENTIAL_TRACE_STYLE, PUPIL_TRACE_STYLE, SPIKE_POTENTIAL_TRACE_STYLE, TIMELINE_SCATTER_STYLE, VLINE_STYLE, VSPAN_STYLE, WHISKER_TRACE_STYLE
 from kitchen.plotter.utils.tick_labels import TICK_PAIR, add_new_yticks
 from kitchen.settings.plotting import PLOTTING_OVERLAP_HARSH_MODE
-from kitchen.settings.potential import SPIKE_RANGE_RELATIVE_TO_ALIGNMENT, WC_POTENTIAL_THRESHOLD
+from kitchen.settings.potential import SPIKE_RANGE_RELATIVE_TO_ALIGNMENT
 from kitchen.structure.neural_data_structure import Events, Fluorescence, Potential, TimeSeries, Timeline
 
 
@@ -235,7 +235,7 @@ def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[
 def unit_plot_potential(potential: None | Potential | list[Potential], 
                         ax: plt.Axes, y_offset: float, ratio: float = 1.0,
                         spike_mark: bool = True, aspect: Optional[Any] = None, 
-                        yticks_flag: bool = True,
+                        yticks_flag: bool = True, wc_flag: bool = False,
                         emphasize_rule: str = "median", spike_num_warning_threshold: int = 1000) -> float:
     """plot a single cell potential"""
     if not sanity_check(potential):
@@ -244,7 +244,7 @@ def unit_plot_potential(potential: None | Potential | list[Potential],
 
     # adjust ratio for whole cell potential and add y ticks
     example_potential = potential[0] if isinstance(potential, list) else potential
-    if np.min(example_potential.aspect(aspect).v) < WC_POTENTIAL_THRESHOLD:  # adjust for whole cell potential
+    if wc_flag:  # adjust for whole cell potential
         ratio *= WC_POTENTIAL_RATIO
         ytick_template = "potential_wc"
     else:

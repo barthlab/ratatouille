@@ -6,6 +6,7 @@ from kitchen.operator.sync_nodes import left_align_nodes, sync_nodes
 from kitchen.plotter.plotting_manual import PlotManual
 from kitchen.plotter.plotting_params import FLUORESCENCE_RATIO, LICK_RATIO, LOCOMOTION_RATIO, POSITION_RATIO, POTENTIAL_RATIO, PUPIL_RATIO, TIMELINE_RATIO, WHISKER_RATIO
 from kitchen.plotter.unit_plotter.unit_trace import unit_plot_lick, unit_plot_locomotion, unit_plot_position, unit_plot_pupil, unit_plot_single_cell_fluorescence, unit_plot_timeline, unit_plot_whisker, unit_plot_potential
+from kitchen.settings.potential import WC_CONVERT_FLAG
 from kitchen.structure.hierarchical_data_structure import DataSet
 from kitchen.utils.sequence_kit import find_only_one, select_truthy_items
 
@@ -45,7 +46,7 @@ def flat_view(
             y_offset = yield 0
         else:
             y_offset = yield unit_plot_potential(potential=node.data.potential, ax=ax, y_offset=y_offset, ratio=POTENTIAL_RATIO,
-                                                 aspect=plot_manual.potential, spike_mark=True)
+                                                 aspect=plot_manual.potential, wc_flag=WC_CONVERT_FLAG(node))
             
     # 3. plot behavior
     if plot_manual.lick:
@@ -100,7 +101,7 @@ def stack_view(
         valid_potential = select_truthy_items([node.data.potential for node in dataset_synced])    
         y_offset = yield unit_plot_potential(
             potential=valid_potential, ax=ax, y_offset=y_offset, ratio=POTENTIAL_RATIO, 
-            aspect=plot_manual.potential, spike_mark=True)
+            aspect=plot_manual.potential, wc_flag=WC_CONVERT_FLAG(dataset_synced.nodes[0]))
 
     # 3. plot behavior  
     if plot_manual.lick:    
@@ -156,4 +157,5 @@ def beam_view(
         for node_index, node in enumerate(dataset_synced):
             y_offset = yield unit_plot_potential(
                 potential=node.data.potential, ax=ax, y_offset=y_offset, ratio=POTENTIAL_RATIO, 
-                aspect=plot_manual.potential, spike_mark=True, yticks_flag=(node_index == 0))
+                aspect=plot_manual.potential, yticks_flag=(node_index == 0),
+                wc_flag=WC_CONVERT_FLAG(dataset_synced.nodes[0]))

@@ -21,22 +21,19 @@ logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
 
 def main():
-    plot_manual_spike05Hz = PlotManual(potential=0.5,)
-    plot_manual_spike300Hz = PlotManual(potential=300.)
     sp_prefix = "jux_analysis"
-    # for dataset_name in ("PV_JUX", "PYR_JUX", "SST_JUX", "SST_WC"):
-    for dataset_name in ("PV_JUX", "PYR_JUX", ):
+    for dataset_name in ("PYR_JUX", "PV_JUX", "SST_JUX", "SST_WC"):
 
         dataset = load_dataset(template_id="PassivePuff_JuxtaCellular_FromJS_202509", cohort_id=dataset_name, 
                                recipe="default_ephys")
         # dataset.status(save_path=path.join(path.dirname(__file__), f"status_report_{dataset_name}.xlsx"), row_level="cellsession")
 
-        # for session_node in dataset.select(hash_key="cellsession"):
-        #     print(session_node)
-        #     single_cell_session_parallel_view(session_node, dataset, prefix_keyword=sp_prefix)
+        for session_node in dataset.select(hash_key="cellsession"):
+            print(session_node)
+            single_cell_session_parallel_view_jux(session_node, dataset, prefix_keyword=sp_prefix)
         for mice_node in dataset.enumerate_by(Mice):
             print(mice_node)
             subtree_summary_trial_avg_jux(mice_node, dataset, prefix_keyword=sp_prefix)
-        exit()
+
 if __name__ == "__main__":
     main()

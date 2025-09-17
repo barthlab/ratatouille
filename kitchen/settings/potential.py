@@ -17,7 +17,8 @@ JS_CAM_THRESHOLD: float = 1.5
 
 
 # For whole cell vs jux adjustment
-WC_POTENTIAL_THRESHOLD = -10.  # mV
+def WC_CONVERT_FLAG(node):
+	return "wc" in node.cohort_id.lower()
 
 # Spike range
 SPIKE_RANGE_RELATIVE_TO_ALIGNMENT = (-1.5/1000, 1.5/1000)  # s 

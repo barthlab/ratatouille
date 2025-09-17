@@ -93,7 +93,7 @@ def subtree_summary_trial_avg_jux(
     """
     max_n_col = 0
     enumerate_nodes = dataset.subtree(root_node).select("cellsession")
-    
+
     prefix_str = f"{prefix_keyword}_SubtreeSummary" if prefix_keyword is not None else "SubtreeSummary"
     alignment_events = ("VerticalPuffOn",)
 

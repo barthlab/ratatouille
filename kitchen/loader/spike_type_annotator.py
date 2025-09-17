@@ -16,7 +16,7 @@ def spike_annotation(trial_node: Trial | FovTrial, trial_align: float, spike_ann
         assert trial_node.data.timeline is not None, f"Cannot find timeline in {trial_node}"
 
         # find puff offset
-        puff_offset = trial_node.data.timeline.filter("VerticalPuffOff")
+        puff_offset = trial_node.data.timeline.aligned_to(trial_align).filter("VerticalPuffOff")
         if len(puff_offset.t) == 0:
             raise ValueError(f"Cannot find puff offset in {trial_node}")
         puff_offset_t = puff_offset.t[0]
