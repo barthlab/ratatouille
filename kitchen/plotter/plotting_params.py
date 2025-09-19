@@ -44,5 +44,5 @@ DPI = 1000
 FLAT_X_INCHES = 15  # inches
 UNIT_X_INCHES = 2.5  # inches
 UNIT_Y_INCHES = 8  # inches
-PARALLEL_Y_INCHES = 1  # inches
+PARALLEL_Y_INCHES = 4.5  # inches
 ZOOMED_Y_INCHES = 4  # inches

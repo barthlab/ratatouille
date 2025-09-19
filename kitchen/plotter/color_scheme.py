@@ -52,7 +52,12 @@ GRAND_COLOR_SCHEME = {
     "PeltierRightOn": DARK_PELTIER_COLOR,
     "PeltierBothOn": DARK_PELTIER_COLOR,
 }
-
+SPIKE_COLOR_SCHEME = {
+    "spike": REGULAR_SPIKE_COLOR,
+    "regular_spike": REGULAR_SPIKE_COLOR,
+    "early_spike": EARLY_SPIKE_COLOR,
+    "sustained_spike": SUSTAINED_SPIKE_COLOR,
+}
 TABLEAU_10 = (
     "#1A4E86", '#F28E2B', '#E15759', '#76B7B2', '#59A14F',
     '#EDC948', '#B07AA1', '#FF9DA7', '#9C755F', '#BAB0AC'

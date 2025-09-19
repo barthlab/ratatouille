@@ -5,8 +5,8 @@ from kitchen.loader.general_loader_interface import load_dataset
 from kitchen.operator.select_trial_rules import PREDEFINED_FOVTRIAL_RULES
 from kitchen.plotter.macros.basic_macros import fov_overview, fov_summary_trial_avg_default, session_overview
 from kitchen.plotter.plotting_manual import PlotManual
-from kitchen.video import format_converter, video_marker
-from kitchen.video import custom_extraction
+from kitchen.media import format_converter, video_marker
+from kitchen.media import custom_extraction
 
 
 logger = logging.getLogger()

@@ -87,17 +87,24 @@ def calculate_group_tuple(arrs: List[np.ndarray], t: np.ndarray) -> AdvancedTime
     assert all(arr.shape == arrs[0].shape for arr in arrs), "All arrays should have same shape"
     assert len(t) == arrs[0].shape[-1], f"Time array should have same length as array shape (last dim), got {len(t)} vs {arrs[0].shape}"
     means = np.nanmean(arrs, axis=0)
-    variances = stats.sem(arrs, axis=0, nan_policy="omit")
+    variances = stats.sem(arrs, axis=0, nan_policy="omit") if len(arrs) > 1 else np.zeros_like(means)
     return AdvancedTimeSeries(v=means, t=t, variance=variances, raw_array=np.array(arrs))
 
 
-def grouping_events_rate(events: List[Events], bin_size: float) -> AdvancedTimeSeries:
+def grouping_events_rate(events: List[Events], bin_size: float, use_event_value_as_weight: bool = True) -> AdvancedTimeSeries:
     """Group a list of events in rate."""
     assert bin_size > 0, "bin size should be positive"
     group_t = np.sort(np.concatenate([event.t for event in events]))
-    bins = np.arange(group_t[0]-bin_size, group_t[-1] + bin_size, bin_size)
-    all_rates = [np.histogram(event.t, bins=bins, weights=event.v)[0] / bin_size for event in events]
+    bins = np.arange(group_t[0] - bin_size, group_t[-1] + bin_size, bin_size)
+    all_rates = [np.histogram(event.t, bins=bins, weights=event.v 
+                              if use_event_value_as_weight else None)[0] / bin_size for event in events]
     return calculate_group_tuple(all_rates, bins[:-1] + bin_size/2)
+
+
+def grouping_events_histogram(events: List[Events], bins: np.ndarray, use_event_value_as_weight: bool = True) -> AdvancedTimeSeries:
+    all_rates = [np.histogram(event.t, bins=bins, weights=event.v 
+                              if use_event_value_as_weight else None)[0] / (bins[1:] - bins[:-1]) for event in events]
+    return calculate_group_tuple(all_rates, (bins[:-1] + bins[1:]) / 2)
 
 
 def grouping_timeseries(timeseries: List[TimeSeries], scale_factor: float = 2, interp_method: str = "previous") -> AdvancedTimeSeries:

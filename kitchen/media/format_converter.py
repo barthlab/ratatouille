@@ -10,7 +10,7 @@ from send2trash import send2trash
 
 from kitchen.configs import routing
 from kitchen.structure.hierarchical_data_structure import Cohort, DataSet
-from kitchen.video.video_settings import INPUT_VIDEO_FPS, OUTPUT_VIDEO_FPS, SUPPORT_VIDEO_FORMAT, TIFF_STACK_FPS, TIFF_STACK_CRF
+from kitchen.media.video_settings import INPUT_VIDEO_FPS, OUTPUT_VIDEO_FPS, SUPPORT_VIDEO_FORMAT, TIFF_STACK_FPS, TIFF_STACK_CRF
 
 
 def find_all_video_path(dir_path: str, format: str) -> List[str]:

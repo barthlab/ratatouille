@@ -9,8 +9,8 @@ import pandas as pd
 from kitchen.configs import routing
 from kitchen.structure.hierarchical_data_structure import Cohort, DataSet
 from kitchen.utils.sequence_kit import find_only_one
-from kitchen.video.format_converter import find_all_video_path
-from kitchen.video.video_settings import CUSTOM_EXTRACTION_PREFIX, CUSTOM_EXTRACTION_VIDEO_FORMAT
+from kitchen.media.format_converter import find_all_video_path
+from kitchen.media.video_settings import CUSTOM_EXTRACTION_PREFIX, CUSTOM_EXTRACTION_VIDEO_FORMAT
 
 def run_facemap():
     """

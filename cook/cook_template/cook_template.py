@@ -2,7 +2,7 @@ import warnings
 import kitchen.loader.two_photon_loader as hier_loader
 from kitchen.plotter.macros.basic_macros import session_overview, single_node_trial_avg_default
 from kitchen.plotter.plotting_manual import PlotManual
-from kitchen.video import custom_extraction, facemap_pupil_extraction, format_converter
+from kitchen.media import custom_extraction, facemap_pupil_extraction, format_converter
 
 
 warnings.filterwarnings("ignore")

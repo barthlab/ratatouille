@@ -11,8 +11,8 @@ from kitchen.configs import routing
 from kitchen.settings.behavior import OPTICAL_FLOW_EXTRACTED_BEHAVIOR_TYPES, VIDEO_EXTRACTED_BEHAVIOR_TYPES
 from kitchen.structure.hierarchical_data_structure import Cohort, DataSet
 from kitchen.utils.sequence_kit import find_only_one
-from kitchen.video.format_converter import find_all_video_path
-from kitchen.video.video_settings import CUSTOM_EXTRACTION_VIDEO_FORMAT, CUSTOM_EXTRACTION_PREFIX
+from kitchen.media.format_converter import find_all_video_path
+from kitchen.media.video_settings import CUSTOM_EXTRACTION_VIDEO_FORMAT, CUSTOM_EXTRACTION_PREFIX
 
 
 def OneFrame(capture: cv2.VideoCapture) -> Tuple[bool, np.ndarray]:

@@ -5,8 +5,8 @@ from kitchen.plotter.macros.basic_macros import fov_overview, fov_summary_trial_
 from kitchen.plotter.macros.water_omission_macros import mice_water_omission_overview, mice_water_omission_summary, water_omission_response_compare
 from kitchen.plotter.plotting_manual import PlotManual
 from kitchen.structure.hierarchical_data_structure import Fov, Session
-import kitchen.video.format_converter as format_converter
-import kitchen.video.custom_extraction as custom_extraction
+import kitchen.media.format_converter as format_converter
+import kitchen.media.custom_extraction as custom_extraction
 import kitchen.loader.two_photon_loader as hier_loader
 
 # warnings.filterwarnings("ignore")

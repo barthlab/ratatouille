@@ -6,8 +6,8 @@ from kitchen.operator.select_trial_rules import PREDEFINED_FOVTRIAL_RULES, PREDE
 from kitchen.plotter.macros.basic_macros import fov_overview, single_node_trial_avg_default, fov_summary_trial_avg_default, session_overview
 from kitchen.plotter.plotting_manual import PlotManual
 from kitchen.structure.hierarchical_data_structure import Fov, Session
-from kitchen.video import format_converter
-import kitchen.video.custom_extraction as custom_extraction
+from kitchen.media import format_converter
+import kitchen.media.custom_extraction as custom_extraction
 import kitchen.loader.two_photon_loader as hier_loader
 
 warnings.filterwarnings("ignore")

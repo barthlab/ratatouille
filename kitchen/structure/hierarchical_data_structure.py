@@ -262,7 +262,7 @@ class DataSet:
         assert hash_key == hash_key.lower(), f"hash_key must be lower case, but got {hash_key}"
         selected_nodes = filter_by(self._fast_lookup[hash_key], **criterion)
         if _empty_warning and len(selected_nodes) == 0:
-            logger.warning("Select operation resulted in 0 nodes, check your criterion function")
+            logger.warning(f"Select operation resulted in 0 {hash_key} nodes, check your criterion function: {criterion}")
         return DataSet(name=_specified_name, nodes=selected_nodes)
     
     def rule_based_selection(self, rule_dict: Dict[str, dict], _empty_warning: bool = False) -> Dict[str, "DataSet"]:

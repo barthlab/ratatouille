@@ -2,7 +2,7 @@ import warnings
 
 from kitchen.loader.ephys_loader import cohort_loader
 from kitchen.operator.sync_nodes import sync_nodes
-from kitchen.video import custom_extraction, format_converter
+from kitchen.media import custom_extraction, format_converter
 
 warnings.filterwarnings("ignore")
 
