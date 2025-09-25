@@ -1,6 +1,6 @@
 import numpy as np
 from dataclasses import dataclass, field
-from typing import Dict, Generator, Iterator, Optional, Any, Self, Tuple, Iterable
+from typing import Dict, Generator, Iterator, List, Optional, Any, Self, Tuple, Iterable
 from functools import cached_property
 from scipy import signal
 
@@ -77,7 +77,7 @@ class TimeSeries:
         """Return a new TimeSeries with negated values."""
         return self.__class__(v=-self.v, t=self.t)
 
-    def segment(self, start_t: float, end_t: float) -> "TimeSeries":
+    def segment(self, start_t: float, end_t: float) -> Self:
         """Extract temporal segment between start_t (inclusive) and end_t (exclusive)."""
         assert end_t >= start_t, f"start time {start_t} should be earlier than end time {end_t}"
         segment_start_index = np.searchsorted(self.t, start_t)
@@ -87,6 +87,10 @@ class TimeSeries:
             t=self.t[segment_start_index: segment_end_index]
         )
     
+    def batch_segment(self, ts: np.ndarray, segment_range: Tuple[float, float]) -> List[Self]:
+        """Extract temporal segment for each align time in ts."""        
+        return [self.segment(t + segment_range[0], t + segment_range[1]).aligned_to(t) for t in ts]
+
     @cached_property
     def fs(self) -> float:
         """Return sampling frequency."""
@@ -94,7 +98,7 @@ class TimeSeries:
             return np.nan
         return float(1 / np.mean(np.diff(self.t)))
     
-    def aligned_to(self, align_time: float) -> "TimeSeries":
+    def aligned_to(self, align_time: float) -> Self:
         """Align time series to a specific time point."""
         return self.__class__(v=self.v.copy(), t=self.t - align_time)
     
@@ -256,6 +260,11 @@ class Events:
         new_v = np.array([update_map.get(t, v) for t, v in zip(self.t, self.v)])
         self.v = new_v
 
+    def mask(self, mask: np.ndarray) -> Self:
+        """Apply boolean mask to events."""
+        assert mask.shape == self.t.shape, f"mask shape {mask.shape} should match event shape {self.t.shape}"
+        return self.__class__(v=self.v[mask], t=self.t[mask])
+    
 
 @dataclass
 class Timeline(Events):
@@ -391,7 +400,7 @@ class Fluorescence:
 class Potential:
     vm: TimeSeries
     spikes: Events = field(default_factory=lambda: Events(v=np.array([]), t=np.array([])))
-    _hp_components: Dict[float, TimeSeries] = field(default_factory=dict)
+    _components: Dict[float, TimeSeries] = field(default_factory=dict)
     is_prime: bool = False
 
     def __post_init__(self):
@@ -401,14 +410,14 @@ class Potential:
     def create_master(cls, vm: TimeSeries) -> "Potential":
         """Create a master potential, will initiate component and spike computation."""
         dummy_potential = cls(vm=vm, is_prime=True)
-        dummy_hp_components = {cutoff: dummy_potential._high_pass_vm(cutoff) for cutoff in COMPONENTS_BANDWIDTH}
+        dummy_components = {cutoff: dummy_potential._high_pass_vm(cutoff) for cutoff in COMPONENTS_BANDWIDTH}
         dummy_spikes = dummy_potential._compute_spikes()
-        return cls(vm=vm, spikes=dummy_spikes, _hp_components=dummy_hp_components, is_prime=True)
+        return cls(vm=vm, spikes=dummy_spikes, _components=dummy_components, is_prime=True)
     
     @classmethod
-    def create_slave(cls, vm: TimeSeries, spikes: Events, hp_components: Dict[float, TimeSeries]) -> "Potential":
+    def create_slave(cls, vm: TimeSeries, spikes: Events, components: Dict[float, TimeSeries]) -> "Potential":
         """Create a slave potential, will not initiate component and spike computation."""
-        return cls(vm=vm, spikes=spikes, _hp_components=hp_components, is_prime=False)
+        return cls(vm=vm, spikes=spikes, _components=components, is_prime=False)
   
     def _compute_spikes(self) -> Events:
         """Compute spikes from membrane potential."""
@@ -431,11 +440,11 @@ class Potential:
 
     def hp_component(self, cutoff: float) -> TimeSeries:
         """Get high-pass filtered component."""
-        if cutoff not in self._hp_components and self.is_prime:
-            self._hp_components[cutoff] = self._high_pass_vm(cutoff)
-        if cutoff not in self._hp_components:
-            raise ValueError(f"Cutoff {cutoff} not found in hp_components: {self._hp_components.keys()}")
-        return self._hp_components[cutoff]
+        if cutoff not in self._components and self.is_prime:
+            self._components[cutoff] = self._high_pass_vm(cutoff)
+        if cutoff not in self._components:
+            raise ValueError(f"Cutoff {cutoff} not found in components: {self._components.keys()}")
+        return self._components[cutoff]
 
     def aspect(self, keyword: Optional[Any] = None) -> TimeSeries:
         """Get potential component based on keyword."""
@@ -455,8 +464,8 @@ class Potential:
         return len(self.spikes)
 
     @cached_property
-    def num_hp_components(self):
-        return len(self._hp_components)
+    def num_components(self):
+        return len(self._components)
 
     def __repr__(self):
         """Return string representation."""
@@ -464,7 +473,7 @@ class Potential:
     
     def __str__(self) -> str:
         """Return string representation."""
-        return f"Potential with {self.num_spikes} spikes and {self.num_hp_components} high-pass components"
+        return f"Potential with {self.num_spikes} spikes and {self.num_components} components: {self._components.keys()}"
 
     def __len__(self) -> int:
         """Return number of time points."""
@@ -479,7 +488,7 @@ class Potential:
         return Potential.create_slave(
             vm=self.vm.segment(start_t, end_t),
             spikes=self.spikes.segment(start_t, end_t),
-            hp_components={cutoff: hp_comp.segment(start_t, end_t) for cutoff, hp_comp in self._hp_components.items()},
+            components={Keyword: _comp.segment(start_t, end_t) for Keyword, _comp in self._components.items()},
         )
     
     def aligned_to(self, align_time: float) -> "Potential":
@@ -487,7 +496,7 @@ class Potential:
         return Potential.create_slave(
             vm=self.vm.aligned_to(align_time),
             spikes=self.spikes.aligned_to(align_time),
-            hp_components={cutoff: hp_comp.aligned_to(align_time) for cutoff, hp_comp in self._hp_components.items()},
+            components={Keyword: _comp.aligned_to(align_time) for Keyword, _comp in self._components.items()},
         )
 
 

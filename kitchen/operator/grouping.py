@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Self
+from typing import List, Self, Tuple
 import numpy as np
 from scipy import stats
 
@@ -64,6 +64,9 @@ class AdvancedTimeSeries(TimeSeries):
     def segment(self, start_t: float, end_t: float) -> Self:
         raise NotImplementedError("segment is not allowed for AdvancedTimeSeries")
 
+    def batch_segment(self, ts: np.ndarray, segment_range: Tuple[float, float]):
+        raise NotImplementedError("batch_segment is not allowed for AdvancedTimeSeries")
+    
     def aligned_to(self, align_time: float) -> Self:
         return self.__class__(
             v=self.mean.copy(),

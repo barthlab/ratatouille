@@ -53,7 +53,7 @@ def session_overview(
     """
     session_name = get_node_name(session_node)
     session_dataset = DataSet(name=session_name, nodes=[session_node])
-    prefix_str = f"{prefix_keyword}_SeesionOverview" if prefix_keyword is not None else "SessionOverview"
+    prefix_str = f"{prefix_keyword}_SessionOverview" if prefix_keyword is not None else "SessionOverview"
     try:
         default_style(
             mosaic_style=[[session_name,],],
