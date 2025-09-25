@@ -1,20 +1,29 @@
 import os.path
 import sys
+from typing import Optional
 import numpy as np
 import pickle
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
-                             QHBoxLayout, QGridLayout, QPushButton, QLabel, QFileDialog)
-from PyQt5.QtCore import Qt, QPointF, QCoreApplication
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QTransform, QPainterPath
+                             QHBoxLayout, QGridLayout, QPushButton, QFileDialog, QMessageBox)
+from PyQt5.QtCore import QPointF, QCoreApplication, QEventLoop
+from PyQt5.QtGui import QTransform
 import pyqtgraph as pg
+from umap import UMAP
+from sklearn.cluster import KMeans
+import logging
+
+from kitchen.configs import routing
+from kitchen.operator.grouping import grouping_timeseries
+from kitchen.settings.potential import SPIKE_RANGE_RELATIVE_TO_ALIGNMENT
+from kitchen.structure.hierarchical_data_structure import Node
+
 pg.setConfigOptions(useOpenGL=True)
 
-from sklearn.decomposition import PCA
-from sklearn.cluster import DBSCAN
-from scipy.spatial import distance
+logger = logging.getLogger(__name__)
 
-# from src.basic.utils import *
-# from src.basic.config import *
+# --- Singleton instances for the GUI ---
+_app_instance: Optional[QApplication] = None
+_gui_instance: Optional['MainWindow'] = None
 
 
 class SelectionEllipse:
@@ -26,13 +35,17 @@ class SelectionEllipse:
         self.selected_indices = []
 
     def contains_point(self, point):
-        # Transform point to ellipse coordinate system
         transform = QTransform()
         transform.translate(self.center.x(), self.center.y())
         transform.rotate(self.rotation)
-        transformed_point = transform.inverted()[0].map(point)
+        transformed_point, ok = transform.inverted()
+        if not ok:
+            return False
+        
+        transformed_point = transformed_point.map(point)
 
-        # Check if point is inside ellipse (no extra subtraction needed)
+        if self.width == 0 or self.height == 0:
+            return False
         normalized_x = transformed_point.x() / (self.width / 2)
         normalized_y = transformed_point.y() / (self.height / 2)
         return (normalized_x ** 2 + normalized_y ** 2) <= 1
@@ -45,22 +58,19 @@ class SelectionEllipse:
         inv, ok = transform.inverted()
         if not ok:
             return self.selected_indices
+        
+        half_width = self.width / 2
+        half_height = self.height / 2
+        if half_width == 0 or half_height == 0:
+            return self.selected_indices
 
         for i, point in enumerate(points):
             transformed_point = inv.map(QPointF(point[0], point[1]))
-            normalized_x = transformed_point.x() / (self.width / 2)
-            normalized_y = transformed_point.y() / (self.height / 2)
+            normalized_x = transformed_point.x() / half_width
+            normalized_y = transformed_point.y() / half_height
             if normalized_x ** 2 + normalized_y ** 2 <= 1:
                 self.selected_indices.append(i)
         return self.selected_indices
-
-    def get_path(self):
-        path = QPainterPath()
-        transform = QTransform()
-        transform.translate(self.center.x(), self.center.y())
-        transform.rotate(self.rotation)
-        path.addEllipse(QPointF(0, 0), self.width / 2, self.height / 2)
-        return transform.map(path)
 
 
 class PCAPlotWidget(pg.PlotWidget):
@@ -69,37 +79,30 @@ class PCAPlotWidget(pg.PlotWidget):
         self.parent = parent
         self.setBackground('w')
         self.points = None
-        self.ellipse = SelectionEllipse()
+        
+        self.ellipses = []
+        self.active_ellipse_index = None
+        self.ellipse_items = []
+        
         self.manual_selection = set()
         self.scatter = None
-        self.ellipse_item = None
         self.resize_handle_item = None
         self.rotate_handle_item = None
         self.drag_start = None
         self.is_adjusting_ellipse = False
-        self.initial_aspect_ratio = None  # For fixed aspect ratio during resize
+        self.initial_aspect_ratio = None
 
-        # Setup plot
-        self.getPlotItem().setLabel('bottom', 'PC1')
-        self.getPlotItem().setLabel('left', 'PC2')
+        self.getPlotItem().setLabel('bottom', 'UMAP 1')
+        self.getPlotItem().setLabel('left', 'UMAP 2')
         self.getPlotItem().showGrid(x=True, y=True)
 
     def set_data(self, pc_data, labels):
         self.clear()
         self.points = pc_data
         self.labels = labels
+        self.manual_selection.clear()
 
-        # Create scatter plot using spots with index data
-        unique_labels = np.unique(labels)
-        colors = [pg.mkColor(i * 30, 255, 255, 150) for i in range(len(unique_labels))]
-
-        # Initialize brushes for different clusters
-        self.brushes = []
-        for i in range(len(pc_data)):
-            if labels[i] == -1:  # Noise points
-                self.brushes.append(pg.mkBrush(100, 100, 100, 150))
-            else:
-                self.brushes.append(pg.mkBrush(colors[labels[i] % len(colors)]))
+        self.brushes = [pg.mkBrush(100, 100, 100, 150) for _ in range(len(pc_data))]
 
         spots = [{'pos': pc_data[i], 'data': i} for i in range(len(pc_data))]
         self.scatter = pg.ScatterPlotItem(
@@ -109,281 +112,405 @@ class PCAPlotWidget(pg.PlotWidget):
             pen=pg.mkPen(None),
             symbol='o'
         )
-        # self.scatter.sigClicked.connect(self.on_point_clicked)
         self.addItem(self.scatter)
 
-        # Center the ellipse on data
-        center_x = np.mean(pc_data[:, 0])
-        center_y = np.mean(pc_data[:, 1])
-        self.ellipse.center = QPointF(center_x, center_y)
+        self.ellipses.clear()
+        initial_ellipse = SelectionEllipse()
+        
+        target_label = 0
+        cluster_indices = np.where(self.labels == target_label)[0]
 
-        # Set ellipse size based on data spread
-        std_x = np.std(pc_data[:, 0]) * 2
-        std_y = np.std(pc_data[:, 1]) * 2
-        self.ellipse.width = std_x * 2
-        self.ellipse.height = std_y * 2
+        if len(cluster_indices) > 0:
+            points_for_ellipse = self.points[cluster_indices]
+        else:
+            points_for_ellipse = self.points
 
-        # Create ellipse
-        self.draw_ellipse()
+        if len(points_for_ellipse) > 0:
+            center_x = np.mean(points_for_ellipse[:, 0])
+            center_y = np.mean(points_for_ellipse[:, 1])
+            initial_ellipse.center = QPointF(center_x, center_y)
 
-        # Add handles for resizing and rotating
-        self.add_control_handles()
+            std_x = np.std(points_for_ellipse[:, 0])
+            std_y = np.std(points_for_ellipse[:, 1])
+            initial_ellipse.width = std_x * 5
+            initial_ellipse.height = std_y * 5
 
-        # Update selection
+        self.ellipses.append(initial_ellipse)
+        self.active_ellipse_index = 0
+        
+        self.draw_ellipses()
         self.update_selection()
 
-    def draw_ellipse(self):
-        if self.ellipse_item is not None:
-            self.removeItem(self.ellipse_item)
+    def add_new_ellipse(self):
+        new_ellipse = SelectionEllipse()
+        
+        view_rect = self.plotItem.vb.viewRect()
+        new_ellipse.center = view_rect.center()
+        new_ellipse.width = view_rect.width() / 4
+        new_ellipse.height = view_rect.height() / 4
+        
+        self.ellipses.append(new_ellipse)
+        self.active_ellipse_index = len(self.ellipses) - 1
+        
+        self.draw_ellipses()
+        self.update_selection()
 
-        # Create ellipse path manually
-        path_points = []
-        cos_rot = np.cos(np.radians(self.ellipse.rotation))
-        sin_rot = np.sin(np.radians(self.ellipse.rotation))
-        for i in range(100):
-            angle = 2 * np.pi * i / 100
-            # Start with a point on the unrotated ellipse
-            x = self.ellipse.width / 2 * np.cos(angle)
-            y = self.ellipse.height / 2 * np.sin(angle)
+    def draw_ellipses(self):
+        for item in self.ellipse_items:
+            self.removeItem(item)
+        self.ellipse_items.clear()
 
-            # Rotate the point
-            rotated_x = self.ellipse.center.x() + x * cos_rot - y * sin_rot
-            rotated_y = self.ellipse.center.y() + x * sin_rot + y * cos_rot
+        for i, ellipse in enumerate(self.ellipses):
+            pen = pg.mkPen(color=(0, 0, 255), width=2) if i == self.active_ellipse_index else pg.mkPen(color=(0, 100, 255), width=1)
+            
+            path_points = []
+            cos_rot = np.cos(np.radians(ellipse.rotation))
+            sin_rot = np.sin(np.radians(ellipse.rotation))
+            for j in range(101):
+                angle = 2 * np.pi * j / 100
+                x = ellipse.width / 2 * np.cos(angle)
+                y = ellipse.height / 2 * np.sin(angle)
+                
+                rotated_x = ellipse.center.x() + x * cos_rot - y * sin_rot
+                rotated_y = ellipse.center.y() + x * sin_rot + y * cos_rot
+                path_points.append((rotated_x, rotated_y))
 
-            path_points.append((rotated_x, rotated_y))
-
-        path_points = np.array(path_points)
-        self.ellipse_item = pg.PlotCurveItem(
-            pen=pg.mkPen(color=(0, 0, 255), width=2)
-        )
-        self.ellipse_item.setData(path_points[:, 0], path_points[:, 1])
-        self.addItem(self.ellipse_item)
+            path_points = np.array(path_points)
+            ellipse_item = pg.PlotCurveItem(pen=pen)
+            ellipse_item.setData(path_points[:, 0], path_points[:, 1])
+            self.addItem(ellipse_item)
+            self.ellipse_items.append(ellipse_item)
+        
+        self.add_control_handles()
 
     def add_control_handles(self):
-        # Clear existing handles
-        if self.resize_handle_item is not None:
-            self.removeItem(self.resize_handle_item)
-        if self.rotate_handle_item is not None:
-            self.removeItem(self.rotate_handle_item)
+        if self.resize_handle_item: self.removeItem(self.resize_handle_item)
+        if self.rotate_handle_item: self.removeItem(self.rotate_handle_item)
+        
+        if self.active_ellipse_index is None or self.active_ellipse_index >= len(self.ellipses):
+            return
 
-        # Add resize handle (right side of ellipse)
-        right_point_x = self.ellipse.center.x() + self.ellipse.width / 2 * np.cos(np.radians(self.ellipse.rotation))
-        right_point_y = self.ellipse.center.y() + self.ellipse.width / 2 * np.sin(np.radians(self.ellipse.rotation))
+        active_ellipse = self.ellipses[self.active_ellipse_index]
+        
+        right_point_x = active_ellipse.center.x() + active_ellipse.width / 2 * np.cos(np.radians(active_ellipse.rotation))
+        right_point_y = active_ellipse.center.y() + active_ellipse.width / 2 * np.sin(np.radians(active_ellipse.rotation))
         self.resize_handle_pos = np.array([[right_point_x, right_point_y]])
-        self.resize_handle_item = pg.ScatterPlotItem(
-            pos=self.resize_handle_pos,
-            size=15,
-            brush=pg.mkBrush(255, 0, 0, 200),
-            pen=pg.mkPen('w'),
-            symbol='s'
-        )
-        self.resize_handle_item.setZValue(10)
+        self.resize_handle_item = pg.ScatterPlotItem(pos=self.resize_handle_pos, size=15, brush=pg.mkBrush(255, 0, 0, 200), pen=pg.mkPen('w'), symbol='s', zValue=10)
         self.addItem(self.resize_handle_item)
 
-        # Add rotation handle (top side of ellipse)
-        top_point_x = self.ellipse.center.x() + self.ellipse.height / 2 * np.cos(np.radians(self.ellipse.rotation + 90))
-        top_point_y = self.ellipse.center.y() + self.ellipse.height / 2 * np.sin(np.radians(self.ellipse.rotation + 90))
+        top_point_x = active_ellipse.center.x() + active_ellipse.height / 2 * np.sin(np.radians(active_ellipse.rotation))
+        top_point_y = active_ellipse.center.y() - active_ellipse.height / 2 * np.cos(np.radians(active_ellipse.rotation))
         self.rotate_handle_pos = np.array([[top_point_x, top_point_y]])
-        self.rotate_handle_item = pg.ScatterPlotItem(
-            pos=self.rotate_handle_pos,
-            size=15,
-            brush=pg.mkBrush(0, 255, 0, 200),
-            pen=pg.mkPen('w'),
-            symbol='o'
-        )
-        self.rotate_handle_item.setZValue(10)
+        self.rotate_handle_item = pg.ScatterPlotItem(pos=self.rotate_handle_pos, size=15, brush=pg.mkBrush(0, 255, 0, 200), pen=pg.mkPen('w'), symbol='o', zValue=10)
         self.addItem(self.rotate_handle_item)
-
+        
     def update_selection(self):
-
         if self.points is None:
             return
 
-        # Update selection based on ellipse
-        ellipse_selection = set(self.ellipse.update_selection(self.points))
+        points_in_ellipses = set()
+        for ellipse in self.ellipses:
+            indices = ellipse.update_selection(self.points)
+            points_in_ellipses.update(indices)
 
-        # Add manually selected points
-        selection = ellipse_selection.union(self.manual_selection)
+        selection = set()
+        if self.parent and self.parent.selection_mode == 'opt-out':
+            all_indices = set(range(len(self.points)))
+            selection = all_indices.difference(points_in_ellipses)
+        else:
+            selection = points_in_ellipses
 
-        # Update scatter plot colors
+        selection.update(self.manual_selection)
+
         brushes = self.brushes.copy()
         for i in range(len(self.points)):
-            if i in selection:
-                brushes[i] = pg.mkBrush(255, 0, 0, 200)  # Selected points in red
+            brushes[i] = pg.mkBrush(255, 0, 0, 200) if i in selection else self.brushes[i]
 
         self.scatter.setBrush(brushes)
 
-        # Notify parent
         if self.parent:
             self.parent.on_selection_changed(list(selection))
-
-    # def on_point_clicked(self, plot, points):
-    #     for point in points:
-    #         index = point.data()  # Retrieve the index stored in the spot's data
-    #         # Toggle point selection
-    #         if index in self.manual_selection:
-    #             self.manual_selection.remove(index)
-    #         else:
-    #             self.manual_selection.add(index)
-
+            
     def mousePressEvent(self, event):
         pos = self.plotItem.vb.mapSceneToView(event.pos())
+        self.is_adjusting_ellipse = False
 
-        # Check if we're clicking on a control handle
-        resize_point = QPointF(self.resize_handle_pos[0][0], self.resize_handle_pos[0][1])
-        rotate_point = QPointF(self.rotate_handle_pos[0][0], self.rotate_handle_pos[0][1])
+        if self.active_ellipse_index is not None:
+            active_ellipse = self.ellipses[self.active_ellipse_index]
+            resize_point = QPointF(self.resize_handle_pos[0][0], self.resize_handle_pos[0][1])
+            rotate_point = QPointF(self.rotate_handle_pos[0][0], self.rotate_handle_pos[0][1])
 
-        # Distance thresholds
-        threshold = 20  # pixels
+            threshold = 20
+            screen_pos = self.plotItem.vb.mapViewToScene(pos)
+            screen_resize = self.plotItem.vb.mapViewToScene(resize_point)
+            screen_rotate = self.plotItem.vb.mapViewToScene(rotate_point)
+            
+            resize_dist = (screen_pos - screen_resize).manhattanLength()
+            rotate_dist = (screen_pos - screen_rotate).manhattanLength()
+            
+            if resize_dist < threshold:
+                self.is_adjusting_ellipse = 'resize'
+            elif rotate_dist < threshold:
+                self.is_adjusting_ellipse = 'rotate'
 
-        # Convert to screen coordinates for distance check
-        screen_pos = self.plotItem.vb.mapViewToScene(pos)
-        screen_resize = self.plotItem.vb.mapViewToScene(resize_point)
-        screen_rotate = self.plotItem.vb.mapViewToScene(rotate_point)
+            if self.is_adjusting_ellipse:
+                self.drag_start = pos
+                transform = QTransform().rotate(-active_ellipse.rotation)
+                self.initial_local = transform.map(pos - active_ellipse.center)
+                super().mousePressEvent(event)
+                return
 
-        # Check distances
-        resize_dist = (screen_pos - screen_resize).manhattanLength()
-        rotate_dist = (screen_pos - screen_rotate).manhattanLength()
-
-        if resize_dist < threshold:
-            self.is_adjusting_ellipse = 'resize'
-            self.resize_initial_width = self.ellipse.width
-            self.resize_initial_height = self.ellipse.height
-            transform = QTransform().rotate(-self.ellipse.rotation)
-            self.initial_local = transform.map(pos - self.ellipse.center)
-        elif rotate_dist < threshold:
-            self.is_adjusting_ellipse = 'rotate'
-            self.resize_initial_width = self.ellipse.width
-            self.resize_initial_height = self.ellipse.height
-            transform = QTransform().rotate(-self.ellipse.rotation)
-            self.initial_local = transform.map(pos - self.ellipse.center)
-        else:
-            # Check if clicking the ellipse for dragging
-            if self.ellipse.contains_point(pos):
+        clicked_on_ellipse = False
+        for i in range(len(self.ellipses) - 1, -1, -1):
+            if self.ellipses[i].contains_point(pos):
+                self.active_ellipse_index = i
                 self.is_adjusting_ellipse = 'drag'
-            else:
-                self.is_adjusting_ellipse = False
-
-        self.drag_start = pos
+                self.drag_start = pos
+                clicked_on_ellipse = True
+                self.draw_ellipses()
+                break
+        
+        if not clicked_on_ellipse:
+            self.active_ellipse_index = None
+            self.draw_ellipses()
+        
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
-        if self.drag_start is None or not self.is_adjusting_ellipse:
+        if self.drag_start is None or not self.is_adjusting_ellipse or self.active_ellipse_index is None:
             super().mouseMoveEvent(event)
             return
 
+        active_ellipse = self.ellipses[self.active_ellipse_index]
         pos = self.plotItem.vb.mapSceneToView(event.pos())
-        dx = pos.x() - self.drag_start.x()
-        dy = pos.y() - self.drag_start.y()
-
+        
         if self.is_adjusting_ellipse == 'drag':
-            # Move the ellipse center
-            self.ellipse.center = QPointF(self.ellipse.center.x() + dx, self.ellipse.center.y() + dy)
-            self.drag_start = pos
+            dx = pos.x() - self.drag_start.x()
+            dy = pos.y() - self.drag_start.y()
+            active_ellipse.center = QPointF(active_ellipse.center.x() + dx, active_ellipse.center.y() + dy)
 
-        elif self.is_adjusting_ellipse == 'resize':
-            transform = QTransform().rotate(-self.ellipse.rotation)
-            current_local = transform.map(pos - self.ellipse.center)
-            if self.initial_local.x() != 0:
-                scale_factor = abs(current_local.x() / self.initial_local.x())
-            else:
-                scale_factor = 1
-            self.ellipse.width = self.resize_initial_width * scale_factor
-            self.ellipse.height = self.resize_initial_height
-
-            self.drag_start = pos
-
-        elif self.is_adjusting_ellipse == 'rotate':
-            transform = QTransform().rotate(-self.ellipse.rotation)
-            current_local = transform.map(pos - self.ellipse.center)
-
-            if self.initial_local.x() != 0:
-                scale_factor = abs(current_local.y() / self.initial_local.y())
-            else:
-                scale_factor = 1
-            self.ellipse.width = self.resize_initial_width
-            self.ellipse.height = self.resize_initial_height * scale_factor
-
-            # Calculate vectors for rotation angle
-            dx = pos.x() - self.ellipse.center.x()
-            dy = pos.y() - self.ellipse.center.y()
-            self.ellipse.rotation = np.degrees(np.arctan2(dy, dx) - 90) % 360
-
-            self.drag_start = pos
-
-        # Redraw ellipse and update handles and selection
-        self.draw_ellipse()
-        self.add_control_handles()
-
+        elif self.is_adjusting_ellipse in ['resize', 'rotate']:
+            center_to_pos = pos - active_ellipse.center
+            
+            transform = QTransform().rotate(-active_ellipse.rotation)
+            local_pos = transform.map(center_to_pos)
+            
+            if self.is_adjusting_ellipse == 'resize':
+                active_ellipse.width = 2 * abs(local_pos.x())
+            
+            elif self.is_adjusting_ellipse == 'rotate':
+                active_ellipse.height = 2 * abs(local_pos.y())
+                angle = np.degrees(np.arctan2(center_to_pos.y(), center_to_pos.x()))
+                active_ellipse.rotation = angle + 90
+        
+        self.drag_start = pos
+        self.draw_ellipses()
         event.accept()
 
     def mouseReleaseEvent(self, event):
         self.drag_start = None
         self.is_adjusting_ellipse = False
+        self.update_selection()
         super().mouseReleaseEvent(event)
 
 
 class WaveformPlotWidget(pg.PlotWidget):
+    def __init__(self, parent=None, y_label="Amplitude"):
+        super().__init__(parent)
+        self.setBackground('w')
+        plot_item = self.getPlotItem()
+        plot_item.setLabel('bottom', 'Time (ms)')
+        plot_item.setLabel('left', y_label)
+        plot_item.showGrid(x=True, y=True)
+
+    def plot_waveforms(self, waveforms, times, pen, mean_waveform=None, mean_pen=None):
+        self.clear()
+        if waveforms is None or len(waveforms) == 0:
+            return
+
+        max_waveforms_to_plot = 1000
+        
+        if len(waveforms) > max_waveforms_to_plot:
+            indices_to_plot = np.random.choice(np.arange(len(waveforms)), max_waveforms_to_plot, replace=False)
+            wfs_to_plot = waveforms[indices_to_plot]
+        else:
+            wfs_to_plot = waveforms
+
+        x_vals = np.tile(np.append(times, np.nan), len(wfs_to_plot))
+        y_vals = np.insert(wfs_to_plot, wfs_to_plot.shape[1], np.nan, axis=1).flatten()
+        self.plot(x_vals, y_vals, pen=pen)
+
+        if mean_waveform is not None and mean_pen is not None:
+            self.plot(times, mean_waveform, pen=mean_pen)
+
+
+class SplitWaveformWidget(QWidget):
+    def __init__(self, data_type_name: str, parent=None):
+        super().__init__(parent)
+        
+        self.selected_plot = WaveformPlotWidget(y_label=f"{data_type_name} Amplitude")
+        self.unselected_plot = WaveformPlotWidget(y_label=f"{data_type_name} Amplitude")
+
+        self.selected_plot.setTitle(f"Selected {data_type_name} Waveforms")
+        self.unselected_plot.setTitle(f"Unselected {data_type_name} Waveforms")
+        
+        self.unselected_plot.setYLink(self.selected_plot)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.selected_plot)
+        layout.addWidget(self.unselected_plot)
+        self.setLayout(layout)
+
+        self.black_pen = pg.mkPen(color=(0, 0, 0, 150), width=1)
+        self.red_pen = pg.mkPen(color=(255, 0, 0, 150), width=1)
+        self.green_pen = pg.mkPen(color=(0, 255, 0), width=2)
+
+    def plot_waveforms(self, waveforms, times, selected_indices=None):
+        if selected_indices is None:
+            selected_indices = []
+
+        if waveforms is None or len(waveforms) == 0:
+            self.selected_plot.plot_waveforms(None, times, self.red_pen)
+            self.unselected_plot.plot_waveforms(None, times, self.black_pen)
+            return
+
+        selection_mask = np.zeros(len(waveforms), dtype=bool)
+        
+        valid_indices = [i for i in selected_indices if i < len(waveforms)]
+        if valid_indices:
+            selection_mask[valid_indices] = True
+
+        selected_wfs = waveforms[selection_mask]
+        unselected_wfs = waveforms[~selection_mask]
+
+        if selected_wfs.shape[0] == 0:
+            selected_wfs = None
+        if unselected_wfs.shape[0] == 0:
+            unselected_wfs = None
+
+        mean_selected = np.mean(selected_wfs, axis=0) if selected_wfs is not None else None
+
+        self.selected_plot.plot_waveforms(selected_wfs, times, self.red_pen, 
+                                          mean_waveform=mean_selected, mean_pen=self.green_pen)
+        self.unselected_plot.plot_waveforms(unselected_wfs, times, self.black_pen)
+
+
+class ScaleFactorHistogramWidget(pg.PlotWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setBackground('w')
         plot_item = self.getPlotItem()
-        plot_item.setLabel('bottom', 'Time')
-        plot_item.setLabel('left', 'Amplitude')
+        plot_item.setLabel('bottom', 'Scale Factor (Std. Dev.)')
+        plot_item.setLabel('left', 'Count')
         plot_item.showGrid(x=True, y=True)
+        plot_item.getAxis('left').show()
 
-    def plot_waveforms(self, waveforms, times, selected_indices=None):
+        self.scale_factors = None
+        self.unselected_fill = pg.mkBrush(100, 100, 100, 150)
+        self.selected_fill = pg.mkBrush(255, 0, 0, 150)
+
+    def set_data(self, scale_factors):
+        self.scale_factors = np.array(scale_factors)
+        self.update_selection([])
+
+    def update_selection(self, selected_indices):
         self.clear()
+        if self.scale_factors is None or len(self.scale_factors) == 0:
+            return
+            
+        selection_mask = np.zeros(len(self.scale_factors), dtype=bool)
+        valid_indices = [i for i in selected_indices if i < len(self.scale_factors)]
+        if valid_indices:
+            selection_mask[valid_indices] = True
+        
+        unselected_sf = self.scale_factors[~selection_mask]
+        selected_sf = self.scale_factors[selection_mask]
+        
+        if len(self.scale_factors) > 1:
+            _, bin_edges = np.histogram(self.scale_factors, bins='sqrt')
+        else:
+            bin_edges = np.array([self.scale_factors[0]-0.5, self.scale_factors[0]+0.5]) if len(self.scale_factors) == 1 else np.array([0, 1])
 
-        # Convert selected_indices to a set for faster membership tests
-        selected_set = set(selected_indices) if selected_indices is not None else set()
+        bin_width = bin_edges[1] - bin_edges[0]
+        bin_centers = bin_edges[:-1] + bin_width / 2
 
-        # Pre-create pens to avoid recreating them in loops
-        light_pen = pg.mkPen(color=(200, 200, 200, 100), width=2)
-        red_pen = pg.mkPen(color=(255, 0, 0, 20))
-        green_pen = pg.mkPen(color=(0, 255, 0), width=2)
+        if len(unselected_sf) > 0:
+            y_unselected, _ = np.histogram(unselected_sf, bins=bin_edges)
+            unselected_bars = pg.BarGraphItem(
+                x=bin_centers, 
+                height=y_unselected, 
+                width=bin_width,
+                brush=self.unselected_fill,
+                pen=pg.mkPen(None)
+            )
+            self.addItem(unselected_bars)
 
-        # Plot selected waveforms in red
-        plotting_index = np.random.choice(len(selected_set), 500, replace=False)\
-            if len(selected_set) > 500 else range(len(selected_set))
-        for idx in plotting_index:
-            self.plot(times, waveforms[list(selected_set)[idx]]+1, pen=red_pen)
-
-        # Plot unselected waveforms in light gray
-        unselected = []
-        for i, waveform in enumerate(waveforms):
-            if i in selected_set:
-                continue
-            unselected.append(i)
-        plotting_index = np.random.choice(len(unselected), 500, replace=False) \
-            if len(unselected) > 500 else range(len(unselected))
-        for idx in plotting_index:
-            self.plot(times, waveforms[list(unselected)[idx]], pen=light_pen)
-
-        # Plot mean of selected waveforms in green, if any are selected
-        if selected_set:
-            selected_waveforms = [waveforms[i] for i in selected_set]
-            mean_selected = np.mean(selected_waveforms, axis=0)
-            self.plot(times, mean_selected+1, pen=green_pen)
+        if len(selected_sf) > 0:
+            y_selected, _ = np.histogram(selected_sf, bins=bin_edges)
+            selected_bars = pg.BarGraphItem(
+                x=bin_centers, 
+                height=y_selected, 
+                width=bin_width,
+                brush=self.selected_fill,
+                pen=pg.mkPen(None)
+            )
+            self.addItem(selected_bars)
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, snippets, pkl_path):
+    def __init__(self):
         super().__init__()
         self.setWindowTitle("Spike Selection Tool")
-        self.setGeometry(100, 100, 1200, 800)
+        self.setGeometry(100, 100, 1800, 900)
 
-        # State variables
-        self.snippets = snippets
-        self.pkl_path = pkl_path
-        self.pc_data = None
+        self.node = None
+        self.pkl_path = None
+        self.umap_source = 'raw' 
+        self.selection_mode = 'opt-out' 
+        self.pc_data_raw = None
+        self.pc_data_zscored = None
         self.waveforms = None
+        self.raw_waveforms = None
         self.times = None
         self.labels = None
+        self.scale_factor = None
         self.selected_indices = []
+        self.pause_loop = None
 
         self.init_ui()
+
+    def set_data_for_node(self, node: Node, pkl_path: str):
+        self.node = node
+        self.pkl_path = pkl_path
+        self.setWindowTitle(f"Spike Curation Tool - Processing: {node.coordinate}")
+        
+        self.reset_ui_state()
+        
         self.load_data()
+        self.pca_plot.update_selection()
+        
+    def exec_blocking_loop(self):
+        self.pause_loop = QEventLoop()
+        self.pause_loop.exec_()
+
+    def on_continue_clicked(self):
+        self.save_selection()
+        if self.pause_loop:
+            self.pause_loop.quit()
+        self.hide()
+
+    def closeEvent(self, event):
+        reply = QMessageBox.question(self, 'Exit Confirmation',
+                                     "Are you sure you want to exit the curation process?",
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            logger.info("User aborted curation process.")
+            if self.pause_loop:
+                self.pause_loop.quit()
+            QCoreApplication.instance().quit()
+            sys.exit("Curation process terminated by user.")
+        else:
+            event.ignore()
 
     def init_ui(self):
         central_widget = QWidget()
@@ -391,81 +518,152 @@ class MainWindow(QMainWindow):
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
 
-        # Create plot widgets
         self.pca_plot = PCAPlotWidget(self)
         self.pca_plot.getPlotItem().vb.setAspectLocked(True, ratio=1.0)
-        self.waveform_plot = WaveformPlotWidget()
+        self.zscored_waveform_plot = SplitWaveformWidget("Z-scored")
+        self.raw_waveform_plot = SplitWaveformWidget("Raw")
+        self.scale_factor_plot = ScaleFactorHistogramWidget()
 
-        # Create buttons
         button_layout = QHBoxLayout()
+
+        self.add_ellipse_button = QPushButton("Add Ellipse")
+        self.mode_switch_button = QPushButton("Switch to Opt-In")
+        self.switch_umap_button = QPushButton("Switch to Z-Scored UMAP")
         self.update_button = QPushButton("Update Selection")
-        self.save_button = QPushButton("Save Selection")
+        self.continue_button = QPushButton("Save & Continue")
         self.load_button = QPushButton("Load Selection")
-        # self.close_button = QPushButton("Close")
 
+        button_layout.addWidget(self.add_ellipse_button)
+        button_layout.addWidget(self.mode_switch_button)
+        button_layout.addWidget(self.switch_umap_button)
         button_layout.addWidget(self.update_button)
-        button_layout.addWidget(self.save_button)
+        button_layout.addWidget(self.continue_button)
         button_layout.addWidget(self.load_button)
-        # button_layout.addWidget(self.close_button)
 
-        # Connect signals
+        self.add_ellipse_button.clicked.connect(self.pca_plot.add_new_ellipse)
+        self.mode_switch_button.clicked.connect(self.switch_selection_mode)
+        self.switch_umap_button.clicked.connect(self.switch_umap_source) 
         self.update_button.clicked.connect(self.pca_plot.update_selection)
-        self.save_button.clicked.connect(self.save_selection)
+        self.continue_button.clicked.connect(self.on_continue_clicked)
         self.load_button.clicked.connect(self.load_selection)
-        # self.close_button.clicked.connect(QCoreApplication.instance().quit)
 
-        # Set up layout
         main_layout.addWidget(self.pca_plot, 0, 0)
-        main_layout.addWidget(self.waveform_plot, 0, 1)
-        main_layout.addLayout(button_layout, 1, 0, 1, 2)
+        main_layout.addWidget(self.scale_factor_plot, 1, 0)
+        main_layout.addWidget(self.zscored_waveform_plot, 0, 1, 2, 1)
+        main_layout.addWidget(self.raw_waveform_plot, 0, 2, 2, 1)
+        main_layout.addLayout(button_layout, 2, 0, 1, 3)
 
-        # Status bar
+        main_layout.setColumnStretch(0, 1)
+        main_layout.setColumnStretch(1, 1)
+        main_layout.setColumnStretch(2, 1)
+        main_layout.setRowStretch(0, 1)
+        main_layout.setRowStretch(1, 1)
+
         self.statusBar().showMessage("Ready")
 
+    def reset_ui_state(self):
+        """Resets the UI controls and state variables to their default values."""
+        self.selection_mode = 'opt-out'
+        self.mode_switch_button.setText("Switch to Opt-In")
+
+        self.umap_source = 'raw'
+        self.switch_umap_button.setText("Switch to Z-Scored UMAP")
+        
+        self.selected_indices.clear()
+        
+        self.statusBar().showMessage("Ready for new node.")
+
     def load_data(self):
-        total_times = [single_snippet.data.vm_t_aligned
-                       for single_snippet in self.snippets]
-        total_data = [single_snippet.data.spectra[SPIKING_BANDWIDTH]
-                      for single_snippet in self.snippets]
-        xs, _, _, interp_value = synchronize_time_series_data(total_times, total_data)
-        self.waveforms = np.array(interp_value)
-        self.times = xs
+        self.statusBar().showMessage(f"Loading data for {self.node.coordinate}...")
+        
+        potential_timeseries = self.node.potential.aspect()
+        spike_timeseries = potential_timeseries.batch_segment(self.node.potential.spikes.t, 
+                                                              SPIKE_RANGE_RELATIVE_TO_ALIGNMENT)
+        grouped_spike_timeseries = grouping_timeseries(spike_timeseries, interp_method="linear")
+        self.raw_waveforms = grouped_spike_timeseries.raw_array
+        self.times = grouped_spike_timeseries.t
 
-        # Process data
-        self.pc_data = PCA(n_components=2).fit_transform(self.waveforms)
-        self.labels = DBSCAN().fit(self.pc_data).labels_
+        self.scale_factor = np.std(self.raw_waveforms, axis=1)
+        self.waveforms = (self.raw_waveforms - np.mean(self.raw_waveforms, axis=1, keepdims=True)) / (np.std(self.raw_waveforms, axis=1, keepdims=True) + 1e-8)
 
-        # Update plots
-        self.pca_plot.set_data(self.pc_data, self.labels)
-        self.waveform_plot.plot_waveforms(self.waveforms, self.times)
+        umap_kwargs = {
+            "n_components": 2,
+            "n_neighbors": 15,
+            "metric": 'chebyshev',
+            "min_dist": 0.0,
+            "n_epochs": 1000,
+            # "metric_kwds": {"p": 4.0},
+        }
+        self.pc_data_raw = UMAP(**umap_kwargs).fit_transform(self.raw_waveforms)
+        self.pc_data_zscored = UMAP(**umap_kwargs).fit_transform(self.waveforms)
+        
+        self.labels = KMeans(n_clusters=2).fit(self.pc_data_raw).labels_
 
-        self.statusBar().showMessage(f"Loaded {len(self.waveforms)} snippets")
+        current_pc_data = self.pc_data_raw if self.umap_source == 'raw' else self.pc_data_zscored
+        self.pca_plot.set_data(current_pc_data, self.labels)
+        
+        self.zscored_waveform_plot.plot_waveforms(self.waveforms, self.times)
+        self.raw_waveform_plot.plot_waveforms(self.raw_waveforms, self.times)
+        self.scale_factor_plot.set_data(self.scale_factor)
+
+        self.statusBar().showMessage(f"Loaded {len(self.waveforms)} snippets. Mode: Opt-Out. Displaying UMAP on Raw Waveforms.")
+
+    def switch_selection_mode(self):
+        if self.selection_mode == 'opt-out':
+            self.selection_mode = 'opt-in'
+            self.mode_switch_button.setText("Switch to Opt-Out")
+            self.statusBar().showMessage("Switched to Opt-In mode. Points inside ellipses are selected.")
+        else:
+            self.selection_mode = 'opt-out'
+            self.mode_switch_button.setText("Switch to Opt-In")
+            self.statusBar().showMessage("Switched to Opt-Out mode. Points outside ellipses are selected.")
+        
+        self.pca_plot.update_selection()
+        
+    def switch_umap_source(self):
+        if self.umap_source == 'raw':
+            self.umap_source = 'zscored'
+            self.pca_plot.set_data(self.pc_data_zscored, self.labels)
+            self.switch_umap_button.setText("Switch to Raw UMAP")
+            self.statusBar().showMessage("Switched to UMAP on Z-Scored Waveforms. Selection reset.")
+        else:
+            self.umap_source = 'raw'
+            self.pca_plot.set_data(self.pc_data_raw, self.labels)
+            self.switch_umap_button.setText("Switch to Z-Scored UMAP")
+            self.statusBar().showMessage("Switched to UMAP on Raw Waveforms. Selection reset.")
 
     def on_selection_changed(self, selected_indices):
         self.selected_indices = selected_indices
-        self.waveform_plot.plot_waveforms(self.waveforms, self.times, selected_indices)
+        self.zscored_waveform_plot.plot_waveforms(self.waveforms, self.times, selected_indices)
+        self.raw_waveform_plot.plot_waveforms(self.raw_waveforms, self.times, selected_indices)
+        self.scale_factor_plot.update_selection(selected_indices)
         self.statusBar().showMessage(f"Selected {len(selected_indices)} snippets")
 
     def save_selection(self):
-        if self.selected_indices is None:
+        if not self.selected_indices:
             self.statusBar().showMessage("No selection to save")
             return
 
-        selected_mask = np.zeros(len(self.snippets), dtype=bool)
-        for selected_id in self.selected_indices:
-            selected_mask[selected_id] = True
+        selected_mask = np.zeros(len(self.waveforms), dtype=bool)
+        selected_mask[self.selected_indices] = True
+        
+        ellipses_data = []
+        for ellipse in self.pca_plot.ellipses:
+            ellipses_data.append({
+                'center_x': ellipse.center.x(),
+                'center_y': ellipse.center.y(),
+                'width': ellipse.width,
+                'height': ellipse.height,
+                'rotation': ellipse.rotation
+            })
+
         data = {
             'selected_mask': selected_mask,
-            'ellipse': {
-                'center_x': self.pca_plot.ellipse.center.x(),
-                'center_y': self.pca_plot.ellipse.center.y(),
-                'width': self.pca_plot.ellipse.width,
-                'height': self.pca_plot.ellipse.height,
-                'rotation': self.pca_plot.ellipse.rotation
-            },
+            'ellipses': ellipses_data,
             'manual_selection': list(self.pca_plot.manual_selection)
         }
 
+        os.makedirs(os.path.dirname(self.pkl_path), exist_ok=True)
         with open(self.pkl_path, 'wb') as f:
             pickle.dump(data, f)
 
@@ -476,41 +674,64 @@ class MainWindow(QMainWindow):
             with open(self.pkl_path, 'rb') as f:
                 data = pickle.load(f)
 
-            # Restore ellipse
-            if 'ellipse' in data:
+            self.pca_plot.ellipses.clear()
+
+            if 'ellipses' in data:
+                for ellipse_data in data['ellipses']:
+                    ellipse = SelectionEllipse()
+                    ellipse.center = QPointF(ellipse_data['center_x'], ellipse_data['center_y'])
+                    ellipse.width = ellipse_data['width']
+                    ellipse.height = ellipse_data['height']
+                    ellipse.rotation = ellipse_data['rotation']
+                    self.pca_plot.ellipses.append(ellipse)
+            
+            elif 'ellipse' in data:
                 ellipse_data = data['ellipse']
-                self.pca_plot.ellipse.center = QPointF(
-                    ellipse_data['center_x'],
-                    ellipse_data['center_y']
-                )
-                self.pca_plot.ellipse.width = ellipse_data['width']
-                self.pca_plot.ellipse.height = ellipse_data['height']
-                self.pca_plot.ellipse.rotation = ellipse_data['rotation']
+                ellipse = SelectionEllipse()
+                ellipse.center = QPointF(ellipse_data['center_x'], ellipse_data['center_y'])
+                ellipse.width = ellipse_data['width']
+                ellipse.height = ellipse_data['height']
+                ellipse.rotation = ellipse_data['rotation']
+                self.pca_plot.ellipses.append(ellipse)
 
-                self.pca_plot.draw_ellipse()
-                self.pca_plot.add_control_handles()
+            if self.pca_plot.ellipses:
+                self.pca_plot.active_ellipse_index = 0
+            else:
+                self.pca_plot.active_ellipse_index = None
 
-            # Restore manual selection
             if 'manual_selection' in data:
                 self.pca_plot.manual_selection = set(data['manual_selection'])
 
+            self.pca_plot.draw_ellipses()
             self.pca_plot.update_selection()
             self.statusBar().showMessage(f"Selection loaded from {self.pkl_path}")
         except Exception as e:
             self.statusBar().showMessage(f"Error loading selection: {str(e)}")
 
 
-app = QApplication(sys.argv)
+def node_spike_waveform_curation(node: Node, overwrite: bool):
+    global _app_instance, _gui_instance
 
+    pkl_path = routing.default_intermediate_result_path(node, result_name="spike_waveform_curation") + ".pkl"
+    
+    if (not os.path.exists(pkl_path)) or overwrite:
+        if _app_instance is None:
+            _app_instance = QApplication.instance() or QApplication(sys.argv)
+        
+        if _gui_instance is None:
+            _gui_instance = MainWindow()
 
-def get_selection(snippets, pkl_path):
-    if not os.path.exists(pkl_path):
-        gui = MainWindow(snippets, pkl_path)
-        gui.show()
-        app.exec_()
-    assert os.path.exists(pkl_path)
+        _gui_instance.set_data_for_node(node, pkl_path)
+        
+        _gui_instance.show()
+        _gui_instance.exec_blocking_loop()
+         
+    assert os.path.exists(pkl_path), f"Curation file not saved for {node.coordinate}. Process may have been aborted."
 
     with open(pkl_path, 'rb') as f:
         data = pickle.load(f)
     assert "selected_mask" in data
-    return data["selected_mask"]
+    
+    selected_mask = data["selected_mask"]
+    node.potential.spikes = node.potential.spikes.mask(selected_mask)
+    logger.info(f"Mask applied. {np.sum(selected_mask)}/{len(selected_mask)} spikes selected for {node.coordinate}.")

@@ -4,6 +4,7 @@ import logging
 from kitchen.loader.behavior_loader import behavior_loader_from_node
 from kitchen.loader.potential_loader import potential_loader_from_cohort
 from kitchen.loader.spike_type_annotator import spike_annotation
+from kitchen.loader.spike_waveform_curator import node_spike_waveform_curation
 from kitchen.settings.timeline import TRIAL_ALIGN_EVENT_DEFAULT
 from kitchen.settings.trials import TRIAL_RANGE_RELATIVE_TO_ALIGNMENT
 from kitchen.structure.hierarchical_data_structure import CellSession, Cohort, DataSet, FovTrial, MergeCellSession2Session, Session, Trial
@@ -16,7 +17,8 @@ logger = logging.getLogger(__name__)
 Ephys loading loads data at cell-level
 """
 
-def _SplitCohort2CellSession(cohort_node: Cohort, loaders: dict[str, str]) -> List[CellSession]:
+def _SplitCohort2CellSession(cohort_node: Cohort, loaders: dict[str, str], 
+                             spike_curation: bool, curation_overwrite: bool) -> List[CellSession]:
     """Split a cohort node into multiple cell session nodes."""
     cell_session_nodes = []
     for cell_coordinate, timeline, cam_timeline, potential in potential_loader_from_cohort(cohort_node): 
@@ -28,14 +30,13 @@ def _SplitCohort2CellSession(cohort_node: Cohort, loaders: dict[str, str]) -> Li
         else:
             behavior_dict = next(behavior_loader_from_node(cohort_node, {cell_coordinate: cam_timeline}, loaders.get('behavior')))        
 
-        cell_session_nodes.append(
-            CellSession(coordinate=cell_coordinate,
-                        data=NeuralData(
-                            timeline=timeline,
-                            potential=potential,
-                            **behavior_dict,
-                        ))
+        new_cell_session_node = CellSession(
+            coordinate=cell_coordinate,
+            data=NeuralData(timeline=timeline, potential=potential, **behavior_dict,)
         )
+        if spike_curation:
+            node_spike_waveform_curation(new_cell_session_node, overwrite=curation_overwrite)
+        cell_session_nodes.append(new_cell_session_node)
     return cell_session_nodes
 
 def _SplitCellSession2Trial(session_level_node: CellSession, spike_annotator_name: Optional[str] = None) -> List[Trial]:
@@ -94,7 +95,10 @@ def cohort_loader(template_id: str, cohort_id: str, recipe: dict, name: Optional
     # Cohort to Cell Session
     for cohort_node in loaded_data.select("cohort"):
         assert isinstance(cohort_node, Cohort)
-        loaded_data.add_node(_SplitCohort2CellSession(cohort_node, loaders=recipe['loaders']))
+        loaded_data.add_node(_SplitCohort2CellSession(
+            cohort_node, loaders=recipe['loaders'], 
+            spike_curation=recipe.get("spike curation", True),
+            curation_overwrite=recipe.get("curation overwrite", False)))
     
     # Cell Session to Trial
     for cell_session_node in loaded_data.select("cellsession"):
