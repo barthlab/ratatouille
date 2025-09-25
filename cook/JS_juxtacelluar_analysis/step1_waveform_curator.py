@@ -19,8 +19,8 @@ logging.getLogger('numba').setLevel(logging.WARNING)
 
 def main():
     # preload all datasets and curate spike waveforms
-    for dataset_name in ("SST_WC", "PV_JUX", "PYR_JUX", "SST_JUX",):       
-    # for dataset_name in ("PV_JUX", "PYR_JUX", "SST_JUX",):        
+    # for dataset_name in ("SST_WC", "PV_JUX", "PYR_JUX", "SST_JUX",):       
+    for dataset_name in ("PV_JUX", "PYR_JUX", "SST_JUX",):        
         dataset = load_dataset(template_id="PassivePuff_JuxtaCellular_FromJS_202509", cohort_id=dataset_name, 
                                recipe="default_ephys", name=dataset_name)
     

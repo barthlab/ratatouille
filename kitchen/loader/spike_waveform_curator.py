@@ -8,13 +8,14 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt5.QtCore import QPointF, QCoreApplication, QEventLoop
 from PyQt5.QtGui import QTransform
 import pyqtgraph as pg
+from sklearn.decomposition import PCA
 from umap import UMAP
 from sklearn.cluster import KMeans
 import logging
 
 from kitchen.configs import routing
 from kitchen.operator.grouping import grouping_timeseries
-from kitchen.settings.potential import SPIKE_RANGE_RELATIVE_TO_ALIGNMENT
+from kitchen.settings.potential import IMPORTANT_SPIKE_TIMEPOINTS, SPIKE_RANGE_RELATIVE_TO_ALIGNMENT
 from kitchen.structure.hierarchical_data_structure import Node
 
 pg.setConfigOptions(useOpenGL=True)
@@ -347,35 +348,50 @@ class WaveformPlotWidget(pg.PlotWidget):
 class SplitWaveformWidget(QWidget):
     def __init__(self, data_type_name: str, parent=None):
         super().__init__(parent)
-        
+
         self.selected_plot = WaveformPlotWidget(y_label=f"{data_type_name} Amplitude")
+        # --- NEW: Add the focused plot widget ---
+        self.focused_plot = WaveformPlotWidget(y_label=f"{data_type_name} Amplitude")
         self.unselected_plot = WaveformPlotWidget(y_label=f"{data_type_name} Amplitude")
 
         self.selected_plot.setTitle(f"Selected {data_type_name} Waveforms")
+        # --- NEW: Set title for the focused plot ---
+        self.focused_plot.setTitle(f"Focused Ellipse {data_type_name} Waveforms")
         self.unselected_plot.setTitle(f"Unselected {data_type_name} Waveforms")
-        
+
+        # Link Y-axes for consistent scaling
+        self.focused_plot.setYLink(self.selected_plot)
         self.unselected_plot.setYLink(self.selected_plot)
 
         layout = QVBoxLayout()
         layout.addWidget(self.selected_plot)
+        # --- NEW: Add the focused plot to the layout ---
+        layout.addWidget(self.focused_plot)
         layout.addWidget(self.unselected_plot)
         self.setLayout(layout)
 
         self.black_pen = pg.mkPen(color=(0, 0, 0, 150), width=1)
         self.red_pen = pg.mkPen(color=(255, 0, 0, 150), width=1)
+        # --- NEW: Add a blue pen for focused waveforms ---
+        self.blue_pen = pg.mkPen(color=(0, 0, 255, 150), width=1)
         self.green_pen = pg.mkPen(color=(0, 255, 0), width=2)
 
-    def plot_waveforms(self, waveforms, times, selected_indices=None):
+    # --- MODIFIED: Update the plot_waveforms method signature and logic ---
+    def plot_waveforms(self, waveforms, times, selected_indices=None, focused_indices=None):
         if selected_indices is None:
             selected_indices = []
+        if focused_indices is None:
+            focused_indices = []
 
+        # Clear all plots if no waveforms are provided
         if waveforms is None or len(waveforms) == 0:
             self.selected_plot.plot_waveforms(None, times, self.red_pen)
+            self.focused_plot.plot_waveforms(None, times, self.blue_pen)
             self.unselected_plot.plot_waveforms(None, times, self.black_pen)
             return
 
+        # Plot selected and unselected waveforms (existing logic)
         selection_mask = np.zeros(len(waveforms), dtype=bool)
-        
         valid_indices = [i for i in selected_indices if i < len(waveforms)]
         if valid_indices:
             selection_mask[valid_indices] = True
@@ -389,10 +405,27 @@ class SplitWaveformWidget(QWidget):
             unselected_wfs = None
 
         mean_selected = np.mean(selected_wfs, axis=0) if selected_wfs is not None else None
-
-        self.selected_plot.plot_waveforms(selected_wfs, times, self.red_pen, 
+        self.selected_plot.plot_waveforms(selected_wfs, times, self.red_pen,
                                           mean_waveform=mean_selected, mean_pen=self.green_pen)
         self.unselected_plot.plot_waveforms(unselected_wfs, times, self.black_pen)
+
+        # --- NEW: Logic to plot waveforms from the focused ellipse ---
+        if focused_indices:
+            focus_mask = np.zeros(len(waveforms), dtype=bool)
+            valid_focus_indices = [i for i in focused_indices if i < len(waveforms)]
+            if valid_focus_indices:
+                focus_mask[valid_focus_indices] = True
+
+            focused_wfs = waveforms[focus_mask]
+            if focused_wfs.shape[0] > 0:
+                mean_focused = np.mean(focused_wfs, axis=0)
+                self.focused_plot.plot_waveforms(focused_wfs, times, self.blue_pen,
+                                                 mean_waveform=mean_focused, mean_pen=self.green_pen)
+            else:
+                self.focused_plot.plot_waveforms(None, times, self.blue_pen) # Clear if empty
+        else:
+            # If no ellipse is focused, clear the plot
+            self.focused_plot.plot_waveforms(None, times, self.blue_pen)
 
 
 class ScaleFactorHistogramWidget(pg.PlotWidget):
@@ -595,7 +628,8 @@ class MainWindow(QMainWindow):
             # "metric_kwds": {"p": 4.0},
         }
         self.pc_data_raw = UMAP(**umap_kwargs).fit_transform(self.raw_waveforms)
-        self.pc_data_zscored = UMAP(**umap_kwargs).fit_transform(self.waveforms)
+        important_timepoint_index = np.searchsorted(self.times, IMPORTANT_SPIKE_TIMEPOINTS)
+        self.pc_data_zscored = PCA(n_components=2).fit_transform(np.stack([self.waveforms[:, idx] for idx in important_timepoint_index], axis=1))
         
         self.labels = KMeans(n_clusters=2).fit(self.pc_data_raw).labels_
 
@@ -634,8 +668,18 @@ class MainWindow(QMainWindow):
 
     def on_selection_changed(self, selected_indices):
         self.selected_indices = selected_indices
-        self.zscored_waveform_plot.plot_waveforms(self.waveforms, self.times, selected_indices)
-        self.raw_waveform_plot.plot_waveforms(self.raw_waveforms, self.times, selected_indices)
+
+        # --- NEW: Get indices for the currently focused ellipse ---
+        focused_indices = []
+        active_idx = self.pca_plot.active_ellipse_index
+        if active_idx is not None and active_idx < len(self.pca_plot.ellipses):
+            # The indices are already calculated and stored in the ellipse object
+            focused_indices = self.pca_plot.ellipses[active_idx].selected_indices
+
+        # --- MODIFIED: Pass focused_indices to the plotting methods ---
+        self.zscored_waveform_plot.plot_waveforms(self.waveforms, self.times, selected_indices, focused_indices)
+        self.raw_waveform_plot.plot_waveforms(self.raw_waveforms, self.times, selected_indices, focused_indices)
+
         self.scale_factor_plot.update_selection(selected_indices)
         self.statusBar().showMessage(f"Selected {len(selected_indices)} snippets")
 
