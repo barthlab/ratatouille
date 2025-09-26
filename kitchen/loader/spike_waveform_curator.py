@@ -30,8 +30,8 @@ _gui_instance: Optional['MainWindow'] = None
 class SelectionEllipse:
     def __init__(self):
         self.center = QPointF(0, 0)
-        self.width = 100
-        self.height = 50
+        self.width = 30
+        self.height = 30
         self.rotation = 0.0
         self.selected_indices = []
 
@@ -82,10 +82,11 @@ class PCAPlotWidget(pg.PlotWidget):
         self.points = None
         
         self.ellipses = []
+        self.manual_selection = set()
+
         self.active_ellipse_index = None
         self.ellipse_items = []
         
-        self.manual_selection = set()
         self.scatter = None
         self.resize_handle_item = None
         self.rotate_handle_item = None
@@ -97,11 +98,13 @@ class PCAPlotWidget(pg.PlotWidget):
         self.getPlotItem().setLabel('left', 'UMAP 2')
         self.getPlotItem().showGrid(x=True, y=True)
 
-    def set_data(self, pc_data, labels):
+    def set_data(self, pc_data, labels, ellipses, manual_selection):
         self.clear()
         self.points = pc_data
         self.labels = labels
-        self.manual_selection.clear()
+        
+        self.ellipses = ellipses
+        self.manual_selection = manual_selection
 
         self.brushes = [pg.mkBrush(100, 100, 100, 150) for _ in range(len(pc_data))]
 
@@ -115,29 +118,26 @@ class PCAPlotWidget(pg.PlotWidget):
         )
         self.addItem(self.scatter)
 
-        self.ellipses.clear()
-        initial_ellipse = SelectionEllipse()
+        if not self.ellipses:
+            initial_ellipse = SelectionEllipse()
+            target_label = 0
+            cluster_indices = np.where(self.labels == target_label)[0]
+
+            points_for_ellipse = self.points[cluster_indices] if len(cluster_indices) > 0 else self.points
+
+            if len(points_for_ellipse) > 0:
+                center_x = np.mean(points_for_ellipse[:, 0])
+                center_y = np.mean(points_for_ellipse[:, 1])
+                initial_ellipse.center = QPointF(center_x, center_y)
+
+                std_x = np.std(points_for_ellipse[:, 0])
+                std_y = np.std(points_for_ellipse[:, 1])
+                initial_ellipse.width = std_x * 5
+                initial_ellipse.height = std_y * 5
+
+            self.ellipses.append(initial_ellipse)
         
-        target_label = 0
-        cluster_indices = np.where(self.labels == target_label)[0]
-
-        if len(cluster_indices) > 0:
-            points_for_ellipse = self.points[cluster_indices]
-        else:
-            points_for_ellipse = self.points
-
-        if len(points_for_ellipse) > 0:
-            center_x = np.mean(points_for_ellipse[:, 0])
-            center_y = np.mean(points_for_ellipse[:, 1])
-            initial_ellipse.center = QPointF(center_x, center_y)
-
-            std_x = np.std(points_for_ellipse[:, 0])
-            std_y = np.std(points_for_ellipse[:, 1])
-            initial_ellipse.width = std_x * 5
-            initial_ellipse.height = std_y * 5
-
-        self.ellipses.append(initial_ellipse)
-        self.active_ellipse_index = 0
+        self.active_ellipse_index = 0 if self.ellipses else None
         
         self.draw_ellipses()
         self.update_selection()
@@ -214,23 +214,31 @@ class PCAPlotWidget(pg.PlotWidget):
             indices = ellipse.update_selection(self.points)
             points_in_ellipses.update(indices)
 
-        selection = set()
-        if self.parent and self.parent.selection_mode == 'opt-out':
-            all_indices = set(range(len(self.points)))
-            selection = all_indices.difference(points_in_ellipses)
-        else:
-            selection = points_in_ellipses
-
+        # --- MODIFIED: Simplified to always use opt-out logic ---
+        all_indices = set(range(len(self.points)))
+        selection = all_indices.difference(points_in_ellipses)
         selection.update(self.manual_selection)
 
-        brushes = self.brushes.copy()
-        for i in range(len(self.points)):
-            brushes[i] = pg.mkBrush(255, 0, 0, 200) if i in selection else self.brushes[i]
-
-        self.scatter.setBrush(brushes)
+        # --- FIX: The coloring logic was removed from here. ---
+        # Instead of coloring based on the local selection, we notify the parent.
+        # The parent will then calculate the combined selection and tell this widget how to color the points.
 
         if self.parent:
             self.parent.on_selection_changed(list(selection))
+
+    # --- FIX: New method to update scatter plot colors based on the final, combined selection ---
+    def update_colors(self, final_selection_indices):
+        """Updates the color of the scatter plot points based on a provided list of selected indices."""
+        if self.points is None or self.scatter is None:
+            return
+        
+        selection_set = set(final_selection_indices)
+        brushes = self.brushes.copy()
+        for i in range(len(self.points)):
+            # Selected points are red, unselected points use the default gray brush
+            brushes[i] = pg.mkBrush(255, 0, 0, 200) if i in selection_set else self.brushes[i]
+
+        self.scatter.setBrush(brushes)
             
     def mousePressEvent(self, event):
         pos = self.plotItem.vb.mapSceneToView(event.pos())
@@ -350,47 +358,39 @@ class SplitWaveformWidget(QWidget):
         super().__init__(parent)
 
         self.selected_plot = WaveformPlotWidget(y_label=f"{data_type_name} Amplitude")
-        # --- NEW: Add the focused plot widget ---
         self.focused_plot = WaveformPlotWidget(y_label=f"{data_type_name} Amplitude")
         self.unselected_plot = WaveformPlotWidget(y_label=f"{data_type_name} Amplitude")
 
         self.selected_plot.setTitle(f"Selected {data_type_name} Waveforms")
-        # --- NEW: Set title for the focused plot ---
         self.focused_plot.setTitle(f"Focused Ellipse {data_type_name} Waveforms")
         self.unselected_plot.setTitle(f"Unselected {data_type_name} Waveforms")
 
-        # Link Y-axes for consistent scaling
         self.focused_plot.setYLink(self.selected_plot)
         self.unselected_plot.setYLink(self.selected_plot)
 
         layout = QVBoxLayout()
         layout.addWidget(self.selected_plot)
-        # --- NEW: Add the focused plot to the layout ---
         layout.addWidget(self.focused_plot)
         layout.addWidget(self.unselected_plot)
         self.setLayout(layout)
 
         self.black_pen = pg.mkPen(color=(0, 0, 0, 150), width=1)
         self.red_pen = pg.mkPen(color=(255, 0, 0, 150), width=1)
-        # --- NEW: Add a blue pen for focused waveforms ---
         self.blue_pen = pg.mkPen(color=(0, 0, 255, 150), width=1)
         self.green_pen = pg.mkPen(color=(0, 255, 0), width=2)
 
-    # --- MODIFIED: Update the plot_waveforms method signature and logic ---
     def plot_waveforms(self, waveforms, times, selected_indices=None, focused_indices=None):
         if selected_indices is None:
             selected_indices = []
         if focused_indices is None:
             focused_indices = []
 
-        # Clear all plots if no waveforms are provided
         if waveforms is None or len(waveforms) == 0:
             self.selected_plot.plot_waveforms(None, times, self.red_pen)
             self.focused_plot.plot_waveforms(None, times, self.blue_pen)
             self.unselected_plot.plot_waveforms(None, times, self.black_pen)
             return
 
-        # Plot selected and unselected waveforms (existing logic)
         selection_mask = np.zeros(len(waveforms), dtype=bool)
         valid_indices = [i for i in selected_indices if i < len(waveforms)]
         if valid_indices:
@@ -409,7 +409,6 @@ class SplitWaveformWidget(QWidget):
                                           mean_waveform=mean_selected, mean_pen=self.green_pen)
         self.unselected_plot.plot_waveforms(unselected_wfs, times, self.black_pen)
 
-        # --- NEW: Logic to plot waveforms from the focused ellipse ---
         if focused_indices:
             focus_mask = np.zeros(len(waveforms), dtype=bool)
             valid_focus_indices = [i for i in focused_indices if i < len(waveforms)]
@@ -422,9 +421,8 @@ class SplitWaveformWidget(QWidget):
                 self.focused_plot.plot_waveforms(focused_wfs, times, self.blue_pen,
                                                  mean_waveform=mean_focused, mean_pen=self.green_pen)
             else:
-                self.focused_plot.plot_waveforms(None, times, self.blue_pen) # Clear if empty
+                self.focused_plot.plot_waveforms(None, times, self.blue_pen)
         else:
-            # If no ellipse is focused, clear the plot
             self.focused_plot.plot_waveforms(None, times, self.blue_pen)
 
 
@@ -499,7 +497,6 @@ class MainWindow(QMainWindow):
         self.node = None
         self.pkl_path = None
         self.umap_source = 'raw' 
-        self.selection_mode = 'opt-out' 
         self.pc_data_raw = None
         self.pc_data_zscored = None
         self.waveforms = None
@@ -507,9 +504,13 @@ class MainWindow(QMainWindow):
         self.times = None
         self.labels = None
         self.scale_factor = None
-        self.selected_indices = []
-        self.pause_loop = None
+        
+        self.ellipses_by_mode = {'raw': [], 'zscored': []}
+        self.manual_selection_by_mode = {'raw': set(), 'zscored': set()}
+        self.selected_indices_by_mode = {'raw': set(), 'zscored': set()}
+        self.combined_selected_indices = []
 
+        self.pause_loop = None
         self.init_ui()
 
     def set_data_for_node(self, node: Node, pkl_path: str):
@@ -518,7 +519,6 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"Spike Curation Tool - Processing: {node.coordinate}")
         
         self.reset_ui_state()
-        
         self.load_data()
         self.pca_plot.update_selection()
         
@@ -560,21 +560,18 @@ class MainWindow(QMainWindow):
         button_layout = QHBoxLayout()
 
         self.add_ellipse_button = QPushButton("Add Ellipse")
-        self.mode_switch_button = QPushButton("Switch to Opt-In")
         self.switch_umap_button = QPushButton("Switch to Z-Scored UMAP")
         self.update_button = QPushButton("Update Selection")
         self.continue_button = QPushButton("Save & Continue")
         self.load_button = QPushButton("Load Selection")
 
         button_layout.addWidget(self.add_ellipse_button)
-        button_layout.addWidget(self.mode_switch_button)
         button_layout.addWidget(self.switch_umap_button)
         button_layout.addWidget(self.update_button)
         button_layout.addWidget(self.continue_button)
         button_layout.addWidget(self.load_button)
 
         self.add_ellipse_button.clicked.connect(self.pca_plot.add_new_ellipse)
-        self.mode_switch_button.clicked.connect(self.switch_selection_mode)
         self.switch_umap_button.clicked.connect(self.switch_umap_source) 
         self.update_button.clicked.connect(self.pca_plot.update_selection)
         self.continue_button.clicked.connect(self.on_continue_clicked)
@@ -596,13 +593,13 @@ class MainWindow(QMainWindow):
 
     def reset_ui_state(self):
         """Resets the UI controls and state variables to their default values."""
-        self.selection_mode = 'opt-out'
-        self.mode_switch_button.setText("Switch to Opt-In")
-
         self.umap_source = 'raw'
         self.switch_umap_button.setText("Switch to Z-Scored UMAP")
         
-        self.selected_indices.clear()
+        self.ellipses_by_mode = {'raw': [], 'zscored': []}
+        self.manual_selection_by_mode = {'raw': set(), 'zscored': set()}
+        self.selected_indices_by_mode = {'raw': set(), 'zscored': set()}
+        self.combined_selected_indices.clear()
         
         self.statusBar().showMessage("Ready for new node.")
 
@@ -621,11 +618,10 @@ class MainWindow(QMainWindow):
 
         umap_kwargs = {
             "n_components": 2,
-            "n_neighbors": 15,
+            "n_neighbors": min(int(np.sqrt(len(self.waveforms))), 15),
             "metric": 'chebyshev',
             "min_dist": 0.0,
             "n_epochs": 1000,
-            # "metric_kwds": {"p": 4.0},
         }
         self.pc_data_raw = UMAP(**umap_kwargs).fit_transform(self.raw_waveforms)
         important_timepoint_index = np.searchsorted(self.times, IMPORTANT_SPIKE_TIMEPOINTS)
@@ -633,78 +629,105 @@ class MainWindow(QMainWindow):
         
         self.labels = KMeans(n_clusters=2).fit(self.pc_data_raw).labels_
 
+        all_indices = set(range(len(self.waveforms)))
+        self.selected_indices_by_mode = {
+            'raw': all_indices.copy(),
+            'zscored': all_indices.copy()
+        }
+
         current_pc_data = self.pc_data_raw if self.umap_source == 'raw' else self.pc_data_zscored
-        self.pca_plot.set_data(current_pc_data, self.labels)
+        ellipses = self.ellipses_by_mode[self.umap_source]
+        manual_selection = self.manual_selection_by_mode[self.umap_source]
+        self.pca_plot.set_data(current_pc_data, self.labels, ellipses, manual_selection)
         
         self.zscored_waveform_plot.plot_waveforms(self.waveforms, self.times)
         self.raw_waveform_plot.plot_waveforms(self.raw_waveforms, self.times)
         self.scale_factor_plot.set_data(self.scale_factor)
 
-        self.statusBar().showMessage(f"Loaded {len(self.waveforms)} snippets. Mode: Opt-Out. Displaying UMAP on Raw Waveforms.")
-
-    def switch_selection_mode(self):
-        if self.selection_mode == 'opt-out':
-            self.selection_mode = 'opt-in'
-            self.mode_switch_button.setText("Switch to Opt-Out")
-            self.statusBar().showMessage("Switched to Opt-In mode. Points inside ellipses are selected.")
-        else:
-            self.selection_mode = 'opt-out'
-            self.mode_switch_button.setText("Switch to Opt-In")
-            self.statusBar().showMessage("Switched to Opt-Out mode. Points outside ellipses are selected.")
-        
-        self.pca_plot.update_selection()
+        self.statusBar().showMessage(f"Loaded {len(self.waveforms)} snippets. Mode: Opt-Out. Displaying UMAP on Z-Scored Waveforms.")
         
     def switch_umap_source(self):
+        self.ellipses_by_mode[self.umap_source] = self.pca_plot.ellipses
+        self.manual_selection_by_mode[self.umap_source] = self.pca_plot.manual_selection
+
         if self.umap_source == 'raw':
             self.umap_source = 'zscored'
-            self.pca_plot.set_data(self.pc_data_zscored, self.labels)
+            new_pc_data = self.pc_data_zscored
             self.switch_umap_button.setText("Switch to Raw UMAP")
-            self.statusBar().showMessage("Switched to UMAP on Z-Scored Waveforms. Selection reset.")
+            self.statusBar().showMessage("Switched to UMAP on Z-Scored Waveforms.")
         else:
             self.umap_source = 'raw'
-            self.pca_plot.set_data(self.pc_data_raw, self.labels)
+            new_pc_data = self.pc_data_raw
             self.switch_umap_button.setText("Switch to Z-Scored UMAP")
-            self.statusBar().showMessage("Switched to UMAP on Raw Waveforms. Selection reset.")
+            self.statusBar().showMessage("Switched to UMAP on Raw Waveforms.")
 
-    def on_selection_changed(self, selected_indices):
-        self.selected_indices = selected_indices
+        new_ellipses = self.ellipses_by_mode[self.umap_source]
+        new_manual_selection = self.manual_selection_by_mode[self.umap_source]
+        self.pca_plot.set_data(new_pc_data, self.labels, new_ellipses, new_manual_selection)
 
-        # --- NEW: Get indices for the currently focused ellipse ---
+    def on_selection_changed(self, current_view_indices):
+        self.selected_indices_by_mode[self.umap_source] = set(current_view_indices)
+
+        raw_selection = self.selected_indices_by_mode['raw']
+        zscored_selection = self.selected_indices_by_mode['zscored']
+        self.combined_selected_indices = list(raw_selection.intersection(zscored_selection))
+        
+        self.pca_plot.update_colors(self.combined_selected_indices)
+
+        # --- FINAL CORRECTED LOGIC FOR FOCUSED INDICES ---
         focused_indices = []
         active_idx = self.pca_plot.active_ellipse_index
         if active_idx is not None and active_idx < len(self.pca_plot.ellipses):
-            # The indices are already calculated and stored in the ellipse object
-            focused_indices = self.pca_plot.ellipses[active_idx].selected_indices
+            
+            # 1. Get all points inside the currently active ellipse
+            points_in_active_ellipse = set(self.pca_plot.ellipses[active_idx].selected_indices)
+            
+            # 2. Find all points opted-out by OTHER ellipses across BOTH modes
+            other_opted_out_indices = set()
+            
+            # Check raw mode ellipses
+            for i, ellipse in enumerate(self.ellipses_by_mode['raw']):
+                if self.umap_source != 'raw' or i != active_idx:
+                    other_opted_out_indices.update(ellipse.selected_indices)
 
-        # --- MODIFIED: Pass focused_indices to the plotting methods ---
-        self.zscored_waveform_plot.plot_waveforms(self.waveforms, self.times, selected_indices, focused_indices)
-        self.raw_waveform_plot.plot_waveforms(self.raw_waveforms, self.times, selected_indices, focused_indices)
+            # Check z-scored mode ellipses
+            for i, ellipse in enumerate(self.ellipses_by_mode['zscored']):
+                if self.umap_source != 'zscored' or i != active_idx:
+                    other_opted_out_indices.update(ellipse.selected_indices)
+            
+            # 3. The focused waveforms are those in the active ellipse that haven't been opted-out elsewhere.
+            focused_indices = list(points_in_active_ellipse.difference(other_opted_out_indices))
 
-        self.scale_factor_plot.update_selection(selected_indices)
-        self.statusBar().showMessage(f"Selected {len(selected_indices)} snippets")
+        self.zscored_waveform_plot.plot_waveforms(self.waveforms, self.times, self.combined_selected_indices, focused_indices)
+        self.raw_waveform_plot.plot_waveforms(self.raw_waveforms, self.times, self.combined_selected_indices, focused_indices)
+        self.scale_factor_plot.update_selection(self.combined_selected_indices)
+        self.statusBar().showMessage(f"Selected {len(self.combined_selected_indices)} snippets (intersection of both views)")
 
     def save_selection(self):
-        if not self.selected_indices:
-            self.statusBar().showMessage("No selection to save")
-            return
-
-        selected_mask = np.zeros(len(self.waveforms), dtype=bool)
-        selected_mask[self.selected_indices] = True
+        self.ellipses_by_mode[self.umap_source] = self.pca_plot.ellipses
+        self.manual_selection_by_mode[self.umap_source] = self.pca_plot.manual_selection
         
-        ellipses_data = []
-        for ellipse in self.pca_plot.ellipses:
-            ellipses_data.append({
-                'center_x': ellipse.center.x(),
-                'center_y': ellipse.center.y(),
-                'width': ellipse.width,
-                'height': ellipse.height,
-                'rotation': ellipse.rotation
-            })
+        selected_mask = np.zeros(len(self.waveforms), dtype=bool)
+        raw_selection = self.selected_indices_by_mode['raw']
+        zscored_selection = self.selected_indices_by_mode['zscored']
+        final_indices = list(raw_selection.intersection(zscored_selection))
+        selected_mask[final_indices] = True
+        
+        selections_data = {}
+        for mode in ['raw', 'zscored']:
+            ellipses_data = [{
+                'center_x': e.center.x(), 'center_y': e.center.y(),
+                'width': e.width, 'height': e.height, 'rotation': e.rotation
+            } for e in self.ellipses_by_mode[mode]]
+
+            selections_data[mode] = {
+                'ellipses': ellipses_data,
+                'manual_selection': list(self.manual_selection_by_mode[mode])
+            }
 
         data = {
             'selected_mask': selected_mask,
-            'ellipses': ellipses_data,
-            'manual_selection': list(self.pca_plot.manual_selection)
+            'selections': selections_data
         }
 
         os.makedirs(os.path.dirname(self.pkl_path), exist_ok=True)
@@ -718,37 +741,60 @@ class MainWindow(QMainWindow):
             with open(self.pkl_path, 'rb') as f:
                 data = pickle.load(f)
 
-            self.pca_plot.ellipses.clear()
+            self.ellipses_by_mode = {'raw': [], 'zscored': []}
+            self.manual_selection_by_mode = {'raw': set(), 'zscored': set()}
 
-            if 'ellipses' in data:
-                for ellipse_data in data['ellipses']:
-                    ellipse = SelectionEllipse()
-                    ellipse.center = QPointF(ellipse_data['center_x'], ellipse_data['center_y'])
-                    ellipse.width = ellipse_data['width']
-                    ellipse.height = ellipse_data['height']
-                    ellipse.rotation = ellipse_data['rotation']
-                    self.pca_plot.ellipses.append(ellipse)
+            if 'selections' in data: 
+                for mode in ['raw', 'zscored']:
+                    if mode in data['selections']:
+                        mode_data = data['selections'][mode]
+                        loaded_ellipses = []
+                        for edata in mode_data.get('ellipses', []):
+                            ellipse = SelectionEllipse()
+                            ellipse.center = QPointF(edata['center_x'], edata['center_y'])
+                            ellipse.width, ellipse.height, ellipse.rotation = edata['width'], edata['height'], edata['rotation']
+                            loaded_ellipses.append(ellipse)
+                        self.ellipses_by_mode[mode] = loaded_ellipses
+                        self.manual_selection_by_mode[mode] = set(mode_data.get('manual_selection', []))
             
-            elif 'ellipse' in data:
-                ellipse_data = data['ellipse']
-                ellipse = SelectionEllipse()
-                ellipse.center = QPointF(ellipse_data['center_x'], ellipse_data['center_y'])
-                ellipse.width = ellipse_data['width']
-                ellipse.height = ellipse_data['height']
-                ellipse.rotation = ellipse_data['rotation']
-                self.pca_plot.ellipses.append(ellipse)
+            else: # Backward compatibility
+                loaded_ellipses = []
+                ellipses_data = data.get('ellipses', [])
+                if not ellipses_data and 'ellipse' in data: 
+                    ellipses_data = [data['ellipse']]
+                
+                for edata in ellipses_data:
+                    ellipse = SelectionEllipse()
+                    ellipse.center = QPointF(edata['center_x'], edata['center_y'])
+                    ellipse.width, ellipse.height, ellipse.rotation = edata['width'], edata['height'], edata['rotation']
+                    loaded_ellipses.append(ellipse)
+                
+                manual_sel = set(data.get('manual_selection', []))
+                for mode in ['raw', 'zscored']:
+                    self.ellipses_by_mode[mode] = [e for e in loaded_ellipses]
+                    self.manual_selection_by_mode[mode] = manual_sel.copy()
+            
+            # Recalculate the initial selection sets based on loaded ellipses
+            for mode in ['raw', 'zscored']:
+                points = self.pc_data_raw if mode == 'raw' else self.pc_data_zscored
+                if points is None: continue
 
-            if self.pca_plot.ellipses:
-                self.pca_plot.active_ellipse_index = 0
-            else:
-                self.pca_plot.active_ellipse_index = None
+                points_in_ellipses = set()
+                for ellipse in self.ellipses_by_mode[mode]:
+                    points_in_ellipses.update(ellipse.update_selection(points))
 
-            if 'manual_selection' in data:
-                self.pca_plot.manual_selection = set(data['manual_selection'])
-
-            self.pca_plot.draw_ellipses()
-            self.pca_plot.update_selection()
+                selection = set(range(len(points))).difference(points_in_ellipses)
+                selection.update(self.manual_selection_by_mode[mode])
+                self.selected_indices_by_mode[mode] = selection
+            
+            # Refresh the current view
+            current_pc_data = self.pc_data_raw if self.umap_source == 'raw' else self.pc_data_zscored
+            current_ellipses = self.ellipses_by_mode[self.umap_source]
+            current_manual_sel = self.manual_selection_by_mode[self.umap_source]
+            self.pca_plot.set_data(current_pc_data, self.labels, current_ellipses, current_manual_sel)
+            
             self.statusBar().showMessage(f"Selection loaded from {self.pkl_path}")
+
         except Exception as e:
             self.statusBar().showMessage(f"Error loading selection: {str(e)}")
 
