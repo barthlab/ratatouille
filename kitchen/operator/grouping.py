@@ -55,7 +55,7 @@ class AdvancedTimeSeries(TimeSeries):
                 f"Shape of raw array {self.raw.shape} should match "
                 f"shape of mean (v) {self.v.shape}."
             )
-
+    
     def __neg__(self) -> Self:
         return self.__class__(
             t=self.t.copy(), v=-self.mean, variance=self.variance.copy(), raw_array=-self.raw.copy()
@@ -97,9 +97,14 @@ def calculate_group_tuple(arrs: List[np.ndarray], t: np.ndarray) -> AdvancedTime
 def grouping_events_rate(events: List[Events], bin_size: float, use_event_value_as_weight: bool = True) -> AdvancedTimeSeries:
     """Group a list of events in rate."""
     assert bin_size > 0, "bin size should be positive"
+    if len(events) == 0:
+        return AdvancedTimeSeries(v=np.array([]), t=np.array([]), variance=np.array([]), raw_array=np.empty((0, 0)))
     group_t = np.sort(np.concatenate([event.t for event in events]))
+    # Handle case where all events are empty (no spikes across all trials)
+    if len(group_t) == 0:
+        return AdvancedTimeSeries(v=np.array([]), t=np.array([]), variance=np.array([]), raw_array=np.empty((0, 0)))
     bins = np.arange(group_t[0] - bin_size, group_t[-1] + bin_size, bin_size)
-    all_rates = [np.histogram(event.t, bins=bins, weights=event.v 
+    all_rates = [np.histogram(event.t, bins=bins, weights=event.v
                               if use_event_value_as_weight else None)[0] / bin_size for event in events]
     return calculate_group_tuple(all_rates, bins[:-1] + bin_size/2)
 

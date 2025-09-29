@@ -2,14 +2,15 @@ import numpy as np
 from dataclasses import dataclass, field
 from typing import Dict, Generator, Iterator, List, Optional, Any, Self, Tuple, Iterable
 from functools import cached_property
+from collections import defaultdict
 from scipy import signal
 
-from kitchen.settings.potential import COMPONENTS_BANDWIDTH, SPIKE_MAX_WINDOW_LEN, SPIKE_MIN_DISTANCE, SPIKE_MIN_HEIGHT_STD_RATIO, SPIKES_BANDWIDTH, STD_SLIDING_WINDOW
+from kitchen.settings.potential import COMPONENTS_BANDWIDTH, MAXIMAL_BANDWIDTH, SPIKE_MAX_WINDOW_LEN, SPIKE_MIN_DISTANCE, SPIKE_MIN_HEIGHT_STD_RATIO, SPIKE_MIN_PROMINENCE_STD_RATIO, SPIKES_BANDWIDTH, STD_SLIDING_WINDOW
 from kitchen.settings.timeline import SUPPORTED_TIMELINE_EVENT, TRIAL_ALIGN_EVENT_DEFAULT
 from kitchen.settings.fluorescence import DEFAULT_RECORDING_DURATION, DF_F0_RANGE, TRIAL_DF_F0_WINDOW
 from kitchen.settings.trials import BOUT_FILTER_PARAMETERS
-from kitchen.utils.numpy_kit import sliding_std, smart_interp
-from kitchen.utils.pass_filter import high_pass
+from kitchen.utils.numpy_kit import sliding_std, smart_interp, zscore
+from kitchen.utils.pass_filter import high_pass, low_pass
 
 
 @dataclass
@@ -265,6 +266,23 @@ class Events:
         assert mask.shape == self.t.shape, f"mask shape {mask.shape} should match event shape {self.t.shape}"
         return self.__class__(v=self.v[mask], t=self.t[mask])
     
+    def groupby(self) -> Generator[Tuple[Any, np.ndarray], None, None]:
+        """Group by value."""
+        groupby_dict = defaultdict(list)
+        for t, v in zip(self.t, self.v):
+            groupby_dict[v].append(t)
+        for v, ts in groupby_dict.items():
+            yield v, np.array(ts)
+    
+    def filter(self, event_types: Any | Iterable[Any]) -> Self:
+        """Extract events of specific types."""
+        if not isinstance(event_types, list):
+            event_types = [event_types]
+        return self.__class__(
+            v=np.array([x for x in self.v if x in event_types]),
+            t=np.array([t for x, t in zip(self.v, self.t) if x in event_types])
+        )
+
 
 @dataclass
 class Timeline(Events):
@@ -373,9 +391,7 @@ class Fluorescence:
     @cached_property
     def z_score(self) -> TimeSeries:
         """ Normalize fluorescence to z-score. """
-        baseline = np.mean(self.raw_f.v, axis=-1, keepdims=True)
-        std = np.std(self.raw_f.v, axis=-1, keepdims=True)
-        return TimeSeries(v=(self.raw_f.v - baseline) / std , t=self.raw_f.t)
+        return TimeSeries(v=zscore(self.raw_f.v, axis=-1), t=self.raw_f.t)
     
     @cached_property
     def df_f0(self, clip: bool = True) -> TimeSeries:
@@ -429,13 +445,15 @@ class Potential:
              x=spike_component.v,
              distance=SPIKE_MIN_DISTANCE * self.vm.fs,
              height=(detrend_vm * SPIKE_MIN_HEIGHT_STD_RATIO, None),
+             prominence=(detrend_vm * SPIKE_MIN_PROMINENCE_STD_RATIO, None),
              wlen=int(SPIKE_MAX_WINDOW_LEN * self.vm.fs)
         )
         return Events(v=np.array(['spike'] * len(peak_indices)), t=self.vm.t[peak_indices])
 
     def _high_pass_vm(self, cutoff: float) -> TimeSeries:
         """Apply high-pass filter to membrane potential."""
-        hp_v = high_pass(self.vm.t, self.vm.v, fs=self.vm.fs, cutoff=cutoff)
+        hp_v = high_pass(self.vm.t, self.vm.v, cutoff=cutoff, fs=self.vm.fs)
+        hp_v = low_pass(self.vm.t, hp_v, cutoff=MAXIMAL_BANDWIDTH, fs=self.vm.fs)
         return TimeSeries(v=hp_v, t=self.vm.t)
 
     def hp_component(self, cutoff: float) -> TimeSeries:
@@ -450,7 +468,7 @@ class Potential:
         """Get potential component based on keyword."""
         if keyword is None:
             return self.hp_component(SPIKES_BANDWIDTH)
-        elif isinstance(keyword, float):
+        elif isinstance(keyword, (int, float)):
             return self.hp_component(keyword)
         else:
             return self.vm

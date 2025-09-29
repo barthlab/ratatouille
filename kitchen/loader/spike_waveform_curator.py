@@ -29,6 +29,7 @@ from typing import Optional
 
 # Third-party imports
 import numpy as np
+from kitchen.utils.numpy_kit import zscore
 import pyqtgraph as pg
 from PyQt5 import QtCore
 from PyQt5.QtCore import QPointF, QCoreApplication, QEventLoop
@@ -890,28 +891,30 @@ class MainWindow(QMainWindow):
 
         self.statusBar().showMessage("Ready for new node.")
 
+    def _calculate_umap(self, waveforms_data, description=""):
+        """
+        A centralized helper method to run UMAP on a given set of waveforms.
+        Returns the 2D UMAP embedding.
+        """
+        if waveforms_data is None or len(waveforms_data) < 2:
+            self.statusBar().showMessage(f"Not enough data to create UMAP for {description}.")
+            return None
+
+        self.statusBar().showMessage(f"Running UMAP on {len(waveforms_data)} spikes for {description}...")
+        QApplication.processEvents()  # Allow the GUI to update the status message
+
+        n_neighbors = min(15, int(np.sqrt(len(waveforms_data) - 1)))
+        umap_model = UMAP(n_neighbors=n_neighbors, min_dist=0., n_components=2, metric='chebyshev')
+        umap_embedding = umap_model.fit_transform(waveforms_data)
+
+        self.statusBar().showMessage(f"UMAP for {description} calculated successfully.")
+        return umap_embedding
+
     def load_data(self):
         self.statusBar().showMessage(f"Loading data for {self.node.coordinate}...")
 
         self.trial_align = self.node.timeline.advanced_filter(TRIAL_ALIGN_EVENT_DEFAULT).t
         self.spike_time = self.node.potential.spikes.t
-        """
-        TODO:
-        I wish to add long flat panel under all other visualization panels.
-        The panel exhibit a timeline axis, with all spikes marked as vertical lines.
-        and the trial align events also marked as vertical bars.
-        trial align events should be in obvious thick green dashed lines.
-        while the spikes should be in thin lines with color depending on their type (gray for unselected, blue for focused, red for selected)
-
-        This new panel should have the save logic as the scale factor / waveform panels, interms of updating the spike types and selection status.
-
-        This new panel should be implemented in a separate widget, and be added to the main layout, at the bottom of everything..
-
-        The data provided here is trial_align and spike_time.
-        1. trial_align is a 1-d array of float, representing the time of each trial align event.
-        2. spike_time is a 1-d array of float, representing the time of each spike, the index matches the index in the waveform data (spike_timeseries).
-        3. Notice that the spike_timeseries's t (like the raw_times and times) is already aligned to the spikes time, so you should rely on them, and don't need to align it again. This is different from trial_align and spike_time provided above, which is the original time in the timeline.
-        """
 
         potential_timeseries = self.node.potential.aspect()
         spike_timeseries = potential_timeseries.batch_segment(self.node.potential.spikes.t,
@@ -919,11 +922,12 @@ class MainWindow(QMainWindow):
         grouped_spike_timeseries = grouping_timeseries(spike_timeseries, interp_method="linear")
         self.raw_waveforms = grouped_spike_timeseries.raw_array
         self.raw_times = grouped_spike_timeseries.t
+
         zoom_in_indices = np.searchsorted(self.raw_times, SPIKE_RANGE_RELATIVE_TO_ALIGNMENT)
         zoom_in_waveforms = self.raw_waveforms[:, zoom_in_indices[0]:zoom_in_indices[1]]
 
         self.scale_factor = np.std(zoom_in_waveforms, axis=1) / (np.max(zoom_in_waveforms, axis=1) - np.min(zoom_in_waveforms, axis=1) + 1e-8)
-        self.waveforms = (zoom_in_waveforms - np.mean(zoom_in_waveforms, axis=1, keepdims=True)) / (np.std(zoom_in_waveforms, axis=1, keepdims=True) + 1e-8)
+        self.waveforms = zscore(zoom_in_waveforms, axis=1)
         self.times = self.raw_times[zoom_in_indices[0]:zoom_in_indices[1]]
 
         # Store complete datasets for preserving unselected spikes
@@ -933,9 +937,8 @@ class MainWindow(QMainWindow):
         self.complete_raw_times = self.raw_times.copy()
         self.complete_zscored_times = self.times.copy()
 
-        n_neighbors = int(np.sqrt(len(self.waveforms)))
-        self.umap_data_raw = UMAP(n_components=2, n_neighbors=n_neighbors).fit_transform(zoom_in_waveforms)
-        self.umap_data_zscored = UMAP(n_components=2, n_neighbors=n_neighbors).fit_transform(self.waveforms)
+        self.umap_data_raw = self._calculate_umap(zoom_in_waveforms, "raw waveforms")
+        self.umap_data_zscored = self._calculate_umap(self.waveforms, "z-scored waveforms")
 
         # Initialize mapping - initially all spikes are included
         self.umap_to_original_indices = np.arange(len(self.waveforms))
@@ -1194,12 +1197,13 @@ class MainWindow(QMainWindow):
         selected_zscored_waveforms = self.complete_zscored_waveforms[selected_indices]
 
         # Compute UMAP on selected spikes only
-        n_neighbors = min(int(np.sqrt(len(selected_indices))), len(selected_indices) - 1)
-        n_neighbors = max(n_neighbors, 2)  # Ensure at least 2 neighbors
-
         try:
-            self.umap_data_raw = UMAP(n_components=2, n_neighbors=n_neighbors).fit_transform(selected_raw_zoom)
-            self.umap_data_zscored = UMAP(n_components=2, n_neighbors=n_neighbors).fit_transform(selected_zscored_waveforms)
+            subset_umap_raw = self._calculate_umap(selected_raw_zoom, "selected subset (raw)")
+            subset_umap_z = self._calculate_umap(selected_zscored_waveforms, "selected subset (z-scored)")
+            if subset_umap_raw is None or subset_umap_z is None:
+                return
+            self.umap_data_raw = subset_umap_raw
+            self.umap_data_zscored = subset_umap_z
 
             # Update mapping between UMAP indices and original spike indices
             self.umap_to_original_indices = np.array(selected_indices)
@@ -1316,7 +1320,7 @@ def node_spike_waveform_curation(node: Node, overwrite: bool):
         _gui_instance.exec_blocking_loop()
 
     assert os.path.exists(pkl_path), f"Curation file not saved for {node.coordinate}. Process may have been aborted."
-
+    
     with open(pkl_path, 'rb') as f:
         data = pickle.load(f)
     assert "selected_mask" in data

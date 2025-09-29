@@ -17,12 +17,14 @@ logging.getLogger('numba').setLevel(logging.WARNING)
 
 
 
-def main():
+def preload_dataset():
     # preload all datasets and curate spike waveforms
-    for dataset_name in ("SST_WC", "PV_JUX", "PYR_JUX", "SST_JUX",):    
-        dataset = load_dataset(template_id="PassivePuff_JuxtaCellular_FromJS_202509", cohort_id=dataset_name, 
-                               recipe="default_ephys", name=dataset_name)
-    
+    for dataset_name in ( "SST_WC",):    
+    # for dataset_name in ("SST_WC", "PV_JUX", "PYR_JUX", "SST_JUX",):    
+        load_dataset(template_id="PassivePuff_JuxtaCellular_FromJS_202509", cohort_id=dataset_name, 
+                     recipe="default_ephys", name=dataset_name)
+
+def main():
     # Plot all cell sessions    
     plot_manual_raw = PlotManual(potential=True)
     plot_manual_spike4Hz = PlotManual(potential=4.)
@@ -38,4 +40,5 @@ def main():
             
 
 if __name__ == "__main__":
-    main()
+    preload_dataset()
+    # main()

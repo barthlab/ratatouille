@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from scipy import signal
 from scipy.interpolate import interp1d
 from scipy.signal.windows import gaussian
 from numpy.lib.stride_tricks import sliding_window_view
@@ -73,7 +74,7 @@ def smart_interp(x_new, xp, fp, method: str = "previous"):
 
 
 def sliding_std(x: np.ndarray, window_len: int) -> np.ndarray:
-    return np.array(pd.Series(x).rolling(window=window_len).std())
+    return np.array(pd.Series(x).rolling(window=window_len, center=True).std())
 
 
 def smooth_uniform(arr, window_len):
@@ -88,3 +89,7 @@ def smooth_gaussian(arr, window_len, std):
     window /= np.sum(window)
     smoothed_valid = np.convolve(arr, window, mode='same')
     return smoothed_valid
+
+
+def zscore(arr: np.ndarray, axis: int = 0) -> np.ndarray:
+    return (arr - np.mean(arr, axis=axis, keepdims=True)) / (np.std(arr, axis=axis, keepdims=True) + 1e-8)
