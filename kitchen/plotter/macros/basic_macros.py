@@ -19,7 +19,7 @@ from kitchen.configs import routing
 from kitchen.configs.naming import get_node_name
 from kitchen.plotter.ax_plotter.advance_plot import subtract_view
 from kitchen.plotter.plotting_manual import CHECK_PLOT_MANUAL, PlotManual
-from kitchen.plotter.plotting_params import FLAT_X_INCHES, PARALLEL_Y_INCHES, UNIT_X_INCHES, UNIT_Y_INCHES
+from kitchen.plotter.plotting_params import FLAT_X_INCHES, FLAT_Y_INCHES, PARALLEL_Y_INCHES, UNIT_X_INCHES, UNIT_Y_INCHES
 from kitchen.plotter.unit_plotter.unit_trace_advance import SUBTRACT_MANUAL
 from kitchen.settings.timeline import ALIGNMENT_STYLE
 from kitchen.structure.hierarchical_data_structure import Fov, Node, Session, DataSet
@@ -92,18 +92,54 @@ def fov_overview(
     n_session = len(session_nodes)
     try:
         default_style(
-            mosaic_style=[[get_node_name(session_node) for session_node in session_nodes]],
+            mosaic_style=[[get_node_name(session_node),] for session_node in session_nodes],
             content_dict={
                 get_node_name(session_node): (
                     partial(flat_view, plot_manual=plot_manual),
                     DataSet(name=session_node.session_id, nodes=[session_node]))
                 for session_node in session_nodes
                 },
-            figsize=(FLAT_X_INCHES * n_session, UNIT_Y_INCHES),
+            figsize=(FLAT_X_INCHES, FLAT_Y_INCHES * n_session),
             save_path=routing.default_fig_path(fov_node, "FovOverview_{}.png"),
         )
     except Exception as e:
         logger.debug(f"Cannot plot fov overview for {get_node_name(fov_node)}: {e}")
+
+
+def dataset_overview(
+        dataset: DataSet,
+        plot_manual: PlotManual,
+) -> None:
+    """
+    Generate flat view overview plots for all sessions within a dataset.
+
+    Creates a multi-panel figure with one row per session.
+
+    Args:
+        dataset (DataSet): Complete dataset used to find sessions within the FOV subtree.
+        plot_manual (PlotManual): Configuration specifying which data modalities to include.
+
+    Example:
+        >>> from kitchen.plotter.plotting_manual import PlotManual
+        >>> plot_config = PlotManual(timeline=True, fluorescence=True)
+        >>> fov_overview(my_fov_node, complete_dataset, plot_config)
+    """
+    session_nodes = dataset.select("cellsession")
+    n_session = len(session_nodes)
+    try:
+        default_style(
+            mosaic_style=[[get_node_name(session_node),] for session_node in session_nodes],
+            content_dict={
+                get_node_name(session_node): (
+                    partial(flat_view, plot_manual=plot_manual),
+                    DataSet(name=session_node.session_id, nodes=[session_node]))
+                for session_node in session_nodes
+                },
+            figsize=(FLAT_X_INCHES, UNIT_Y_INCHES * n_session),
+            save_path=routing.default_fig_path(dataset, "DatasetOverview_{}.png"),
+        )
+    except Exception as e:
+        logger.debug(f"Cannot plot fov overview for {dataset.name}: {e}")
 
 
 def single_node_trial_avg_default(

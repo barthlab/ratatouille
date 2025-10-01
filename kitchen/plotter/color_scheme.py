@@ -20,7 +20,7 @@ EARLY_SPIKE_COLOR = "red"
 SUSTAINED_SPIKE_COLOR = "blue"
 
 # Timeline color scheme
-PUFF_COLOR = "lightgreen"
+PUFF_COLOR = "green"
 BLANK_COLOR = "lightgray"
 WATER_COLOR = "cornflowerblue"
 NOWATER_COLOR = "orangered"

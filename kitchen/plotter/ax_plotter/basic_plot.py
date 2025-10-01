@@ -1,6 +1,7 @@
 
 from typing import Generator, Tuple
 import matplotlib.pyplot as plt
+import logging
 
 from kitchen.operator.sync_nodes import left_align_nodes, sync_nodes
 from kitchen.plotter.plotting_manual import PlotManual
@@ -9,6 +10,9 @@ from kitchen.plotter.unit_plotter.unit_trace import unit_plot_lick, unit_plot_lo
 from kitchen.settings.potential import WC_CONVERT_FLAG
 from kitchen.structure.hierarchical_data_structure import DataSet
 from kitchen.utils.sequence_kit import find_only_one, select_truthy_items
+
+
+logger = logging.getLogger(__name__)
 
 
 def flat_view(
@@ -23,7 +27,11 @@ def flat_view(
     except Exception as e:
         raise ValueError(f"Cannot align nodes: {e}")
     
-    node = find_only_one(dataset_aligned.nodes)
+    try:
+        node = find_only_one(dataset_aligned.nodes)
+    except Exception as e:
+        logger.debug(f"Cannot find unique node in dataset: {e}")
+        return
     
     """main logic"""
     y_offset = 0

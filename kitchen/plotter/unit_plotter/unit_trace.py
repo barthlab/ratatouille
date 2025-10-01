@@ -18,6 +18,7 @@ from kitchen.plotter.utils.tick_labels import TICK_PAIR, add_new_yticks
 from kitchen.settings.plotting import PLOTTING_OVERLAP_HARSH_MODE
 from kitchen.settings.potential import SPIKE_RANGE_RELATIVE_TO_ALIGNMENT
 from kitchen.structure.neural_data_structure import Events, Fluorescence, Potential, TimeSeries, Timeline
+from kitchen.utils.sequence_kit import group_by
 
 
 logger = logging.getLogger(__name__)
@@ -264,15 +265,21 @@ def unit_plot_potential(potential: None | Potential | list[Potential],
         
         # plot single potential
         ax.plot(potential_timeseries.t, potential_timeseries.v * ratio + y_offset, **POTENTIAL_TRACE_STYLE)
-
+        
         # plot all the spikes
-        if spike_mark:
-            def progress_bar(it, **kwargs):
-                return tqdm(it, **kwargs) if len(example_potential.spikes) > spike_num_warning_threshold else it
-            
-            for spike_type, spike_time in progress_bar(zip(potential.spikes.v, potential.spikes.t), total=len(potential.spikes)):
-                spike_timeseries = potential_timeseries.aligned_to(spike_time).segment(*SPIKE_RANGE_RELATIVE_TO_ALIGNMENT)
-                ax.plot(spike_timeseries.t + spike_time, spike_timeseries.v * ratio + y_offset, 
+        if spike_mark:            
+            spike_type_dict = group_by(list(zip(potential.spikes.v, potential.spikes.t)), lambda x: x[0])
+            for spike_type, all_spike_fragments in spike_type_dict.items():
+                all_spike_timeseries = potential_timeseries.batch_segment(
+                    [spike_time for _, spike_time in all_spike_fragments], SPIKE_RANGE_RELATIVE_TO_ALIGNMENT, _auto_align=False)
+                
+                nan_separator = np.array([np.nan])
+                # Interleave NaN separators between the actual data arrays
+                # The result will be [t1, NaN, t2, NaN, t3, ...]
+                t_concatenated = np.concatenate([arr for ts in all_spike_timeseries for arr in (ts.t, nan_separator)])
+                v_concatenated = np.concatenate([arr for ts in all_spike_timeseries for arr in (ts.v, nan_separator)])
+                
+                ax.plot(t_concatenated, v_concatenated * ratio + y_offset, 
                         **POTENTIAL_TRACE_STYLE | SPIKE_POTENTIAL_TRACE_STYLE[spike_type])
                 
         # calculate y height
@@ -303,13 +310,16 @@ def unit_plot_potential(potential: None | Potential | list[Potential],
             
             # plot all the spikes
             if spike_mark:
-                def progress_bar(it, **kwargs):
-                    return tqdm(it, **kwargs) if len(example_potential.spikes) > spike_num_warning_threshold else it
-                
-                for spike_type, spike_time in progress_bar(zip(one_potential.spikes.v, one_potential.spikes.t), total=len(one_potential.spikes)):
-                    spike_timeseries = one_potential_timeseries.aligned_to(spike_time).segment(*SPIKE_RANGE_RELATIVE_TO_ALIGNMENT)
-                    ax.plot(spike_timeseries.t + spike_time, spike_timeseries.v * ratio + y_offset, 
-                            **(POTENTIAL_TRACE_STYLE | SPIKE_POTENTIAL_TRACE_STYLE[spike_type] | additional_style))
+                spike_type_dict = group_by(list(zip(one_potential.spikes.v, one_potential.spikes.t)), lambda x: x[0])
+                for spike_type, all_spike_fragments in spike_type_dict.items():
+                    all_spike_timeseries = one_potential_timeseries.batch_segment(
+                        [spike_time for _, spike_time in all_spike_fragments], SPIKE_RANGE_RELATIVE_TO_ALIGNMENT, _auto_align=False)
+                    nan_separator = np.array([np.nan])
+                    t_concatenated = np.concatenate([arr for ts in all_spike_timeseries for arr in (ts.t, nan_separator)])
+                    v_concatenated = np.concatenate([arr for ts in all_spike_timeseries for arr in (ts.v, nan_separator)])
+
+                    ax.plot(t_concatenated, v_concatenated * ratio + y_offset, 
+                            **POTENTIAL_TRACE_STYLE | SPIKE_POTENTIAL_TRACE_STYLE[spike_type] | additional_style)      
                     
         # calculate y height
         y_height = np.nanmax(np.concatenate([one_potential.aspect(aspect).v for one_potential in potential])) * ratio
