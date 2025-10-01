@@ -154,7 +154,6 @@ def behavior_loader_from_node(
     
     if behavior_loader_name is None:
         logger.debug("No behavior loader specified, skip loading behavior")
-        yield {}
         return
     loader_to_use = behavior_loader_options.get(behavior_loader_name)
     if loader_to_use is None:

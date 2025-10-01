@@ -48,12 +48,15 @@ def fluorescence_loader_from_node(
 
         """split into sessions"""
         num_cells, num_total_frames = raw_f.shape
+        print(node.coordinate)
         if n_session is None:
             assert num_total_frames % num_frames_per_session == 0, f"Cannot split {num_total_frames} frames into {num_frames_per_session} frames per session"
             n_session = int(num_total_frames // num_frames_per_session)
         if num_frames_per_session is None:
             assert num_total_frames % n_session == 0, f"Cannot split {num_total_frames} frames into {n_session} sessions"
             num_frames_per_session = int(num_total_frames // n_session)
+
+        print(num_cells, num_total_frames, num_frames_per_session, n_session)
 
         raw_f = np.reshape(raw_f, (num_cells, num_frames_per_session, n_session), order='F')
         fov_motion = np.reshape(fov_motion, (2, num_frames_per_session, n_session), order='F')
@@ -172,11 +175,12 @@ def fluorescence_loader_from_node(
     def io_classic(dir_path: str) -> Generator[Fluorescence, None, None]:
         n_session = len(timeline_dict) 
         all_fluorescence = list(load_fall_mat(dir_path, DEFAULT_RECORDING_DURATION, num_frames_per_session=DEFAULT_FRAMES_PER_SESSION, hodgepodge_mode=True))
+
+        assert len(all_fluorescence) in (n_session, int(n_session/2)), \
+            f"Cannot match fluorescence and timeline in {dir_path}, got {len(all_fluorescence)} fluorescence sessions but {n_session} timeline sessions"
+
         if len(all_fluorescence) == n_session:
             for fluorescence in all_fluorescence:
-                yield fluorescence
-        elif len(all_fluorescence) == n_session * 2:
-            for fluorescence in all_fluorescence[::2]:
                 yield fluorescence
         elif len(all_fluorescence) * 2 == n_session:
             for fluorescence in all_fluorescence:

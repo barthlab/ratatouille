@@ -84,52 +84,91 @@ def timeline_loader_from_fov(fov_node: Fov, timeline_loader_name: str = "default
     def io_classic(dir_path: str) -> Generator[Tuple[str, str, Timeline], None, None]:
         timeline_type = pd.ExcelFile(path.join(dir_path, "Arduino.xlsx"))
         timeline_t = pd.ExcelFile(path.join(dir_path, "Arduino time point.xlsx"))
-
-        # sheet_0_column = timeline_t.parse(timeline_t.sheet_names[0], header=0).columns[0]
-        # sheet_1_column = timeline_t.parse(timeline_t.sheet_names[1], header=0).columns[0]
-        # duplicate_flag =  sheet_0_column == sheet_1_column
         
-        # if duplicate_flag:
-        #     timeline_t_sheet_name = timeline_t.sheet_names[::2] if len(timeline_t.sheet_names) == 32 else timeline_t.sheet_names
-        #     timeline_type_sheet_name = timeline_type.sheet_names[::2] if len(timeline_type.sheet_names) == 32 else timeline_type.sheet_names
-        #     assert len(timeline_type_sheet_name) == len(timeline_t_sheet_name) == 16, \
-        #         f"Cannot match timeline type and timeline t sheet names in {dir_path}, \
-        #          got {timeline_type.sheet_names} and {timeline_t.sheet_names}"
-        # else:
-        timeline_t_sheet_name = [sheet_name for sheet_name in timeline_t.sheet_names for _ in range(2)] if len(timeline_t.sheet_names) == 16 else timeline_t.sheet_names
-        timeline_type_sheet_name = [sheet_name for sheet_name in timeline_type.sheet_names for _ in range(2)] if len(timeline_type.sheet_names) == 16 else timeline_type.sheet_names
-        assert len(timeline_type_sheet_name) == len(timeline_t_sheet_name) == 32, \
-            f"Cannot match timeline type and timeline t sheet names in {dir_path}, \
-                got {timeline_type.sheet_names} and {timeline_t.sheet_names}"
-            
-        for sheet_id, (type_sheet_name, t_sheet_name) in enumerate(zip(timeline_type_sheet_name, timeline_t_sheet_name)):
-            df_type = timeline_type.parse(type_sheet_name, header=None).to_numpy()
+        def extract_session_id_list(sheet_name_list: list) -> list:
+            session_id_list = []
+            for sheet_name in sheet_name_list:
+                if sheet_name.isdigit():
+                    session_id_list.append(int(sheet_name))
+                elif sheet_name.startswith("Sheet") and sheet_name[5:].isdigit():
+                    session_id_list.append(int(sheet_name[5:]))
+                elif sheet_name.startswith("ACC") and "_" in sheet_name:
+                    day_id, session_id = sheet_name[3:].split("_")
+                    session_id_list.append(2*(int(day_id) - 1) + int(session_id))
+                elif sheet_name.startswith("SAT") and "_" in sheet_name:
+                    day_id, session_id = sheet_name[3:].split("_")
+                    session_id_list.append(2*(int(day_id) - 1) + int(session_id) + 12)
+                elif sheet_name.startswith("PSE") and "_" in sheet_name:
+                    day_id, session_id = sheet_name[3:].split("_")
+                    session_id_list.append(2*(int(day_id) - 1) + int(session_id) + 12)
+                else:
+                    raise ValueError(f"Unknown sheet name {sheet_name} in {sheet_name_list}")
+            return session_id_list
+        
+        timeline_type_session_id = extract_session_id_list(timeline_type.sheet_names)
+        timeline_t_session_id = extract_session_id_list(timeline_t.sheet_names)
+     
+        # extract timeline type and t
+        timeline_type_dict = {}
+        for session_id, timeline_type_sheet_name in zip(timeline_type_session_id, timeline_type.sheet_names):
+            df_type = timeline_type.parse(f"{timeline_type_sheet_name}", header=None).to_numpy()
             for i, type_value in enumerate(df_type[:, 0]):
                 if type_value.lower() in ("puff", "real"):
                     df_type[i, 0] = "Puff"
                 elif type_value.lower() in ("blank", "fake"):
                     df_type[i, 0] = "Blank"
                 else:
-                    raise ValueError(f"Unknown timeline type {type_value} in {type_sheet_name} at {dir_path}")
-            df_t = timeline_t.parse(t_sheet_name, header=0).to_numpy()
-            try:
-                assert df_type.shape[1] >= 1, f"Cannot find 1 column in {type_sheet_name} at {dir_path}"
-                assert df_t.shape[1] == 2, f"Cannot find 2 columns in {t_sheet_name} at {dir_path}"
-                assert abs(df_type.shape[0] - df_t.shape[0]) <= 1, f"Cannot match timeline type and timeline t in {dir_path}, got {df_type} and {df_t}"
-                min_length = min(df_type.shape[0], df_t.shape[0])
-                df_type = df_type[:min_length, 0]
-                df_t = df_t[:min_length, 0]
-                extracted_timeline = Timeline(
-                    v=df_type,
-                    t=np.array(df_t / 1000, dtype=np.float32)
-                )
-            except Exception as e:
-                logger.debug(f"Error loading timeline in {dir_path} at {type_sheet_name} and {t_sheet_name}: {e}")
-                extracted_timeline = Timeline(v=np.array([]), t=np.array([]))
-            day_id = str(sheet_id // 2)
-            yield f"{day_id}".zfill(2), f"{sheet_id}".zfill(2), extracted_timeline
+                    raise ValueError(f"Unknown timeline type {type_value} in {timeline_type_sheet_name} at {dir_path}")
+                timeline_type_dict[session_id] = df_type[:, 0]
 
- 
+        timeline_t_dict = {}
+        for session_id, timeline_type_sheet_name, timeline_t_sheet_name in zip(timeline_t_session_id, timeline_type.sheet_names, timeline_t.sheet_names):
+            df_t = timeline_t.parse(timeline_t_sheet_name, header=0).to_numpy()
+            if df_t.shape[1] == 2:
+                timeline_t_dict[session_id] = df_t[:, 0]
+            else:
+                timeline_t_dict[session_id] = np.array([])
+                logger.debug(f"Cannot find timeline t in {timeline_t_sheet_name} at {dir_path}, got {df_t}, expected 2 columns")
+
+        # duplication
+        def duplication_if_need(timeline_data_dict: dict, data_name: str) -> dict:
+            assert 0 not in timeline_data_dict.keys(), f"Expected session id start from 1, but got 0 in {data_name} at {dir_path}: {timeline_data_dict}"
+            final_data_dict = {}
+            if len(timeline_data_dict) > 16:
+                # occassionly sheet_id will excceed 32, where we should renorm the first session id to 1
+                if max(timeline_data_dict.keys()) > 32:
+                    min_session_id = min(timeline_data_dict.keys())
+                    timeline_data_dict = {k - min_session_id + 1: v for k, v in timeline_data_dict.items()}
+                # no need for duplication, session start from 1
+                for session_id, value in timeline_data_dict.items():
+                    final_data_dict[(int((session_id - 1) // 2), session_id - 1)] = value
+            else:
+                # duplication
+                for session_id, value in timeline_data_dict.items():
+                    final_data_dict[(session_id - 1, (session_id - 1) * 2)] = value
+                    final_data_dict[(session_id - 1, (session_id - 1) * 2 + 1)] = value
+            return final_data_dict
+        
+        final_timeline_type = duplication_if_need(timeline_type_dict, "type")
+        final_timeline_t = duplication_if_need(timeline_t_dict, "t")
+        assert final_timeline_type.keys() == final_timeline_t.keys(), \
+            f"Cannot match timeline type and timeline t in {dir_path}, got {final_timeline_type.keys()} and {final_timeline_t.keys()}"
+        
+        # construct timeline
+        for (day_id, session_id), timeline_type in final_timeline_type.items():
+            timeline_t = final_timeline_t[(day_id, session_id)]
+            if abs(len(timeline_type) - len(timeline_t)) > 1:
+                logger.debug(f"Cannot match shape of timeline type and timeline t in {dir_path} at day {day_id} session {session_id}, "\
+                             f"got {len(timeline_type)} type: {timeline_type} and {len(timeline_t)} t: {timeline_t}")
+                extracted_timeline = Timeline(v=np.array([]), t=np.array([]))
+            else:
+                min_length = min(len(timeline_type), len(timeline_t))
+                extracted_timeline = Timeline(
+                    v=timeline_type[:min_length],
+                    t=np.array(timeline_t[:min_length] / 1000, dtype=np.float32)
+                )
+            yield f"{str(day_id)}".zfill(2), f"{str(session_id)}".zfill(2), extracted_timeline
+                
 
     """Load timeline from fov node."""
     timeline_loader_options = {

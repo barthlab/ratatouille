@@ -1,10 +1,14 @@
 from typing import Tuple
 import numpy as np
+import logging
 
 from kitchen.plotter.plotting_manual import PlotManual
 from kitchen.settings.plotting import PLOTTING_OVERLAP_HARSH_MODE
 from kitchen.structure.hierarchical_data_structure import DataSet
 from kitchen.utils.sequence_kit import find_only_one, select_from_key
+
+
+logger = logging.getLogger(__name__)
 
 
 def sync_check(dataset: DataSet, sync_events: Tuple[str], plot_manual: PlotManual=PlotManual()):    
@@ -48,8 +52,11 @@ def left_align_nodes(dataset: DataSet):
     """Align all nodes to the leftmost time point"""
     aligned_nodes = []
     for node in dataset:
-        assert node.data.timeline is not None, f"Cannot find timeline in {node}"
-        assert len(node.data.timeline) > 0, f"Cannot find any event in timeline of {node}"
-        aligned_nodes.append(node.aligned_to(node.data.timeline.t[0]))
+        try:
+            assert node.data.timeline is not None, f"Cannot find timeline in {node}"
+            assert len(node.data.timeline) > 0, f"Cannot find any event in timeline of {node}"
+            aligned_nodes.append(node.aligned_to(node.data.timeline.t[0]))
+        except Exception as e:
+            logger.debug(f"Cannot align {node} to leftmost time point: {e}")
     return DataSet(name=dataset.name + "_left_aligned", nodes=aligned_nodes)
 

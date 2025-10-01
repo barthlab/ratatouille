@@ -104,10 +104,11 @@ def _SplitFov2Session(fov_node: Fov, loaders: Dict[str, str], **kwargs: Any) -> 
     """Load fluorescence and behavior from fov node."""
     session_nodes = []
     for fluorescence, behavior_dict, (session_coordinate, timeline) in zip_longest(
-        fluorescence_loader_from_node(fov_node, timeline_dict, loaders.get('fluorescence')),
-        behavior_loader_from_node(fov_node, timeline_dict, loaders.get('behavior')),
+        fluorescence_loader_from_node(fov_node, timeline_dict, loaders.get('fluorescence', None)),
+        behavior_loader_from_node(fov_node, timeline_dict, loaders.get('behavior', None)),
         timeline_dict.items()
-    ):
+    ):  
+        behavior_dict = behavior_dict or {}
         session_nodes.append(
             Session(
                 coordinate=session_coordinate,

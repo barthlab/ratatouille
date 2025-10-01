@@ -88,9 +88,11 @@ class TimeSeries:
             t=self.t[segment_start_index: segment_end_index]
         )
     
-    def batch_segment(self, ts: np.ndarray, segment_range: Tuple[float, float]) -> List[Self]:
+    def batch_segment(self, ts: Iterable[float], segment_range: Tuple[float, float], _auto_align: bool = True) -> List[Self]:
         """Extract temporal segment for each align time in ts."""        
-        return [self.segment(t + segment_range[0], t + segment_range[1]).aligned_to(t) for t in ts]
+        return [self.segment(t + segment_range[0], t + segment_range[1]).aligned_to(t) if _auto_align else \
+                self.segment(t + segment_range[0], t + segment_range[1]) 
+                for t in ts]
 
     @cached_property
     def fs(self) -> float:
