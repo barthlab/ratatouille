@@ -3,7 +3,7 @@ from os import path
 
 from kitchen.loader.general_loader_interface import load_dataset
 from kitchen.plotter.macros.basic_macros import dataset_overview, session_overview
-from kitchen.plotter.macros.jux_data_macros import AnwerOfEverything
+from kitchen.plotter.macros.jux_data_macros import SPONT_FR_EVOKED_FR_SCATTER, AnwerOfEverything
 from kitchen.plotter.plotting_manual import PlotManual
 
 logger = logging.getLogger()
@@ -18,12 +18,6 @@ logging.getLogger('numba').setLevel(logging.WARNING)
 
 
 
-def preload_dataset():
-    # preload all datasets and curate spike waveforms
-    for dataset_name in ( "SST_WC",):    
-    # for dataset_name in ("SST_WC", "PV_JUX", "PYR_JUX", "SST_JUX",):    
-        load_dataset(template_id="PassivePuff_JuxtaCellular_FromJS_202509", cohort_id=dataset_name, 
-                     recipe="default_ephys", name=dataset_name)
 
 def main():
     # Plot all cell sessions    
@@ -31,16 +25,16 @@ def main():
     plot_manual_spike4Hz = PlotManual(potential=4.)
     plot_manual_spike300Hz = PlotManual(potential=300.)
     plot_manual_conv = PlotManual(potential_conv=True)
+    all_datasets = []
     for dataset_name in ("SST_WC", "PV_JUX", "PYR_JUX", "SST_JUX",):        
         dataset = load_dataset(template_id="PassivePuff_JuxtaCellular_FromJS_202509", cohort_id=dataset_name, 
                                recipe="default_ephys", name=dataset_name)
-        for session_node in dataset.select(hash_key="cellsession"):
-            print(session_node)
-            session_overview(session_node, plot_manual=plot_manual_raw, prefix_keyword="raw")
-            session_overview(session_node, plot_manual=plot_manual_spike4Hz, prefix_keyword="spike4Hz")
-            session_overview(session_node, plot_manual=plot_manual_spike300Hz, prefix_keyword="spike300Hz")
-            
+        # dataset_overview(dataset, plot_manual=plot_manual_spike300Hz, prefix_keyword="spike300Hz")
+        # dataset_overview(dataset, plot_manual=plot_manual_conv, prefix_keyword="conv")
+        # AnwerOfEverything(dataset)
+        all_datasets.append(dataset)
+        # exit()
+    SPONT_FR_EVOKED_FR_SCATTER(all_datasets)
 
 if __name__ == "__main__":
-    # preload_dataset()
     main()

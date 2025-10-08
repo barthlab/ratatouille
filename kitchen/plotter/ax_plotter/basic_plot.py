@@ -6,7 +6,7 @@ import logging
 from kitchen.operator.sync_nodes import left_align_nodes, sync_nodes
 from kitchen.plotter.plotting_manual import PlotManual
 from kitchen.plotter.plotting_params import FLUORESCENCE_RATIO, LICK_RATIO, LOCOMOTION_RATIO, POSITION_RATIO, POTENTIAL_RATIO, PUPIL_RATIO, TIMELINE_RATIO, WHISKER_RATIO
-from kitchen.plotter.unit_plotter.unit_trace import unit_plot_lick, unit_plot_locomotion, unit_plot_position, unit_plot_pupil, unit_plot_single_cell_fluorescence, unit_plot_timeline, unit_plot_whisker, unit_plot_potential
+from kitchen.plotter.unit_plotter.unit_trace import unit_plot_lick, unit_plot_locomotion, unit_plot_position, unit_plot_potential_conv, unit_plot_pupil, unit_plot_single_cell_fluorescence, unit_plot_timeline, unit_plot_whisker, unit_plot_potential
 from kitchen.settings.potential import WC_CONVERT_FLAG
 from kitchen.structure.hierarchical_data_structure import DataSet
 from kitchen.utils.sequence_kit import find_only_one, select_truthy_items
@@ -55,6 +55,11 @@ def flat_view(
         else:
             y_offset = yield unit_plot_potential(potential=node.data.potential, ax=ax, y_offset=y_offset, ratio=POTENTIAL_RATIO,
                                                  aspect=plot_manual.potential, wc_flag=WC_CONVERT_FLAG(node))
+    elif plot_manual.potential_conv:
+        if node.data.potential is None:
+            y_offset = yield 0
+        else:
+            y_offset = yield unit_plot_potential_conv(potential=node.data.potential, ax=ax, y_offset=y_offset, ratio=FLUORESCENCE_RATIO,)
             
     # 3. plot behavior
     if plot_manual.lick:

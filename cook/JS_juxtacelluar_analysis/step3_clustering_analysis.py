@@ -34,8 +34,8 @@ def main():
     
     for linkage_method in ("single", "complete", "average", "weighted"):
         for linkage_metric in ("euclidean", "correlation"):
-            for activity_period_name, activity_period in {"Short": (-0.25, 0.75), "Medium": (-1, 1.5), "Long": (-2, 2.5)}.items():
-                for preprocessing_method in ("raw", "log-scale", "z-score", "fold-change"):
+            for activity_period_name, activity_period in {"Short": (-0.25, 0.75), "Medium": (-1, 1.5), }.items():
+                for preprocessing_method in ("baseline-normalization", ):
                     for bin_size in (10/1000, 20/1000,):
                         dendrogram_kwargs = {
                             "save_name": f"{linkage_metric}_{linkage_method}_{activity_period_name}_{preprocessing_method}_{bin_size}",

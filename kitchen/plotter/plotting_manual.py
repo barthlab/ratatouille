@@ -14,8 +14,9 @@ PlotManual = namedtuple(
         "whisker", 
         "fluorescence",
         "potential",
+        "potential_conv"
     ], 
-    defaults=[True, False, False, False, False, False, False, False]
+    defaults=[True, False, False, False, False, False, False, False, False]
 )
 
 

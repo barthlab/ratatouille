@@ -4,13 +4,16 @@ from typing import Dict, Generator, Iterator, List, Optional, Any, Self, Tuple, 
 from functools import cached_property
 from collections import defaultdict
 from scipy import signal
+import logging
 
-from kitchen.settings.potential import COMPONENTS_BANDWIDTH, MAXIMAL_BANDWIDTH, SPIKE_MAX_WINDOW_LEN, SPIKE_MIN_DISTANCE, SPIKE_MIN_HEIGHT_STD_RATIO, SPIKE_MIN_PROMINENCE_STD_RATIO, SPIKES_BANDWIDTH, STD_SLIDING_WINDOW
+from kitchen.settings.potential import COMPONENTS_BANDWIDTH, MAXIMAL_BANDWIDTH, SPIKE_MAX_WINDOW_LEN, SPIKE_MIN_DISTANCE, SPIKE_MIN_HEIGHT_STD_RATIO, SPIKE_MIN_PROMINENCE_STD_RATIO, SPIKES_BANDWIDTH, STD_SLIDING_WINDOW, GCaMP_kernel
 from kitchen.settings.timeline import SUPPORTED_TIMELINE_EVENT, TRIAL_ALIGN_EVENT_DEFAULT
 from kitchen.settings.fluorescence import DEFAULT_RECORDING_DURATION, DF_F0_RANGE, TRIAL_DF_F0_WINDOW
 from kitchen.settings.trials import BOUT_FILTER_PARAMETERS
 from kitchen.utils.numpy_kit import sliding_std, smart_interp, zscore
 from kitchen.utils.pass_filter import high_pass, low_pass
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -418,7 +421,7 @@ class Fluorescence:
 class Potential:
     vm: TimeSeries
     spikes: Events = field(default_factory=lambda: Events(v=np.array([]), t=np.array([])))
-    _components: Dict[float, TimeSeries] = field(default_factory=dict)
+    _components: Dict[float | str, TimeSeries] = field(default_factory=dict)
     is_prime: bool = False
 
     def __post_init__(self):
@@ -428,29 +431,32 @@ class Potential:
     def create_master(cls, vm: TimeSeries) -> "Potential":
         """Create a master potential, will initiate component and spike computation."""
         dummy_potential = cls(vm=vm, is_prime=True)
-        dummy_components = {cutoff: dummy_potential._high_pass_vm(cutoff) for cutoff in COMPONENTS_BANDWIDTH}
-        dummy_spikes = dummy_potential._compute_spikes()
-        return cls(vm=vm, spikes=dummy_spikes, _components=dummy_components, is_prime=True)
+        for cutoff in COMPONENTS_BANDWIDTH:
+            dummy_potential.hp_component(cutoff)  
+        dummy_potential._compute_spikes()
+        return dummy_potential
     
     @classmethod
-    def create_slave(cls, vm: TimeSeries, spikes: Events, components: Dict[float, TimeSeries]) -> "Potential":
+    def create_slave(cls, vm: TimeSeries, spikes: Events, components: Dict[float | str, TimeSeries]) -> "Potential":
         """Create a slave potential, will not initiate component and spike computation."""
         return cls(vm=vm, spikes=spikes, _components=components, is_prime=False)
   
     def _compute_spikes(self) -> Events:
         """Compute spikes from membrane potential."""
-        if self.spikes:
-            return self.spikes
-        spike_component = self.hp_component(SPIKES_BANDWIDTH)
-        detrend_vm = sliding_std(spike_component.v, window_len=int(STD_SLIDING_WINDOW * self.vm.fs))
-        peak_indices, _ = signal.find_peaks(
-             x=spike_component.v,
-             distance=SPIKE_MIN_DISTANCE * self.vm.fs,
-             height=(detrend_vm * SPIKE_MIN_HEIGHT_STD_RATIO, None),
-             prominence=(detrend_vm * SPIKE_MIN_PROMINENCE_STD_RATIO, None),
-             wlen=int(SPIKE_MAX_WINDOW_LEN * self.vm.fs)
-        )
-        return Events(v=np.array(['spike'] * len(peak_indices)), t=self.vm.t[peak_indices])
+        if not self.spikes and self.is_prime:
+            spike_component = self.hp_component(SPIKES_BANDWIDTH)
+            detrend_vm = sliding_std(spike_component.v, window_len=int(STD_SLIDING_WINDOW * self.vm.fs))
+            peak_indices, _ = signal.find_peaks(
+                x=spike_component.v,
+                distance=SPIKE_MIN_DISTANCE * self.vm.fs,
+                height=(detrend_vm * SPIKE_MIN_HEIGHT_STD_RATIO, None),
+                prominence=(detrend_vm * SPIKE_MIN_PROMINENCE_STD_RATIO, None),
+                wlen=int(SPIKE_MAX_WINDOW_LEN * self.vm.fs)
+            )
+            self.spikes = Events(v=np.array(['spike'] * len(peak_indices)), t=self.vm.t[peak_indices])
+        if not self.spikes:
+            raise ValueError(f"spikes not computed: {self}")
+        return self.spikes
 
     def _high_pass_vm(self, cutoff: float) -> TimeSeries:
         """Apply high-pass filter to membrane potential."""
@@ -465,6 +471,20 @@ class Potential:
         if cutoff not in self._components:
             raise ValueError(f"Cutoff {cutoff} not found in components: {self._components.keys()}")
         return self._components[cutoff]
+    
+    def _conv_GCaMP6f(self, downsample_ratio: int = 100) -> TimeSeries:
+        """Convolve with GCaMP6f kernel."""
+        if "conv" not in self._components and self.is_prime:                  
+            downsampled_t = self.vm.t[::downsample_ratio]
+            spike_indices = np.searchsorted(downsampled_t, self.spikes.t)
+            spike_1hot = np.zeros_like(downsampled_t)
+            spike_1hot[spike_indices] += 1
+            gcamp_kernel, kernel_t = GCaMP_kernel(self.vm.fs / downsample_ratio)
+            putative_df_f0 = np.convolve(spike_1hot, gcamp_kernel, mode='full')[:len(downsampled_t)]
+            self._components["conv"] = TimeSeries(v=putative_df_f0, t=downsampled_t)
+        if "conv" not in self._components:
+            raise ValueError(f"conv not found in components: {self._components.keys()}")        
+        return self._components["conv"]
 
     def aspect(self, keyword: Optional[Any] = None) -> TimeSeries:
         """Get potential component based on keyword."""
@@ -472,6 +492,8 @@ class Potential:
             return self.hp_component(SPIKES_BANDWIDTH)
         elif isinstance(keyword, (int, float)):
             return self.hp_component(keyword)
+        elif keyword == "conv":
+            return self._conv_GCaMP6f()
         else:
             return self.vm
         

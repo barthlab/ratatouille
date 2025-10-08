@@ -109,6 +109,7 @@ def fov_overview(
 def dataset_overview(
         dataset: DataSet,
         plot_manual: PlotManual,
+        prefix_keyword: Optional[str] = None,
 ) -> None:
     """
     Generate flat view overview plots for all sessions within a dataset.
@@ -126,6 +127,7 @@ def dataset_overview(
     """
     session_nodes = dataset.select("cellsession")
     n_session = len(session_nodes)
+    prefix_keyword = "" if prefix_keyword is None else prefix_keyword + "_"
     try:
         default_style(
             mosaic_style=[[get_node_name(session_node),] for session_node in session_nodes],
@@ -136,7 +138,9 @@ def dataset_overview(
                 for session_node in session_nodes
                 },
             figsize=(FLAT_X_INCHES, UNIT_Y_INCHES * n_session),
-            save_path=routing.default_fig_path(dataset, "DatasetOverview_{}.png"),
+            save_path=routing.default_fig_path(dataset, prefix_keyword + "DatasetOverview_{}.png"),
+            auto_yscale=False,
+            sharey=False,
         )
     except Exception as e:
         logger.debug(f"Cannot plot fov overview for {dataset.name}: {e}")

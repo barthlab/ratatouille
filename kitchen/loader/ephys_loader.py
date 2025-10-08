@@ -36,6 +36,7 @@ def _SplitCohort2CellSession(cohort_node: Cohort, loaders: dict[str, str],
         )
         if spike_curation:
             node_spike_waveform_curation(new_cell_session_node, overwrite=curation_overwrite)
+        new_cell_session_node.data.potential._conv_GCaMP6f()
         cell_session_nodes.append(new_cell_session_node)
     return cell_session_nodes
 

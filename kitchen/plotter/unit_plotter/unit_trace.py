@@ -324,3 +324,53 @@ def unit_plot_potential(potential: None | Potential | list[Potential],
         # calculate y height
         y_height = np.nanmax(np.concatenate([one_potential.aspect(aspect).v for one_potential in potential])) * ratio
     return max(y_height, 1*ratio)
+
+
+
+
+def unit_plot_potential_conv(potential: None | Potential | list[Potential], 
+                             ax: plt.Axes, y_offset: float, ratio: float = 1.0,
+                             spike_mark: bool = True, individual_trace_flag: bool = False) -> float:
+    """plot a single cell convolved potential"""
+    if not sanity_check(potential):
+        return 0
+    assert potential is not None, "Sanity check failed"
+
+    if isinstance(potential, Potential):        
+        ax.plot(potential.aspect("conv").t, potential.aspect("conv").v * ratio + y_offset, **FLUORESCENCE_TRACE_STYLE)      
+
+         # plot all the spikes
+        if spike_mark:            
+            spike_type_dict = group_by(list(zip(potential.spikes.v, potential.spikes.t)), lambda x: x[0])
+            for spike_type, all_spike_fragments in spike_type_dict.items():
+                ax.eventplot([spike_time for _, spike_time in all_spike_fragments], 
+                            lineoffsets=y_offset-0.5, linelengths=0.5,
+                            **POTENTIAL_TRACE_STYLE | SPIKE_POTENTIAL_TRACE_STYLE[spike_type])
+                
+        # add y ticks  
+        add_new_yticks(ax, TICK_PAIR(
+            y_offset, "conv", FLUORESCENCE_COLOR))      
+        add_new_yticks(ax, TICK_PAIR(
+            y_offset + 1 * ratio, f"1 {DF_F0_SIGN}", FLUORESCENCE_COLOR))
+        return max(np.nanmax(potential.aspect("conv").v) * ratio, 1*ratio)
+
+    # plot multiple cell fluorescence
+    group_fluorescence = grouping_timeseries([one_potential.aspect("conv") for one_potential in potential])
+    oreo_plot(ax, group_fluorescence, y_offset, ratio, FLUORESCENCE_TRACE_STYLE, FILL_BETWEEN_STYLE)
+    if individual_trace_flag:
+        for individual_fluorescence, one_potential in zip(group_fluorescence.raw, potential):
+            ax.plot(group_fluorescence.t, individual_fluorescence * ratio + y_offset, 
+                    **calibrate_alpha(INDIVIDUAL_FLUORESCENCE_TRACE_STYLE, group_fluorescence.data_num))
+
+            if spike_mark:            
+                spike_type_dict = group_by(list(zip(one_potential.spikes.v, one_potential.spikes.t)), lambda x: x[0])
+                for spike_type, all_spike_fragments in spike_type_dict.items():
+                    ax.eventplot([spike_time for _, spike_time in all_spike_fragments], 
+                                lineoffsets=y_offset-0.5, linelengths=0.5,
+                                **calibrate_alpha(POTENTIAL_TRACE_STYLE | SPIKE_POTENTIAL_TRACE_STYLE[spike_type], group_fluorescence.data_num))
+    # add y ticks
+    add_new_yticks(ax, TICK_PAIR(
+        y_offset, "conv", FLUORESCENCE_COLOR))      
+    add_new_yticks(ax, TICK_PAIR(
+        y_offset + 1 * ratio, f"1 {DF_F0_SIGN}", FLUORESCENCE_COLOR)) 
+    return max(np.nanmax(group_fluorescence.mean) * ratio, 1*ratio)

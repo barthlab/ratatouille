@@ -83,6 +83,10 @@ class AdvancedTimeSeries(TimeSeries):
             raw_array=np.squeeze(self.raw, axis=axis+1)
         )
 
+    @property
+    def mean_ts(self) -> TimeSeries:
+        return TimeSeries(v=self.mean, t=self.t)
+
 
 def calculate_group_tuple(arrs: List[np.ndarray], t: np.ndarray) -> AdvancedTimeSeries:
     """Group a list of arrays in mean and variance."""
