@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 
 from kitchen.configs.naming import get_node_name
 from kitchen.loader.general_loader_interface import load_dataset
@@ -22,7 +23,7 @@ from kitchen.plotter.style_dicts import FILL_BETWEEN_STYLE
 from kitchen.plotter.unit_plotter.unit_trace import unit_plot_potential, unit_plot_potential_conv
 from kitchen.plotter.utils.fill_plot import oreo_plot
 from kitchen.settings.fluorescence import DF_F0_SIGN
-from kitchen.settings.potential import CURATION_SPIKE_RANGE_RELATIVE_TO_ALIGNMENT, WC_CONVERT_FLAG
+from kitchen.settings.potential import CURATION_SPIKE_RANGE_RELATIVE_TO_ALIGNMENT, WC_CONVERT_FLAG, GCaMP_kernel
 from kitchen.structure.hierarchical_data_structure import DataSet, Mice, Session
 from kitchen.structure.neural_data_structure import Events, TimeSeries
 from kitchen.utils.numpy_kit import zscore
@@ -608,13 +609,46 @@ def plot_all_answer(fa):
         answer_of_everything(dataset, fa)
 
 
+def convolved_df_f0_heatmap(fa, feature_matrix, cohort_names):    
+    gcamp_kernel, kernel_t = GCaMP_kernel(1/BINSIZE)
+    spike_number_matrix = feature_matrix * BINSIZE
+    n_cell, n_bin = feature_matrix.shape
+    putative_df_f0 = [np.convolve(spike_number_matrix[cell_id, :], gcamp_kernel, mode='full')[:n_bin] for cell_id in range(n_cell)]
+    putative_df_f0 = np.array(putative_df_f0)
+
+
+    sorted_idx = get_linkage_order(fa, feature_matrix, cohort_names)
+    fig, ax = plt.subplots(1, 1, figsize=(1.5, 3), constrained_layout=True) 
+    sns.heatmap(putative_df_f0[sorted_idx], ax=ax, cbar=False, cmap='viridis', vmin=0, vmax=5,)
+    ax.set_title("convolved DF/F0")
+    ax.set_xlabel("Time [s]")
+
+    plot_tick_indices = np.searchsorted(bin_centers, (0, 0.5))
+    ax.set_xticks(plot_tick_indices, [0, 0.5], rotation=0, )
+    xlim_tick_indices = np.searchsorted(bin_centers, (-0.5, 1.5))
+    ax.set_xlim(xlim_tick_indices[0], xlim_tick_indices[1])
+    tick_positions = np.arange(len(cohort_names))
+    ax.set_yticks(tick_positions + 0.5, [cohort_names[i] for i in sorted_idx], rotation=0, fontsize=1.)
+    ax.tick_params(axis='y', which='both', length=0, labelleft=False, labelright=True, pad=1)
+    for tick_label in ax.get_yticklabels():
+        text = tick_label.get_text()
+        tick_label.set_color("white")
+        tick_label.set_bbox({'facecolor': COHORT_COLORS[text], 'alpha': 1.0, 'edgecolor': 'none', 'boxstyle': 'square,pad=0.3'})
+
+    fig.savefig("convolved_df_f0.png", dpi=900)
+    plt.close(fig)
+
+
+
+
 def main():
     feature_matrix, cohort_names = load_all_datasets_pkl()
     print(feature_matrix.shape, cohort_names)
     fa = get_fa(feature_matrix)
     # plot_factor_overview(fa, feature_matrix, cohort_names)
     # plot_factor_detail(fa, feature_matrix, cohort_names)
-    plot_factor_score_heatmap(fa, feature_matrix, cohort_names)
+    # plot_factor_score_heatmap(fa, feature_matrix, cohort_names)
+    convolved_df_f0_heatmap(fa, feature_matrix, cohort_names)
     # get_umap_embedding(fa, feature_matrix, cohort_names)
     # plot_all_answer(fa)
 

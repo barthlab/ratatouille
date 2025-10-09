@@ -198,10 +198,16 @@ def extract_features(dataset: DataSet):
         LFP_peak = [one_trial.potential.aspect(4).segment(*SPIKE_ANNOTATION_EARLY_WINDOW).v.min() for one_trial in puff_trials_500ms]
         early_spikes = [one_trial.potential.spikes.filter("early_spike") for one_trial in puff_trials_500ms]
         early_spike_median_time = [np.median(early_spike.t) for early_spike in early_spikes if len(early_spike) > 0]
+        early_spike_first_time = [np.min(early_spike.t) for early_spike in early_spikes if len(early_spike) > 0]
         early_spike_num = [len(early_spike) for early_spike in early_spikes]
+
         sustained_spikes = [one_trial.potential.spikes.filter("sustained_spike") for one_trial in puff_trials_500ms]
         sustained_spike_median_time = [np.median(sustained_spike.t) for sustained_spike in sustained_spikes if len(sustained_spike) > 0]
         sustained_spike_num = [len(sustained_spike) for sustained_spike in sustained_spikes]
+        sustained_spike_first_time = [np.min(sustained_spike.t) for sustained_spike in sustained_spikes if len(sustained_spike) > 0]
+
+        pre_stim_spont_spike_num = [np.sum((-1 < one_trial.potential.spikes.t) & (one_trial.potential.spikes.t < 0)) 
+                                    for one_trial in puff_trials_500ms if len(one_trial.potential.spikes) > 0]
 
         all_spikes = session_node.potential.spikes.t
         potential_timeseries = session_node.potential.aspect('raw')
@@ -210,7 +216,7 @@ def extract_features(dataset: DataSet):
             grouped_spike_timeseries = grouping_timeseries(
                 [TimeSeries(v=zscore(ts.v), t=ts.t) for ts in spike_timeseries], 
                 interp_method="linear")
-            width_ms, asymmetry = calculate_spike_shape_features(grouped_spike_timeseries.raw_array, potential_timeseries.fs)
+            width_ms, asymmetry = calculate_spike_shape_features(grouped_spike_timeseries.raw_array, grouped_spike_timeseries.fs)
             CV2 = calculate_cv2(all_spikes)
             acg_rise_time_s = calculate_autocorrelogram_rise_time(all_spikes)
         else:
@@ -218,22 +224,42 @@ def extract_features(dataset: DataSet):
             asymmetry = np.nan
             CV2 = np.nan
             acg_rise_time_s = np.nan
-        def collapse_list(tmp_list):
+        def collapse_mean(tmp_list):
             if isinstance(tmp_list, list | np.ndarray):
                 return np.nanmean(tmp_list) if len(tmp_list) > 0 else np.nan
             else:
                 return tmp_list
+        def collapse_std(tmp_list):
+            if isinstance(tmp_list, list | np.ndarray):
+                return np.nanstd(tmp_list) if len(tmp_list) > 0 else np.nan
+            else:
+                return tmp_list
         all_session_features.append({
             "node_name": str(session_node.coordinate),
-            "LFP_peak": collapse_list(LFP_peak),
-            "early_spike_median_time": collapse_list(early_spike_median_time),
-            "early_spike_num": collapse_list(early_spike_num),
-            "sustained_spike_median_time": collapse_list(sustained_spike_median_time),
-            "sustained_spike_num": collapse_list(sustained_spike_num),
-            "width_ms": collapse_list(width_ms),
-            "asymmetry": collapse_list(asymmetry),
-            "CV2": collapse_list(CV2),
-            "acg_rise_time_s": collapse_list(acg_rise_time_s),
+            "LFP peak (avg, mV)": collapse_mean(LFP_peak),
+            "LFP peak (std, mV)": collapse_std(LFP_peak),
+
+            "early spike median timing\n(avg, ms)": collapse_mean(early_spike_median_time) * 1000,
+            "early spike median timing\n(std, ms)": collapse_std(early_spike_median_time) * 1000,
+            "early spike num (avg)": collapse_mean(early_spike_num),
+            "early spike num (std)": collapse_std(early_spike_num),
+            "early spike first timing\n(avg, ms)": collapse_mean(early_spike_first_time) * 1000,
+            "early spike first timing\n(std, ms)": collapse_std(early_spike_first_time) * 1000,
+
+            "sustained spike median timing\n(avg, ms)": collapse_mean(sustained_spike_median_time) * 1000,
+            "sustained spike median timing\n(std, ms)": collapse_std(sustained_spike_median_time) * 1000,
+            "sustained spike num (avg)": collapse_mean(sustained_spike_num),
+            "sustained spike num (std)": collapse_std(sustained_spike_num), 
+            "sustained spike first timing\n(avg, ms)": collapse_mean(sustained_spike_first_time) * 1000,
+            "sustained spike first timing\n(std, ms)": collapse_std(sustained_spike_first_time) * 1000,
+
+            "pre-stim spont FR (avg, Hz)": collapse_mean(pre_stim_spont_spike_num),
+            "pre-stim spont FR (std, Hz)": collapse_std(pre_stim_spont_spike_num),
+
+            "Spike width (ms)": collapse_mean(width_ms),
+            "Spike asymmetry (a.u.)": collapse_mean(asymmetry),
+            "CV2 (a.u.)": collapse_mean(CV2),
+            "ACG rise time (s)": collapse_mean(acg_rise_time_s),
             "cohort": dataset.name,
         })
     return all_session_features
@@ -270,15 +296,6 @@ def LFP_extraction(dataset: DataSet):
 
 
 def feature_summary():    
-    plt.rcParams['font.size'] = 3
-    plt.rcParams.update({
-        'xtick.labelsize': 5,      # X-axis tick labels
-        'ytick.labelsize': 5,      # Y-axis tick labels
-        'axes.labelsize': 6,       # X and Y axis labels
-        'legend.fontsize': 3,      # Legend font size
-        'axes.titlesize': 5,       # Plot title
-        'figure.titlesize': 5      # Figure title (suptitle)
-    })
     all_cell_feature_summary = []
     for dataset_name in ("SST_WC", "PV_JUX", "PYR_JUX", "SST_JUX",):        
         dataset = load_dataset(template_id="PassivePuff_JuxtaCellular_FromJS_202509", cohort_id=dataset_name, 
@@ -288,19 +305,32 @@ def feature_summary():
     all_cell_feature_summary.to_csv("all_cell_feature_summary.csv", index=False)
 
     for feature_name in all_cell_feature_summary.columns[1:-1]:
-        fig, ax = plt.subplots(1, 1, figsize=(2, 2), constrained_layout=True)
+        fig, ax = plt.subplots(1, 1, figsize=(3.5, 3.5), constrained_layout=True)
         sns.boxplot(data=all_cell_feature_summary, y="cohort", x=feature_name, ax=ax, 
-                    hue="cohort", palette=COHORT_COLORS, orient="h", zorder=-10,
-                    order=["PV_JUX", "SST_JUX", "PYR_JUX", ], showfliers=False,)
-        sns.swarmplot(data=all_cell_feature_summary, y="cohort", x=feature_name, ax=ax, 
+                    hue="cohort", palette=COHORT_COLORS, orient="h", zorder=10,
+                    order=["PV_JUX", "SST_JUX", "PYR_JUX", ], showfliers=False,
+                    # showmeans=True, meanline=True,
+                    medianprops={'color': 'k', 'ls': '-', 'lw': 3.5, },
+                    # medianprops={'visible': False},
+                    whiskerprops={'visible': False},
+                    showbox=False,
+                    showcaps=False,
+                    width=0.5,
+                    )
+        sns.stripplot(data=all_cell_feature_summary, y="cohort", x=feature_name, ax=ax, 
                       order=["PV_JUX", "SST_JUX", "PYR_JUX", ],
-                      color="black", alpha=0.7, size=2, orient="h", )
-        ax.set_xlabel(feature_name)
+                      hue="cohort", palette=COHORT_COLORS,
+                      jitter=0.25,
+                      alpha=0.7, size=8, orient="h", )
+       
+        
+        ax.set_xlabel(feature_name, fontsize=15)
         ax.set_ylabel("")
-        if feature_name == "acg_rise_time_s":
+        if feature_name == "ACG rise time (s)":
             ax.set_xscale("log")
-        ax.spines[['right', 'top']].set_visible(False)
-        fig.savefig(os.path.join("tmp_feature_summary", f"{feature_name}.png"), dpi=900)
+        ax.spines[['right', 'top', 'left']].set_visible(False)
+        valid_feature_name = feature_name.replace("\n", "_").replace("(", "").replace(")", "").replace(",", "")
+        fig.savefig(os.path.join("tmp_feature_summary", f"{valid_feature_name}.png"), dpi=900)
         plt.close(fig)
 
 
