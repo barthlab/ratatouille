@@ -6,6 +6,9 @@
 /ingredients/dataset_template/*.mp4
 /critic/
 ai_code.py
+/tmp_*/
+
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
