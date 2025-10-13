@@ -3,8 +3,8 @@
     "description": "Default template for all ephys experiments",
     "data_type": "ephys",
     "loaders": {
-        "potential": "io_default"
+        "potential": "abf"
     },
     "trial split": "timeline",
-    "spike annotation": "default"
+    "spike annotation": "joe"
 }

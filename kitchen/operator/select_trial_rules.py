@@ -69,6 +69,12 @@ def _puff_duration(timeline: Timeline) -> float:
     return float(puff_off.t[0] - puff_on.t[0])
 
 
+PREDEFINED_NAIVE_RULES = {
+    "trial": {
+        "hash_key": "trial"
+    },
+}
+
 PREDEFINED_PASSIVEPUFF_RULES = {
     "500msPuff": {
         "timeline": lambda x: 0.48 <_puff_duration(x) < 0.52,
@@ -79,8 +85,6 @@ PREDEFINED_PASSIVEPUFF_RULES = {
         "hash_key": "trial"
     },
 }
-
-
 
 
 

@@ -18,14 +18,17 @@ SUBTRACT_COLOR = "dimgray"
 REGULAR_SPIKE_COLOR = "gray"
 EARLY_SPIKE_COLOR = "red"
 SUSTAINED_SPIKE_COLOR = "blue"
+DETECTED_SPIKE_COLOR = "red"
 
 # Timeline color scheme
+STIM_COLOR = "blue"
 PUFF_COLOR = "green"
 BLANK_COLOR = "lightgray"
 WATER_COLOR = "cornflowerblue"
 NOWATER_COLOR = "orangered"
 BUZZER_COLOR = "darkorange"
 PELTIER_COLOR = "aqua"
+DARK_STIM_COLOR = "darkblue"
 DARK_PUFF_COLOR = "gray"
 DARK_BLANK_COLOR = "gray"
 DARK_WATER_COLOR = "blue"
@@ -39,6 +42,7 @@ OMISSION_TRIAL_COLOR = "#f1a226"
 
 # Grand color scheme
 GRAND_COLOR_SCHEME = {
+    "StimOn": STIM_COLOR,
     "VerticalPuffOn": PUFF_COLOR,
     "Puff": PUFF_COLOR,
     "HorizontalPuffOn": PUFF_COLOR,
@@ -57,6 +61,7 @@ SPIKE_COLOR_SCHEME = {
     "regular_spike": REGULAR_SPIKE_COLOR,
     "early_spike": EARLY_SPIKE_COLOR,
     "sustained_spike": SUSTAINED_SPIKE_COLOR,
+    "detected_spike": DETECTED_SPIKE_COLOR,
 }
 TABLEAU_10 = (
     "#1A4E86", '#F28E2B', '#E15759', '#76B7B2', '#59A14F',

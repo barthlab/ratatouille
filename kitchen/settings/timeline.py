@@ -28,6 +28,8 @@ SUPPORTED_TIMELINE_EVENT = {
     "Puff",
     "Blank",
     "Frame",
+    "StimOn",
+    "StimOff",
 }
 
 TTL_EVENT_DEFAULT = (
@@ -59,6 +61,9 @@ TRIAL_ALIGN_EVENT_DEFAULT = (
     (
         "Puff",
         "Blank",
+    ),
+    (
+        "TrialOn",
     ),
     (
         "BuzzerOn",

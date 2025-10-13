@@ -455,13 +455,14 @@ class Potential:
             )
             self.spikes = Events(v=np.array(['spike'] * len(peak_indices)), t=self.vm.t[peak_indices])
         if not self.spikes:
-            raise ValueError(f"spikes not computed: {self}")
+            logger.warning(f"Zero spikes computed: {self}")
         return self.spikes
 
     def _high_pass_vm(self, cutoff: float) -> TimeSeries:
         """Apply high-pass filter to membrane potential."""
         hp_v = high_pass(self.vm.t, self.vm.v, cutoff=cutoff, fs=self.vm.fs)
-        hp_v = low_pass(self.vm.t, hp_v, cutoff=MAXIMAL_BANDWIDTH, fs=self.vm.fs)
+        if self.vm.fs > 2 * MAXIMAL_BANDWIDTH:
+            hp_v = low_pass(self.vm.t, hp_v, cutoff=MAXIMAL_BANDWIDTH, fs=self.vm.fs)
         return TimeSeries(v=hp_v, t=self.vm.t)
 
     def hp_component(self, cutoff: float) -> TimeSeries:

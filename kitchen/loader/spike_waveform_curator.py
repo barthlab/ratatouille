@@ -903,6 +903,9 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"Running UMAP on {len(waveforms_data)} spikes for {description}...")
         QApplication.processEvents()  # Allow the GUI to update the status message
 
+        if len(waveforms_data) < 5:
+            return np.random.rand(len(waveforms_data), 2)
+        
         n_neighbors = min(15, int(np.sqrt(len(waveforms_data) - 1)))
         umap_model = UMAP(n_neighbors=n_neighbors, min_dist=0., n_components=2, metric='chebyshev')
         umap_embedding = umap_model.fit_transform(waveforms_data)
@@ -1304,7 +1307,10 @@ class MainWindow(QMainWindow):
 
 def node_spike_waveform_curation(node: Node, overwrite: bool):
     global _app_instance, _gui_instance
-
+    if len(node.potential.spikes.t) == 0:
+        logger.info(f"Zero spikes in {node.coordinate}, skip curation.")
+        return
+    
     pkl_path = routing.default_intermediate_result_path(node, result_name="spike_waveform_curation") + ".pkl"
 
     if (not os.path.exists(pkl_path)) or overwrite:

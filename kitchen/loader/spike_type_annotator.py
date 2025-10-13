@@ -34,8 +34,13 @@ def spike_annotation(trial_node: Trial | FovTrial, trial_align: float, spike_ann
                 new_spike_v.append("regular_spike")
         trial_node.data.potential.spikes.v = np.array(new_spike_v)
 
+    def io_joe(trial_node: Trial | FovTrial, trial_align: float):
+        trial_node.data.potential.spikes.v = np.array(["detected_spike"] * len(trial_node.data.potential.spikes.t))
+
+
     spike_annotator_options = {
         "default": io_default,
+        "joe": io_joe,
     }
     if spike_annotator_name is None:
         logger.debug("No spike annotator specified, skip spike annotation")

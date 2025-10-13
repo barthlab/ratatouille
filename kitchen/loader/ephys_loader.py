@@ -21,7 +21,7 @@ def _SplitCohort2CellSession(cohort_node: Cohort, loaders: dict[str, str],
                              spike_curation: bool, curation_overwrite: bool) -> List[CellSession]:
     """Split a cohort node into multiple cell session nodes."""
     cell_session_nodes = []
-    for cell_coordinate, timeline, cam_timeline, potential in potential_loader_from_cohort(cohort_node): 
+    for cell_coordinate, timeline, cam_timeline, potential in potential_loader_from_cohort(cohort_node, loaders.get('potential', "default")): 
         logger.info(f"Building {cell_coordinate}...")
         
         # load behavior

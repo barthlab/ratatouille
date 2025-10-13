@@ -1,5 +1,5 @@
 from kitchen.settings.timeline import SUPPORTED_TIMELINE_EVENT
-from kitchen.plotter.color_scheme import DARK_PELTIER_COLOR, EARLY_SPIKE_COLOR, FLUORESCENCE_COLOR, INDIVIDUAL_FLUORESCENCE_COLOR, LOCOMOTION_COLOR, POSITION_COLOR, LICK_COLOR, POTENTIAL_COLOR, PUPIL_COLOR, REGULAR_SPIKE_COLOR, \
+from kitchen.plotter.color_scheme import DARK_PELTIER_COLOR, DARK_STIM_COLOR, DETECTED_SPIKE_COLOR, EARLY_SPIKE_COLOR, FLUORESCENCE_COLOR, INDIVIDUAL_FLUORESCENCE_COLOR, LOCOMOTION_COLOR, POSITION_COLOR, LICK_COLOR, POTENTIAL_COLOR, PUPIL_COLOR, REGULAR_SPIKE_COLOR, \
         SUBTRACT_COLOR, SUSTAINED_SPIKE_COLOR, WHISKER_COLOR, DARK_PUFF_COLOR, DARK_BLANK_COLOR, DARK_WATER_COLOR, DARK_NOWATER_COLOR, DARK_BUZZER_COLOR
 
 DEFAULT_ALPHA = 0.9
@@ -86,6 +86,12 @@ SPIKE_POTENTIAL_TRACE_STYLE = {
         "lw": 0.1,
         "alpha": 0.7,
         "zorder": 9,
+    },
+    "detected_spike": {
+        "color": DETECTED_SPIKE_COLOR,
+        "lw": 0.1,
+        "alpha": 0.7,
+        "zorder": 10,
     },
 }
 
@@ -185,6 +191,14 @@ ANNOTATION_TEXT_STYLE_NONSIGNIFICANT = {
 }
 
 TIMELINE_SCATTER_STYLE = {
+    "StimOn": {
+        "color": DARK_STIM_COLOR,
+        "s": 8,
+        "marker": "|",
+        "alpha": 1,
+        "lw": 0.5,
+        "zorder": 10,
+    },
     "VerticalPuffOn": {
         "color": DARK_PUFF_COLOR,
         "s": 8,
