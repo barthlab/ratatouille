@@ -240,7 +240,7 @@ def raster_plot(
     axs[1].spines[['right', 'top', 'left']].set_visible(False)
     axs[0].spines[['right', 'top', 'left', 'bottom']].set_visible(False)
     axs[1].set_xlabel(f"Time [s]")
-    axs[0].set_xlim(-0.5, 1.0)
+    axs[0].set_xlim(-2, 3)
     
     axs[0].set_yticks([])
     axs[0].yaxis.set_major_locator(MultipleLocator(5))
