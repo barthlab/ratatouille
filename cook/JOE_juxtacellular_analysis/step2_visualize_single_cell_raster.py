@@ -18,6 +18,7 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s:\n%(messag
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
+logging.getLogger('numba').setLevel(logging.WARNING)
 
 
 def main():
