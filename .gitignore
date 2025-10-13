@@ -5,7 +5,7 @@
 /ingredients/dataset_template/*.h264
 /ingredients/dataset_template/*.mp4
 /critic/
-ai_code.py
+/ai_*
 /tmp_*/
 
 

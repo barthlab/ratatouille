@@ -34,350 +34,8 @@ plot_manual_spike4Hz = PlotManual(potential=4,)
 plot_manual_spike300Hz = PlotManual(potential=300.)
 
 
-def single_cell_session_parallel_view_jux(
-        node: Node,
-        dataset: DataSet,
-        prefix_keyword: Optional[str] = None,
-) -> None:
-    subtree = dataset.subtree(node)
-    node_name = get_node_name(node)
 
-    # filter out trial types that cannot be plotted
-    trial_types = select_from_value(subtree.rule_based_selection(PREDEFINED_PASSIVEPUFF_RULES),
-                                    _self = lambda x: CHECK_PLOT_MANUAL(x, plot_manual_spike300Hz))
-
-    n_trial_types = len(trial_types)
-    if n_trial_types == 0:
-        logger.debug(f"Cannot plot trial parallel for {node_name}: no trial type found")
-        return
-    
-    prefix_str = f"{prefix_keyword}_ParallelSummary" if prefix_keyword is not None else "ParallelSummary"
-    alignment_events = ("VerticalPuffOn",)
-    default_style(
-        mosaic_style=[[f"{node_name}\nHPF 4Hz\n{trial_type}",
-                       f"{node_name}\nHPF 300Hz\n{trial_type}",
-                       ] for trial_type in trial_types.keys()],
-        content_dict={
-            f"{node_name}\nHPF 4Hz\n{trial_type}": (
-                partial(beam_view, plot_manual=plot_manual_spike4Hz, sync_events=alignment_events),
-                trial_dataset)
-            for trial_type, trial_dataset in trial_types.items()
-            } | {
-            f"{node_name}\nHPF 300Hz\n{trial_type}": (
-                partial(beam_view, plot_manual=plot_manual_spike300Hz, sync_events=alignment_events),
-                trial_dataset)
-            for trial_type, trial_dataset in trial_types.items()
-            },
-        figsize=(n_trial_types * 2 * UNIT_X_INCHES, PARALLEL_Y_INCHES),
-        save_path=routing.default_fig_path(node, prefix_str + "_{}.png"),
-        plot_settings={
-            f"{node_name}\nHPF 4Hz\n{trial_type}": {"set_xlim": (-0.3, 0.8)}
-            for trial_type in trial_types.keys()
-        } | {
-            f"{node_name}\nHPF 300Hz\n{trial_type}": {"set_xlim": (-1.2, 2.7)}
-            for trial_type in trial_types.keys()
-        },
-        sharex=False,
-        auto_yscale=False,
-    )
-
-
-def subtree_summary_trial_avg_jux(
-        root_node: Node,
-        dataset: DataSet,
-        prefix_keyword: Optional[str] = None,
-) -> None:
-    """
-    Generate trial-averaged plots organized by FOV days and trial types.
-
-    Creates multi-panel figures in a grid layout where rows represent FOV days
-    and columns represent trial types.
-
-    Args:
-        fov_node (Fov): FOV node defining the spatial scope for day and trial selection.
-        dataset (DataSet): Complete dataset used to find FOV days and trials.
-        plot_manual (PlotManual): Configuration specifying which data modalities to include.
-
-    Example:
-        >>> from kitchen.plotter.plotting_manual import PlotManual
-        >>> plot_config = PlotManual(timeline=True, fluorescence=True, lick=True)
-        >>> fov_trial_avg_default(my_fov_node, complete_dataset, plot_config)
-    """
-    max_n_col = 0
-    enumerate_nodes = dataset.subtree(root_node).select("cellsession")
-
-    prefix_str = f"{prefix_keyword}_SubtreeSummary" if prefix_keyword is not None else "SubtreeSummary"
-    alignment_events = ("VerticalPuffOn",)
-
-
-    total_mosaic, content_dict, plot_settings = [], {}, {}
-    for row_node in enumerate_nodes:
-        subtree = dataset.subtree(row_node)                
-        all_possible_trial_types = subtree.rule_based_selection(PREDEFINED_PASSIVEPUFF_RULES)
-
-        # filter out trial types that cannot be plotted
-        trial_types = select_from_value(all_possible_trial_types,
-                                        _self = lambda dataset: CHECK_PLOT_MANUAL(dataset, plot_manual_spike4Hz))
-
-        # update total_mosaic and content_dict
-        total_mosaic.append([f"{get_node_name(row_node)}\nHPF 4Hz\n{trial_type}"
-                            for trial_type in trial_types.keys()] + 
-                            [f"{get_node_name(row_node)}\nHPF 300Hz\n{trial_type}"
-                            for trial_type in trial_types.keys()])
-        content_dict.update({
-            f"{get_node_name(row_node)}\nHPF 4Hz\n{trial_type}": (
-                partial(stack_view, plot_manual=plot_manual_spike4Hz, sync_events=alignment_events),
-                trial_dataset)
-            for trial_type, trial_dataset in trial_types.items()
-            } | {
-            f"{get_node_name(row_node)}\nHPF 300Hz\n{trial_type}": (
-                partial(stack_view, plot_manual=plot_manual_spike300Hz, sync_events=alignment_events),
-                trial_dataset)
-            for trial_type, trial_dataset in trial_types.items()
-            })
-        plot_settings.update({
-            f"{get_node_name(row_node)}\nHPF 4Hz\n{trial_type}": {"set_xlim": (-0.3, 0.8)}
-            for trial_type in trial_types.keys()
-        } | {
-            f"{get_node_name(row_node)}\nHPF 300Hz\n{trial_type}": {"set_xlim": (-1.2, 2.7)}
-            for trial_type in trial_types.keys()
-        })
-        max_n_col = max(max_n_col, len(trial_types) * 2)
-        
-    for i in range(len(total_mosaic)):
-        total_mosaic[i] += ["."] * (max_n_col - len(total_mosaic[i]))
-
-    default_style(
-        mosaic_style=total_mosaic,
-        content_dict=content_dict,
-        figsize=(max_n_col * UNIT_X_INCHES, ZOOMED_Y_INCHES * len(total_mosaic)),
-        save_path=routing.default_fig_path(root_node, prefix_str + "_{}.png"),
-        plot_settings=plot_settings,
-        sharex=False,
-    )
-
-
-def raster_plot(        
-        node: Node,
-        dataset: DataSet,
-        prefix_keyword: Optional[str] = None,
-
-        BINSIZE = 20/1000,  # s
-):
-    subtree = dataset.subtree(node)
-    node_name = get_node_name(node)
-
-    # filter out trial types that cannot be plotted
-    puff_trials_500ms = subtree.select("trial", timeline = lambda x: 0.48 < select_trial_rules._puff_duration(x) < 0.52,)
-
-    prefix_str = f"{prefix_keyword}_RasterPlot" if prefix_keyword is not None else "RasterPlot"
-    alignment_events = ("VerticalPuffOn",)
-
-    if len(puff_trials_500ms) == 0:
-        logger.debug(f"Cannot plot raster plot for {node_name}: no puff trials found. Skip...")
-        return
-
-    # plotting
-    import matplotlib.pyplot as plt
-    import matplotlib.patches as ptchs
-    import numpy as np
-    from matplotlib.ticker import MultipleLocator
-    plt.rcParams["font.family"] = "Arial"
-    plt.rcParams['font.size'] = 3
-    plt.rcParams.update({
-        'xtick.labelsize': 5,      # X-axis tick labels
-        'ytick.labelsize': 5,      # Y-axis tick labels
-        'axes.labelsize': 6,       # X and Y axis labels
-        'legend.fontsize': 3,      # Legend font size
-        'axes.titlesize': 5,       # Plot title
-        'figure.titlesize': 5      # Figure title (suptitle)
-    })
-    fig, axs = plt.subplots(2, 1, sharex='col', sharey='row', height_ratios=[3, 1], constrained_layout=True)
-
-    puff_trials_500ms = sync_nodes(puff_trials_500ms, alignment_events, plot_manual_spike300Hz)
-    if len(puff_trials_500ms) == 0:
-        logger.debug(f"Cannot plot raster plot for {node_name}: no puff trials found after syncing. Skip...")
-        return
-    
-    for trial_id, single_trial in enumerate(puff_trials_500ms):
-        spikes_in_trial_by_type = {}
-        for spike_time, spike_type in zip(single_trial.potential.spikes.t, single_trial.potential.spikes.v):
-            spikes_in_trial_by_type.setdefault(spike_type, []).append(spike_time)
-            
-        for spike_type, spike_times in spikes_in_trial_by_type.items():
-            axs[0].eventplot(spike_times,                    
-                            lineoffsets=trial_id,   
-                            colors=SPIKE_COLOR_SCHEME[spike_type],
-                            alpha=0.9,
-                            linewidths=0.5,
-                            linelengths=0.8)   
-        
-        puff_on_t = single_trial.data.timeline.filter("VerticalPuffOn").t[0]
-        puff_off_t = single_trial.data.timeline.filter("VerticalPuffOff").t[0]
-        axs[0].add_patch(ptchs.Rectangle((puff_on_t, (trial_id - 0.5)), puff_off_t - puff_on_t, 1,
-                                         facecolor=PUFF_COLOR, alpha=0.5, edgecolor='none', zorder=-10))
-    
-    group_spikes = grouping_events_rate([single_trial.potential.spikes for single_trial in puff_trials_500ms],
-                                        bin_size=BINSIZE, use_event_value_as_weight=False)
-
-    # Only plot if we have spike data
-    if len(group_spikes.t) > 0:
-        bin_edges = np.concatenate([group_spikes.t, [group_spikes.t[-1] + BINSIZE]]) - BINSIZE/2
-        axs[1].stairs(group_spikes.mean, bin_edges, fill=True, color='black')
-    # upper_bound = mean_rate + group_spikes.variance
-    # lower_bound = mean_rate - group_spikes.variance
-    # axs[1].fill_between(bin_edges[:-1], lower_bound, upper_bound, alpha=0.4, lw=0, color='gray', step='post')
-    axs[1].axvspan(0, 0.5, alpha=0.5, color=PUFF_COLOR, lw=0, zorder=-10)
-
-    axs[1].spines[['right', 'top', 'left']].set_visible(False)
-    axs[0].spines[['right', 'top', 'left', 'bottom']].set_visible(False)
-    axs[1].set_xlabel(f"Time [s]")
-    axs[0].set_xlim(-0.5, 1.0)
-    
-    axs[0].set_yticks([])
-    axs[0].yaxis.set_major_locator(MultipleLocator(5))
-    axs[0].set_xticks([])
-    
-    axs[1].set_ylim(0, 150)
-    axs[0].set_ylim(-0.5, len(puff_trials_500ms)-0.5)
-    axs[0].set_title(f"{node_name}")
-    fig.set_size_inches(1.5, 1.5)
-    
-    fig.savefig(routing.default_fig_path(node, prefix_str + "_{}.png"), dpi=900, transparent=True)
-    plt.close(fig)
-    
-    logger.info("Plot saved to" + routing.default_fig_path(node, prefix_str + "_{}.png"))
-
-
-
-def multiple_dataset_dendrogram_plot(        
-        datasets: list[DataSet],
-        prefix_keyword: str,
-        save_name: Optional[str] = None,
-
-        BINSIZE = 25/1000,  # s
-        FEATURE_RANGE = (-0.25, 0.75),  # (min, max) s
-        LINKAGE_METHOD = 'single',  # 'single', 'complete', 'average', 'ward', 'centroid', 'median', 'weighted'
-        LINKAGE_METRIC = 'cosine',  # 'cosine', 'euclidean', 'correlation', 
-        PREPROCESSING_METHOD = 'log-scale',  # 'raw', 'log-scale', 'z-score', 'fold-change' 
-):
-    alignment_events = ("VerticalPuffOn",)
-
-    # plotting
-    import matplotlib.pyplot as plt
-    import matplotlib.patches as ptchs
-    import matplotlib.colors
-    import numpy as np
-    from matplotlib.ticker import MultipleLocator
-    import seaborn as sns
-    import pandas as pd
-    from scipy.spatial.distance import pdist
-    from scipy.cluster.hierarchy import linkage, dendrogram, set_link_color_palette
-    plt.rcParams["font.family"] = "Arial"
-    plt.rcParams['font.size'] = 3
-    plt.rcParams.update({
-        'xtick.labelsize': 5,      # X-axis tick labels
-        'ytick.labelsize': 5,      # Y-axis tick labels
-        'axes.labelsize': 6,       # X and Y axis labels
-        'legend.fontsize': 3,      # Legend font size
-        'axes.titlesize': 5,       # Plot title
-        'figure.titlesize': 5,     # Figure title (suptitle)
-        'lines.linewidth': 0.5,    # Line width
-    })
-    all_spikes_histogram, all_cohort_names, all_baseline_fr = [], [], []
-    bins = np.arange(FEATURE_RANGE[0], FEATURE_RANGE[1] + BINSIZE, BINSIZE)
-    bin_centers = (bins[:-1] + bins[1:]) / 2
-    for dataset_idx, dataset in enumerate(datasets):
-        for cell_node in dataset.select("cellsession"):        
-            subtree = dataset.subtree(cell_node)
-            
-            puff_trials_500ms = subtree.select(
-                "trial", timeline = lambda x: 0.48 < select_trial_rules._puff_duration(x) < 0.52, _empty_warning=False,)
-            puff_trials_500ms = sync_nodes(puff_trials_500ms, alignment_events, plot_manual_spike300Hz)
-            if len(puff_trials_500ms) == 0:
-                continue
-            spikes_histogram = grouping_events_histogram([single_trial.potential.spikes.segment(*FEATURE_RANGE) 
-                                                        for single_trial in puff_trials_500ms], 
-                                                        bins=bins, use_event_value_as_weight=False)
-            if spikes_histogram.data_num < 5 or (spikes_histogram.mean.min() == spikes_histogram.mean.max()):
-                continue
-            all_spikes_histogram.append(spikes_histogram.mean)
-            all_cohort_names.append(dataset.name)
-            all_baseline_fr.append(np.mean(spikes_histogram.mean[spikes_histogram.t < 0.]))
-
-    raw_feature_matrix = np.stack(all_spikes_histogram, axis=0)
-
-    all_baseline_fr = np.array(all_baseline_fr)
-    if PREPROCESSING_METHOD == 'log-scale':
-        feature_matrix = np.log(raw_feature_matrix + 1)
-        heatmap_kws = {"cmap": 'viridis',}
-    elif PREPROCESSING_METHOD == 'z-score':
-        feature_matrix = zscore(raw_feature_matrix, axis=1)
-        heatmap_kws = {"cmap": 'coolwarm', "center": 0.,}
-    elif PREPROCESSING_METHOD == 'baseline-subtraction':
-        feature_matrix = raw_feature_matrix - all_baseline_fr[:, None]
-        heatmap_kws = {"cmap": 'coolwarm', "center": 0.,}
-    elif PREPROCESSING_METHOD == 'raw':
-        feature_matrix = raw_feature_matrix
-        heatmap_kws = {"cmap": 'viridis',}
-    elif PREPROCESSING_METHOD == 'baseline-rescaling':
-        feature_matrix = np.asinh(raw_feature_matrix - all_baseline_fr[:, None])
-        heatmap_kws = {"cmap": 'coolwarm', "center": 0.,}
-    elif PREPROCESSING_METHOD == 'baseline-normalization':
-        feature_matrix = zscore(raw_feature_matrix - all_baseline_fr[:, None], axis=1)
-        heatmap_kws = {"cmap": 'viridis', }
-    else:
-        raise ValueError(f"Unknown preprocessing method: {PREPROCESSING_METHOD}")
-        
-    linked = linkage(feature_matrix, method=LINKAGE_METHOD, metric=LINKAGE_METRIC)
-
-    fig, axs = plt.subplots(1, 3, width_ratios=[0.5, 1, 0.2], constrained_layout=True)
-    
-    set_link_color_palette(['red', 'blue', '#b2df8a', '#33a02c'])
-    dendro_info = dendrogram(linked, ax=axs[0], orientation='left')
-    axs[0].spines[['right', 'top', 'bottom', 'left']].set_visible(False)
-    axs[0].tick_params(axis='y', which='both', length=0, labelright=False, )
-    axs[0].set_xticks([])
-    axs[0].set_ylabel('Hierarchical Dendrogram')
-    axs[0].set_xlabel(f'Distance ({LINKAGE_METHOD})')
-
-    sorted_feature_matrix = feature_matrix[dendro_info['leaves'], :]   
-    sorted_cohort_names = [all_cohort_names[i] for i in dendro_info['leaves']]
-    print(f"Data range being plotted: {sorted_feature_matrix.min()} to {sorted_feature_matrix.max()}")
-
-    # sorted_feature_matrix = feature_matrix[dendro_info['leaves'], :]
-    sns.heatmap(sorted_feature_matrix.repeat(10, axis=0), 
-                ax=axs[1], cbar_ax=axs[2], 
-                **heatmap_kws,
-                cbar_kws={'label': f"Firing Rate ({PREPROCESSING_METHOD})"},
-                )
-    axs[1].set_xlabel("Time [s]")
-    axs[1].sharey(axs[0])
-
-    plot_tick_indices = np.searchsorted(bin_centers, (0, 0.5))
-    axs[1].set_xticks(plot_tick_indices, [0, 0.5])
-    
-    # set y ticks to cohort names
-    tick_positions = np.arange(len(sorted_cohort_names)) * 10 + 5
-    axs[1].set_yticks(tick_positions, sorted_cohort_names, rotation=0, fontsize=1.)
-    axs[1].tick_params(axis='y', which='both', length=0, labelleft=False, labelright=True, pad=1)
-    for tick_label in axs[1].get_yticklabels():
-        text = tick_label.get_text()
-        tick_label.set_color(COHORT_COLORS[text])
-
-    fig.suptitle(f"{prefix_keyword}\n {save_name}")
-    fig.set_size_inches(3, 2)
-    save_path = os.path.join(os.path.dirname(routing.default_fig_path(datasets[0])), 
-                             prefix_keyword, f"Dendrogram_{save_name}.png")
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    fig.savefig(save_path, dpi=900, transparent=True)
-    plt.close(fig)
-    logger.info("Plot saved to" + save_path)
-
-
-
-
-def multiple_dataset_decomposition_plot(     
+def new_multiple_dataset_decomposition_plot(     
         prefix_keyword: str,
         save_name: str,
         dir_save_path: str,
@@ -394,6 +52,7 @@ def multiple_dataset_decomposition_plot(
     import matplotlib.pyplot as plt
     import matplotlib.patches as ptchs
     import matplotlib.colors
+    from matplotlib.gridspec import GridSpec
     import numpy as np
     from matplotlib.ticker import MultipleLocator
     import seaborn as sns
@@ -407,10 +66,10 @@ def multiple_dataset_decomposition_plot(
         'ytick.labelsize': 5,      # Y-axis tick labels
         'axes.labelsize': 6,       # X and Y axis labels
         'legend.fontsize': 3,      # Legend font size
-        'axes.titlesize': 5,       # Plot title
+        'axes.titlesize': 6,       # Plot title
         'figure.titlesize': 5,     # Figure title (suptitle)
         'lines.linewidth': 0.5,    # Line width
-    })
+    })    
     
     bins = np.arange(FEATURE_RANGE[0], FEATURE_RANGE[1] + BINSIZE, BINSIZE)
     bin_centers = (bins[:-1] + bins[1:]) / 2
@@ -462,6 +121,7 @@ def multiple_dataset_decomposition_plot(
     elif PREPROCESSING_METHOD == 'z-score':
         feature_matrix = zscore(raw_feature_matrix, axis=1)
         heatmap_kws = {"cmap": 'viridis', "vmin": -1, "vmax": 3,}
+        baseline_heatmap_kws = {"cmap": 'viridis', "vmin": 0, "vmax": 30,}
     elif PREPROCESSING_METHOD == 'baseline-subtraction':
         feature_matrix = raw_feature_matrix - all_baseline_fr[:, None]
         heatmap_kws = {"cmap": 'viridis',}
@@ -469,8 +129,7 @@ def multiple_dataset_decomposition_plot(
         feature_matrix = raw_feature_matrix
         heatmap_kws = {"cmap": 'viridis', "vmin": 0, "vmax": 200,}
     elif PREPROCESSING_METHOD == 'baseline-rescaling':
-        feature_matrix = raw_feature_matrix - all_baseline_fr[:, None]
-        feature_matrix = feature_matrix / np.std(feature_matrix, axis=1, keepdims=True)
+        feature_matrix = np.asinh(raw_feature_matrix - all_baseline_fr[:, None])
         heatmap_kws = {"cmap": 'viridis', }
     else:
         raise ValueError(f"Unknown preprocessing method: {PREPROCESSING_METHOD}")
@@ -496,26 +155,49 @@ def multiple_dataset_decomposition_plot(
     component_projection = solver.fit_transform(feature_matrix)
     total_reconstruction = np.dot(component_projection, solver.components_)
 
-    # --- Figure 1: Detailed Component Breakdown ---
-    fig, axs = plt.subplots(6, n_components, figsize=(2*n_components, 8), constrained_layout=True,
-                            height_ratios=[1.5, 1.5, 2, 2, 2, 2], )
-    for component_id in range(n_components):
-        axc = axs[:, component_id]
-        component = solver.components_[component_id, :]
-        component_weights = component_projection[:, component_id]
+    # --- Figure 1.5: Detailed Component Breakdown2 ---
+    fig, axs = plt.subplots(3, n_components + 1, figsize=(5. if n_components <= 3 else 7., 3.5), constrained_layout=True,
+                            height_ratios=[1., 1., 2,],)
+    components_list_for_plot = [
+        np.ones_like(bin_centers),
+    ] + [solver.components_[component_id, :] for component_id in range(n_components)]
+    component_weights_for_plot = [
+        all_baseline_fr
+    ] + [component_projection[:, component_id] for component_id in range(n_components)]
+    component_names_for_plot = [
+        "Baseline",
+    ] + [f"Component {component_id+1}" for component_id in range(n_components)]
+    cohort_order = sorted(set(all_cohort_names))
+    n_cell_in_cohort = np.array([np.sum([name == cohort for name in all_cohort_names]) for cohort in cohort_order])
+
+    def tick_formatter(tick_text):
+        a, b = tick_text.split("_")
+        return fr'$\mathrm{{{a}}}_\mathrm{{{b}}}$'
+    
+    for col_idx in range(n_components + 1):
+        if col_idx > 1:
+            axs[0, col_idx].sharey(axs[0, 1])
+            axs[1, col_idx].sharey(axs[1, 1])
+            axs[0, col_idx].tick_params(axis='y', labelleft=False)
+            axs[1, col_idx].tick_params(axis='y', labelleft=False)
+
+    for col_idx, (component, component_weights, component_name) in enumerate(zip(
+        components_list_for_plot, component_weights_for_plot, component_names_for_plot)):
+        axc = axs[:, col_idx]
 
         component_reconstruction = np.outer(component_weights, component)
-        cumulative_reconstruction = np.dot(component_projection[:, :component_id+1], solver.components_[:component_id+1, :])
-        cumulative_error = np.abs(feature_matrix - cumulative_reconstruction)
 
         axc_comp = axc[0]
-        axc_comp.plot(bin_centers, component, lw=0.75, color='black')
-        axc_comp.set_title(f"Component {component_id+1}")
+        axc_comp.plot(bin_centers, component, lw=0.5, color='black')
+        axc_comp.set_title(component_name)
         axc_comp.axvspan(0, 0.5, alpha=0.5, color=PUFF_COLOR, lw=0, zorder=-10)
         axc_comp.axhline(0, color='gray', linestyle='--', lw=1, alpha=0.5, zorder=-10)
         axc_comp.spines[['right', 'top',]].set_visible(False)
         axc_comp.set_xlabel("Time [s]")
-        axc_comp.set_ylabel("Component Amplitude [a.u.]")
+        # axc_comp.set_ylabel("Amplitude [a.u.]")
+        axc_comp.set_xlim(-0.5, 1.)
+        if component_name == "Baseline":
+            axc_comp.set_ylim(None, 2)
         
         axc_weight = axc[1]
         data = pd.DataFrame({
@@ -524,7 +206,7 @@ def multiple_dataset_decomposition_plot(
         })
         sns.boxplot(data=data, x="Cohort", y="Weight", hue="Cohort", ax=axc_weight, 
                     palette=COHORT_COLORS,  
-                    order=sorted(set(all_cohort_names)),
+                    order=cohort_order,
                     showfliers=False, zorder=10,
                     medianprops={'color': 'k', 'ls': '-', 'lw': 1.5, },
                     # medianprops={'visible': False},
@@ -534,21 +216,24 @@ def multiple_dataset_decomposition_plot(
                     width=0.5,
                     )
         sns.stripplot(data=data, x="Cohort", y="Weight", hue="Cohort", ax=axc_weight, 
-                    palette=COHORT_COLORS, alpha=0.7, jitter=0.25, size=4,
+                    palette=COHORT_COLORS, alpha=0.7, jitter=0.25, size=2.5,
                     order=sorted(set(all_cohort_names)))
         axc_weight.spines[['right', 'top',]].set_visible(False)
         axc_weight.axhline(0, color='gray', linestyle='--', lw=1, alpha=0.5, zorder=-10)
+        axc_weight.set_title("Cell Weights")
+        axc_weight.set_ylabel("")
+        new_xticks = [tick_formatter(tick_text.get_text()) for tick_text in axc_weight.get_xticklabels()]
+        axc_weight.set_xticklabels(new_xticks) 
 
-        sorted_idx = np.argsort(component_weights)
+        sorted_idx = sorted(zip(component_weights, all_cohort_names, range(len(component_weights))), key=lambda x: (cohort_order.index(x[1]), x[0], x[2]))
+        sorted_idx = np.array([x[2] for x in sorted_idx])
         sns.heatmap(component_reconstruction[sorted_idx, :], ax=axc[2], 
-                    cbar=False, **heatmap_kws)
-        sns.heatmap(cumulative_reconstruction[sorted_idx, :], ax=axc[3], 
-                    cbar=False, **heatmap_kws)
-        sns.heatmap(feature_matrix[sorted_idx, :], ax=axc[4], 
-                    cbar=False, **heatmap_kws)
-        sns.heatmap(cumulative_error[sorted_idx, :], ax=axc[5], 
-                    cbar=False, cmap='Reds', alpha=0.5)
-        
+                    cbar=False if col_idx not in (0, n_components,) else True,
+                    **(heatmap_kws if component_name != "Baseline" else baseline_heatmap_kws) 
+                    )
+        axc[2].hlines(n_cell_in_cohort.cumsum().tolist()[:-1], *axc[2].get_xlim(), 
+                      color='white', linestyle='--', lw=0.2, alpha=1, zorder=10)
+        axc[2].set_title("Sorted Contribution")
         for ax in axc[2:]:
             ax.set_xlabel("Time [s]")
 
@@ -556,59 +241,67 @@ def multiple_dataset_decomposition_plot(
             ax.set_xticks(plot_tick_indices, [0, 0.5], rotation=0, )
             
             # set y ticks to cohort names
-            tick_positions = np.arange(len(all_cohort_names))
-            ax.set_yticks(tick_positions + 0.5, [all_cohort_names[i] for i in sorted_idx], rotation=0, fontsize=0.5)
+            tick_positions = np.arange(len(all_cohort_names) + 1) + 0.5
+            face_colors = [COHORT_COLORS[all_cohort_names[i]] for i in sorted_idx] + ["white"]
+            ax.set_yticks(tick_positions, ["    "] * (len(all_cohort_names) + 1), rotation=0, fontsize=0.1)
             ax.tick_params(axis='y', which='both', length=0, labelleft=False, labelright=True, pad=1)
-            for tick_label in ax.get_yticklabels():
-                text = tick_label.get_text()
+            for tick_label, tick_color in zip(ax.get_yticklabels(), face_colors):
                 tick_label.set_color("white")
                 tick_label.set_bbox({
-                    'facecolor': COHORT_COLORS[text], 
+                    'facecolor': tick_color, 
                     'alpha': 1.0,             
                     'edgecolor': 'none',        
                     'boxstyle': 'square,pad=0.3' 
                 })
+        
 
-    save_path = os.path.join(dir_save_path, prefix_keyword, f"Components_{save_name}.png")
+    save_path = os.path.join(dir_save_path, prefix_keyword, f"New_Components_{save_name}.png")
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     fig.savefig(save_path, dpi=900)
     plt.close(fig)
     logger.info("Plot saved to " + save_path)
 
-
-
     # --- Figure 2: Summary Plots ---
-    fig = plt.figure(figsize=(5, 2.5), constrained_layout=True, )
-    axs = [fig.add_subplot(1, 2, 1),
-           fig.add_subplot(1, 2, 2, projection='3d')]
+    fig = plt.figure(figsize=(3.5, 7), constrained_layout=True)
 
-    ax_weight_2d = axs[0]
-    ax_weight_3d = axs[1]
+    gs = GridSpec(2, 1, figure=fig, height_ratios=[1, 1.4])
+
+    # Add subplots to the grid cells
+    ax_weight_2d = fig.add_subplot(gs[0, 0])
+    ax_weight_3d = fig.add_subplot(gs[1, 0], projection='3d')
+
     unique_cohorts = sorted(list(set(all_cohort_names)))
     for cohort in unique_cohorts:
         idx = [i for i, name in enumerate(all_cohort_names) if name == cohort]
         ax_weight_2d.scatter(
             component_projection[idx, 0], component_projection[idx, 1],
             color=COHORT_COLORS.get(cohort, 'gray'),
-            label=cohort, s=15, alpha=0.8, edgecolors=COHORT_edgecolors.get(cohort, 'none'), lw=0.2,
+            label=cohort, s=16, alpha=0.8, edgecolors=COHORT_edgecolors.get(cohort, 'none'), lw=0.2,
         )
         ax_weight_3d.scatter(
             component_projection[idx, 0], component_projection[idx, 1], all_baseline_fr[idx],
             color=COHORT_COLORS.get(cohort, 'gray'),
-            label=cohort, s=8, alpha=0.8, edgecolors=COHORT_edgecolors.get(cohort, 'none'), lw=0.2,
+            label=cohort, s=13, alpha=0.8, edgecolors=COHORT_edgecolors.get(cohort, 'none'), lw=0.2,
             )
-    ax_weight_2d.set_xlabel("Component 1 [a.u.]")
-    ax_weight_2d.set_ylabel("Component 2 [a.u.]")
-    ax_weight_3d.set_xlabel("Component 1 [a.u.]")
-    ax_weight_3d.set_ylabel("Component 2 [a.u.]")
-    ax_weight_3d.set_zlabel("Baseline FR [Hz]")
+    ax_weight_2d.set_xlabel("Comp. 1 Weight [a.u.]", fontsize=12)
+    ax_weight_2d.set_ylabel("Comp. 2 Weight [a.u.]", fontsize=12)
+    ax_weight_3d.set_xlabel("Comp. 1\nWeight [a.u.]", fontsize=12)
+    ax_weight_3d.set_ylabel("Comp. 2\nWeight [a.u.]", fontsize=12)
+    ax_weight_3d.set_zlabel("Baseline FR [Hz]", fontsize=12)
 
-    ax_weight_2d.set_aspect('equal')
+    # ax_weight_2d.set_aspect('equal')
     ax_weight_3d.view_init(elev=20, azim=225)
-    ax_weight_2d.legend(title="Cohort", loc='best', frameon=False)
-    ax_weight_3d.legend(title="Cohort", loc='best', frameon=False)
+    ax_weight_2d.legend(loc='best', frameon=False, fontsize=6)
+    ax_weight_3d.legend(loc='best', frameon=False, fontsize=6)
+
+    ax_weight_3d.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax_weight_3d.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax_weight_3d.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+
+    ax_weight_2d.tick_params(axis='both', which='major', labelsize=10)
+    ax_weight_3d.tick_params(axis='both', which='major', labelsize=10)
     ax_weight_2d.spines[['right', 'top']].set_visible(False)
-    save_path = os.path.join(dir_save_path, prefix_keyword, f"Overview_{save_name}.png")
+    save_path = os.path.join(dir_save_path, prefix_keyword, f"New_Overview_{save_name}.png")
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     fig.savefig(save_path, dpi=900)
     plt.close(fig)
@@ -617,46 +310,46 @@ def multiple_dataset_decomposition_plot(
 
     # --- Figure 3: UMAP Decomposition ---
     from umap import UMAP
-    n_umap_examples = 5
-    n_neighbor_options = (5, 6, 7, 8, 9)
-    fig, axs = plt.subplots(2*len(n_neighbor_options), n_umap_examples, 
-                            figsize=(2*n_umap_examples, 4*len(n_neighbor_options)), constrained_layout=True)
-    for random_state in range(n_umap_examples):
-        for row_idx,n_neighbors in enumerate(n_neighbor_options):
-            axwo = axs[row_idx, random_state]
-            axw = axs[row_idx + len(n_neighbor_options), random_state]
-            reducer_wo_baseline = UMAP(n_components=2, random_state=random_state, n_neighbors=n_neighbors, n_jobs=-1)
-            reducer_w_baseline = UMAP(n_components=2, random_state=random_state, n_neighbors=n_neighbors, n_jobs=-1)
-            weights_wo_baseline = zscore(component_projection[:, :n_components], axis=0)
-            weights_w_baseline = zscore(np.concatenate((component_projection[:, :n_components], all_baseline_fr[:, None]), axis=1), axis=0)
-            embedding_wo_baseline = reducer_wo_baseline.fit_transform(weights_wo_baseline)
-            embedding_w_baseline = reducer_w_baseline.fit_transform(weights_w_baseline, axis=1)
+    # n_umap_examples = 10
+    # n_neighbor_options = (5, 6, 7, 8,)
+    # fig, axs = plt.subplots(2*len(n_neighbor_options), n_umap_examples, 
+    #                         figsize=(2*n_umap_examples, 4*len(n_neighbor_options)), constrained_layout=True)
+    # for random_state in range(n_umap_examples):
+    #     for row_idx,n_neighbors in enumerate(n_neighbor_options):
+    #         axwo = axs[row_idx, random_state]
+    #         axw = axs[row_idx + len(n_neighbor_options), random_state]
+    #         reducer_wo_baseline = UMAP(n_components=2, random_state=random_state, n_neighbors=n_neighbors, n_jobs=-1)
+    #         reducer_w_baseline = UMAP(n_components=2, random_state=random_state, n_neighbors=n_neighbors, n_jobs=-1)
+    #         weights_wo_baseline = zscore(component_projection[:, :n_components], axis=0)
+    #         weights_w_baseline = zscore(np.concatenate((component_projection[:, :n_components], all_baseline_fr[:, None]), axis=1), axis=0)
+    #         embedding_wo_baseline = reducer_wo_baseline.fit_transform(weights_wo_baseline)
+    #         embedding_w_baseline = reducer_w_baseline.fit_transform(weights_w_baseline, axis=1)
             
-            for cohort in unique_cohorts:
-                idx = [i for i, name in enumerate(all_cohort_names) if name == cohort]
-                axwo.scatter(
-                    embedding_wo_baseline[idx, 0], embedding_wo_baseline[idx, 1],
-                    color=COHORT_COLORS.get(cohort, 'gray'),
-                    label=cohort, s=8, alpha=0.8, edgecolors=COHORT_edgecolors.get(cohort, 'none'), lw=0.2,
-                )
-                axw.scatter(
-                    embedding_w_baseline[idx, 0], embedding_w_baseline[idx, 1],
-                    color=COHORT_COLORS.get(cohort, 'gray'),
-                    label=cohort, s=8, alpha=0.8, edgecolors=COHORT_edgecolors.get(cohort, 'none'), lw=0.2,
-                )
-                axwo.set_title(f"UMAP (w/o Baseline, RS={random_state} n_neighbors={n_neighbors})")
-                axw.set_title(f"UMAP (w/ Baseline, RS={random_state} n_neighbors={n_neighbors})")
-        for ax in axs[:, random_state]:
-            ax.set_xlabel("UMAP 1")
-            ax.set_ylabel("UMAP 2")
-            ax.legend(title="Cohort", loc='best', frameon=False)
-            ax.spines[['right', 'top']].set_visible(False)
+    #         for cohort in unique_cohorts:
+    #             idx = [i for i, name in enumerate(all_cohort_names) if name == cohort]
+    #             axwo.scatter(
+    #                 embedding_wo_baseline[idx, 0], embedding_wo_baseline[idx, 1],
+    #                 color=COHORT_COLORS.get(cohort, 'gray'),
+    #                 label=cohort, s=8, alpha=0.8, edgecolors=COHORT_edgecolors.get(cohort, 'none'), lw=0.2,
+    #             )
+    #             axw.scatter(
+    #                 embedding_w_baseline[idx, 0], embedding_w_baseline[idx, 1],
+    #                 color=COHORT_COLORS.get(cohort, 'gray'),
+    #                 label=cohort, s=8, alpha=0.8, edgecolors=COHORT_edgecolors.get(cohort, 'none'), lw=0.2,
+    #             )
+    #             axwo.set_title(f"UMAP (w/o Baseline, RS={random_state} n_neighbors={n_neighbors})")
+    #             axw.set_title(f"UMAP (w/ Baseline, RS={random_state} n_neighbors={n_neighbors})")
+    #     for ax in axs[:, random_state]:
+    #         ax.set_xlabel("UMAP 1")
+    #         ax.set_ylabel("UMAP 2")
+    #         ax.legend(title="Cohort", loc='best', frameon=False)
+    #         ax.spines[['right', 'top']].set_visible(False)
  
-    save_path = os.path.join(dir_save_path, prefix_keyword, f"UMAP_{save_name}.png")
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    fig.savefig(save_path, dpi=300)
-    plt.close(fig)
-    logger.info("Plot saved to " + save_path)
+    # save_path = os.path.join(dir_save_path, prefix_keyword, f"UMAP_{save_name}.png")
+    # os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    # fig.savefig(save_path, dpi=300)
+    # plt.close(fig)
+    # logger.info("Plot saved to " + save_path)
 
     # --- Figure 4: Linkage Dendrogram ---
     from scipy.cluster.hierarchy import linkage, dendrogram
@@ -710,7 +403,7 @@ def multiple_dataset_decomposition_plot(
         # set y ticks to cohort names
         for ax in axh[1:]:
             tick_positions = np.arange(len(all_cohort_names)) * 10 + 5
-            ax.set_yticks(tick_positions + 0.5, [all_cohort_names[i] for i in sorted_idx], rotation=0, fontsize=0.2)
+            ax.set_yticks(tick_positions, [all_cohort_names[i] for i in sorted_idx], rotation=0, fontsize=0.2)
             ax.tick_params(axis='y', which='both', length=0, labelleft=False, labelright=True, pad=1)
             for tick_label in ax.get_yticklabels():
                 text = tick_label.get_text()
@@ -738,7 +431,7 @@ def multiple_dataset_decomposition_plot(
         umap_kws = {'n_components': 2, 'random_state': 0, 'n_neighbors': 7}
         n_clusters = 4
     elif n_components == 5:
-        umap_kws = {'n_components': 2, 'random_state': 3, 'n_neighbors': 6}
+        umap_kws = {'n_components': 2, 'random_state': 1, 'n_neighbors': 8}
         n_clusters = 6
     else:
         umap_kws = {'n_components': 2, 'random_state': 0, 'n_neighbors': 6}
@@ -768,47 +461,60 @@ def multiple_dataset_decomposition_plot(
         ax.add_patch(ell)
         return ell
 
-    fig, axs = plt.subplots(1, 3, figsize=(6, 2), constrained_layout=True, width_ratios=[1, 1, 1])
+    fig, axs = plt.subplots(1, 4, figsize=(7.2, 1.5), constrained_layout=True, width_ratios=[1, 1, 1.6, 1.6])
 
-    legend_handles = []
+    cluster_legend_handles = []
     for cluster_id in range(n_clusters):
         idx = [i for i, name in enumerate(cluster_names) if name == f"cluster {cluster_id}"]
         dot_cohort_colors = [COHORT_COLORS[all_cohort_names[i]] for i in idx]
+        dot_edge_colors = [COHORT_edgecolors[all_cohort_names[i]] for i in idx]
         dot_cluster_colors = [CLUSTER_COLORS[f"cluster {cluster_id}"] for i in idx]
         axs[0].scatter(embedding[idx, 0], embedding[idx, 1],
-                       facecolors=dot_cohort_colors, edgecolors=dot_cluster_colors, lw=0.1, s=3, alpha=0.8)
-        draw_ellipse(embedding[idx, :], axs[0], edgecolor=CLUSTER_COLORS[f"cluster {cluster_id}"], 
-                     facecolor='none', lw=1, ls='--', alpha=0.8, zorder=-10)
-        legend_patch = mpatches.Patch(color=CLUSTER_COLORS[f"cluster {cluster_id}"], alpha=0.5, lw=0, label=f'cluster {cluster_id}')
-        legend_handles.append(legend_patch)
+                       facecolors=dot_cohort_colors, edgecolors=dot_edge_colors, lw=0.1, s=4, alpha=0.8)
         
-    axs[0].legend(handles=legend_handles, title="Cluster", loc='best', frameon=False)
-    axs[0].set_title("UMAP of Factor Scores")
-    axs[0].spines[['right', 'top']].set_visible(False)
-    axs[0].set_xlabel("UMAP 1")
-    axs[0].set_ylabel("UMAP 2")
+        axs[1].scatter(embedding[idx, 0], embedding[idx, 1],
+                       facecolors=dot_cluster_colors, edgecolors='none', lw=0.1, s=4, alpha=0.8)
+        # draw_ellipse(embedding[idx, :], axs[0], edgecolor=CLUSTER_COLORS[f"cluster {cluster_id}"], 
+        #              facecolor='none', lw=1, ls='--', alpha=0.8, zorder=-10)
+        legend_patch = mpatches.Patch(color=CLUSTER_COLORS[f"cluster {cluster_id}"], lw=0, label=f'cluster {cluster_id}')
+        cluster_legend_handles.append(legend_patch)
+    
+    cohort_legend_handles = [ptchs.Patch(color=color, label=tick_formatter(name), lw=0) for name, color in COHORT_COLORS.items()]
+    axs[0].legend(handles=cohort_legend_handles, loc='best', frameon=False)
+    axs[1].legend(handles=cluster_legend_handles, loc='best', frameon=False)
+    for ax in axs[:2]:
+        ax.spines[['right', 'top']].set_visible(False)
+        ax.set_xlabel("UMAP 1")
+        ax.set_ylabel("UMAP 2")
 
     df = pd.DataFrame({
         "Cohort": all_cohort_names,
         "Cluster": cluster_names,
     })
     cohort_per_cluster = df.groupby(['Cluster', 'Cohort']).size().unstack(fill_value=0)
-    cohort_per_cluster.plot(kind='bar', stacked=True, ax=axs[1], color=COHORT_COLORS)
-    axs[1].set_title("Cohort Composition per Cluster")
-    axs[1].set_xticklabels(cohort_per_cluster.index, rotation=0)
-    axs[1].set_xlabel("Cluster")
-    axs[1].set_ylabel("Number of Cohorts")
-    axs[1].legend(title="Cohort", loc='best', frameon=False)
-    axs[1].spines[['right', 'top']].set_visible(False)
+    cohort_per_cluster.plot(kind='bar', stacked=True, ax=axs[2], color=COHORT_COLORS, edgecolor='black', lw=0.5)
+    axs[2].set_title("Cohort Composition per Cluster")
+    axs[2].set_xticklabels(cohort_per_cluster.index, rotation=0)
+    axs[2].set_xlabel("Cluster")
+    axs[2].set_ylabel("Number of Cells")
+    axs[2].legend(loc='best', frameon=False)
+    axs[2].spines[['right', 'top']].set_visible(False)
+    legend = axs[2].get_legend()
+    for text in legend.get_texts():
+        original_text = text.get_text()
+        new_text = tick_formatter(original_text)
+        text.set_text(new_text)
 
     cluster_per_cohort = df.groupby(['Cohort', 'Cluster']).size().unstack(fill_value=0)
-    cluster_per_cohort.plot(kind='bar', stacked=True, ax=axs[2], color=CLUSTER_COLORS)
-    axs[2].set_title("Cluster Composition per Cohort")
-    axs[2].set_xticklabels(cluster_per_cohort.index, rotation=0)
-    axs[2].set_xlabel("Cohort")
-    axs[2].set_ylabel("Number of Clusters")
-    axs[2].legend(title="Cluster", loc='best', frameon=False)
-    axs[2].spines[['right', 'top']].set_visible(False)
+    cluster_per_cohort.plot(kind='bar', stacked=True, ax=axs[3], color=CLUSTER_COLORS, edgecolor='black', lw=0.5)
+    axs[3].set_title("Cluster Composition per Cohort")
+    axs[3].set_xticklabels(cluster_per_cohort.index, rotation=0)
+    axs[3].set_xlabel("Cohort")
+    axs[3].set_ylabel("Number of Cells")
+    axs[3].legend(title="Cluster", loc='best', frameon=False)
+    axs[3].spines[['right', 'top']].set_visible(False)
+    new_xticks = [tick_formatter(tick_text.get_text()) for tick_text in axs[3].get_xticklabels()]
+    axs[3].set_xticklabels(new_xticks) 
 
     save_path = os.path.join(dir_save_path, prefix_keyword, f"Clusters_{save_name}.png")
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -819,26 +525,52 @@ def multiple_dataset_decomposition_plot(
 
 
     # --- Figure 5: Another Heatmap ---
-    fig, axs = plt.subplots(2, 3, figsize=(4, 4), constrained_layout=True, width_ratios=[0.3, 1, 0.2])
+    fig, axs = plt.subplots(2, 3, figsize=(7, 5), constrained_layout=True, width_ratios=[0.3, 1, 0.2])
 
     weights_w_baseline = zscore(np.concatenate((component_projection[:, :n_components], all_baseline_fr[:, None]), axis=1), axis=0)
     linked_w_baseline = linkage(weights_w_baseline, method='ward', metric='euclidean')
-    dendro_info = dendrogram(linked_w_baseline, ax=axs[0, 0], orientation='left')
-    dendro_info = dendrogram(linked_w_baseline, ax=axs[1, 0], orientation='left')
+
+    n_samples = weights_w_baseline.shape[0]
+    cluster_leaf_map = {i: {i} for i in range(n_samples)}
+    for i, row in enumerate(linked_w_baseline):
+        cluster_id = n_samples + i
+        child1, child2 = int(row[0]), int(row[1])
+        cluster_leaf_map[cluster_id] = cluster_leaf_map[child1].union(cluster_leaf_map[child2])
+
+    def link_cluster_func(k):
+        # cluster_id = k + n_samples
+        leaf_indices = cluster_leaf_map[k]
+        leaf_clusters = {cluster_names[i] for i in leaf_indices}
+        
+        if len(leaf_clusters) == 1:
+            cluster_name = leaf_clusters.pop()
+            return CLUSTER_COLORS[cluster_name]
+        return 'gray'
+    
+    dendro_info = dendrogram(linked_w_baseline, ax=axs[0, 0], orientation='left',
+                             link_color_func = link_cluster_func)
+    dendro_info = dendrogram(linked_w_baseline, ax=axs[1, 0], orientation='left',
+                             link_color_func = link_cluster_func)
     for ax in axs[:, 0]:
         ax.spines[['right', 'top', 'bottom', 'left']].set_visible(False)
         ax.tick_params(axis='y', which='both', length=0, labelright=False, )
         ax.set_xticks([])
         ax.set_ylabel('Hierarchical Dendrogram')
-        ax.set_xlabel('Ward Distance')
-        
-        tick_positions = np.arange(len(all_cohort_names)) * 10 + 5
-        ax.set_yticks(tick_positions, [cluster_names[i] for i in dendro_info['leaves']], rotation=0, fontsize=0.2)
+        ax.set_xlabel('Ward Distance')        
+
+        # set y ticks to cohort names
+        tick_positions = np.arange(len(all_cohort_names) + 1) * 10 + 6.5
+        face_colors = [CLUSTER_COLORS[cluster_names[i]] for i in dendro_info['leaves']] + ["white"]
+        ax.set_yticks(tick_positions, ["    "] * (len(all_cohort_names) + 1), rotation=0, fontsize=0.1)
         ax.tick_params(axis='y', which='both', length=0, labelleft=False, labelright=True, pad=1)
-        for tick_label in ax.get_yticklabels():
-            text = tick_label.get_text()
+        for tick_label, tick_color in zip(ax.get_yticklabels(), face_colors):
             tick_label.set_color("white")
-            tick_label.set_bbox({'facecolor': CLUSTER_COLORS[text], 'alpha': 1.0, 'edgecolor': 'none', 'boxstyle': 'square,pad=0.3'})
+            tick_label.set_bbox({
+                'facecolor': tick_color, 
+                'alpha': 1.0,             
+                'edgecolor': 'none',        
+                'boxstyle': 'square,pad=0.35' 
+            })
 
     sorted_idx = dendro_info['leaves']
     sns.heatmap(feature_matrix[sorted_idx, :].repeat(10, axis=0), 
@@ -875,18 +607,20 @@ def multiple_dataset_decomposition_plot(
 
     # set y ticks to cohort names
     for ax in [axs[1, 1], axs[1, 2], axs[0, 1], axs[0, 2]]:
-        tick_positions = np.arange(len(all_cohort_names)) * 10 + 5
-        ax.set_yticks(tick_positions + 0.5, [all_cohort_names[i] for i in sorted_idx], rotation=0, fontsize=0.2)
+        # set y ticks to cohort names
+        tick_positions = np.arange(len(all_cohort_names) + 1) * 10 + 6.5
+        face_colors = [COHORT_COLORS[all_cohort_names[i]] for i in sorted_idx] + ["white"]
+        ax.set_yticks(tick_positions, ["    "] * (len(all_cohort_names) + 1), rotation=0, fontsize=0.1)
         ax.tick_params(axis='y', which='both', length=0, labelleft=False, labelright=True, pad=1)
-        for tick_label in ax.get_yticklabels():
-            text = tick_label.get_text()
+        for tick_label, tick_color in zip(ax.get_yticklabels(), face_colors):
             tick_label.set_color("white")
             tick_label.set_bbox({
-                'facecolor': COHORT_COLORS[text], 
+                'facecolor': tick_color, 
                 'alpha': 1.0,             
                 'edgecolor': 'none',        
-                'boxstyle': 'square,pad=0.3' 
+                'boxstyle': 'square,pad=0.35' 
             })
+
     fig.suptitle(f"{prefix_keyword}\n {save_name}")
     save_path = os.path.join(dir_save_path, prefix_keyword, f"Compared2Raw_{save_name}.png")
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -895,143 +629,79 @@ def multiple_dataset_decomposition_plot(
     logger.info("Plot saved to " + save_path)
 
 
-    # # --- Figure 6: Robustness Plot ---
-    # from sklearn.metrics import adjusted_rand_score
-    # from sklearn.cluster import SpectralClustering
+    # --- Figure 6: Robustness Plot ---
+    from sklearn.metrics import adjusted_rand_score
+    from sklearn.cluster import SpectralClustering
 
-    # all_random_removal_ari = []
-    # for umap_random_seed, spectral_random_seed in zip(range(100), range(100)):
-    #     reducer = UMAP(n_components=2, random_state=umap_random_seed, n_neighbors=umap_kws['n_neighbors'])
-    #     ari_scores = []
-    #     for removal_pct in np.arange(0, 1., 0.1):
-    #         n_samples_to_keep = int(weights_w_baseline.shape[0] * (1 - removal_pct))
-    #         np.random.seed(42)
-    #         subset_indices = np.random.choice(weights_w_baseline.shape[0], n_samples_to_keep, replace=False)
-    #         subset_data = weights_w_baseline[subset_indices, :]
-    #         embedding = reducer.fit_transform(subset_data)
-    #         subset_cluster_id = SpectralClustering(n_clusters=n_clusters, n_neighbors=umap_kws['n_neighbors'], 
-    #                                         random_state=spectral_random_seed).fit_predict(embedding)
-    #         ari = adjusted_rand_score(subset_cluster_id, target_cluster_id[subset_indices])
-    #         ari_scores.append(ari)
-    #     print(f"UMAP random seed {umap_random_seed}, Spectral random seed {spectral_random_seed}: {ari_scores}")
-    #     all_random_removal_ari.append(ari_scores)
-    # all_random_removal_ari = np.array(all_random_removal_ari)
-
-
-    # mean_ari = np.mean(all_random_removal_ari, axis=0)
-    # std_ari = np.std(all_random_removal_ari, axis=0)
-    # x_axis_percentages = np.arange(0, 1., 0.1) * 100
-
-    # # # 2. Use a professional plot style
-    # fig, ax = plt.subplots(figsize=(2, 2), constrained_layout=True)
-
-    # # 3. PLOT THE INDIVIDUAL TRACES FIRST (faintly in the background)
-    # for ari_scores in all_random_removal_ari:
-    #     ax.plot(x_axis_percentages, ari_scores, 
-    #             color='grey', 
-    #             lw=0.5, 
-    #             alpha=0.3)
-
-    # # 4. Plot the mean line on top
-    # ax.plot(x_axis_percentages, mean_ari, 
-    #         color='crimson', 
-    #         lw=1, 
-    #         label='Mean', 
-    #         marker='o', 
-    #         markersize=2,
-    #         zorder=3) # zorder ensures it's drawn on top
-
-    # # 5. Add the shaded standard deviation region
-    # ax.fill_between(x_axis_percentages, 
-    #                 mean_ari - std_ari, 
-    #                 mean_ari + std_ari, 
-    #                 color='crimson', 
-    #                 alpha=0.2, 
-    #                 label='Std',
-    #                 lw=0,   
-    #                 zorder=2)
-
-    # # 6. Refine labels, title, and limits for clarity
-    # ax.set_title('Clustering Robustness to Data Removal',)
-    # ax.set_xlabel('Data Removed (%)')
-    # ax.set_ylabel('Adjusted Rand Index (ARI)')
-    # ax.set_xticks(x_axis_percentages)
-    # ax.set_ylim(0, 1.05)
-    # ax.legend(loc='best', frameon=False)
-
-    # # Optional: Remove top and right spines
-    # ax.spines[['right', 'top']].set_visible(False)
-
-    # save_path = os.path.join(dir_save_path, prefix_keyword, f"Robustness_{save_name}.png")
-    # os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    # fig.savefig(save_path, dpi=900)
-    # plt.close(fig)
-    # logger.info("Plot saved to " + save_path)
+    all_random_removal_ari = []
+    for umap_random_seed, spectral_random_seed in zip(range(100), range(100)):
+        reducer = UMAP(n_components=2, random_state=umap_random_seed, n_neighbors=umap_kws['n_neighbors'])
+        ari_scores = []
+        for removal_pct in np.arange(0, 1., 0.1):
+            n_samples_to_keep = int(weights_w_baseline.shape[0] * (1 - removal_pct))
+            np.random.seed(42)
+            subset_indices = np.random.choice(weights_w_baseline.shape[0], n_samples_to_keep, replace=False)
+            subset_data = weights_w_baseline[subset_indices, :]
+            embedding = reducer.fit_transform(subset_data)
+            subset_cluster_id = SpectralClustering(n_clusters=n_clusters, n_neighbors=umap_kws['n_neighbors'], 
+                                            random_state=spectral_random_seed).fit_predict(embedding)
+            ari = adjusted_rand_score(subset_cluster_id, target_cluster_id[subset_indices])
+            ari_scores.append(ari)
+        print(f"UMAP random seed {umap_random_seed}, Spectral random seed {spectral_random_seed}: {ari_scores}")
+        all_random_removal_ari.append(ari_scores)
+    all_random_removal_ari = np.array(all_random_removal_ari)
 
 
-def waveform_plot(        
-        datasets: list[DataSet],
-        prefix_keyword: Optional[str] = None,
+    mean_ari = np.mean(all_random_removal_ari, axis=0)
+    std_ari = np.std(all_random_removal_ari, axis=0)
+    x_axis_percentages = np.arange(0, 1., 0.1) * 100
 
-    
-):
-    # plotting
-    import matplotlib.pyplot as plt
-    import matplotlib.patches as ptchs
-    import numpy as np
-    plt.rcParams["font.family"] = "Arial"
-    plt.rcParams['font.size'] = 3
-    plt.rcParams.update({
-        'xtick.labelsize': 5,      # X-axis tick labels
-        'ytick.labelsize': 5,      # Y-axis tick labels
-        'axes.labelsize': 6,       # X and Y axis labels
-        'legend.fontsize': 3,      # Legend font size
-        'axes.titlesize': 6,       # Plot title
-        'figure.titlesize': 5,     # Figure title (suptitle)
-        'lines.linewidth': 0.5,    # Line width
-    })    
-    
-    fig, axs = plt.subplots(1, 4, sharex=True, sharey=True, constrained_layout=True)
+    # # 2. Use a professional plot style
+    fig, ax = plt.subplots(figsize=(2, 2), constrained_layout=True)
 
-    for dataset in datasets:
-        all_waveforms = defaultdict(list)
-        for cell_node in dataset.select("cellsession"):    
-            potential_timeseries = cell_node.potential.aspect('raw')
-            
-            spike_timeseries = potential_timeseries.batch_segment(
-                cell_node.potential.spikes.t, CURATION_SPIKE_RANGE_RELATIVE_TO_ALIGNMENT)
-            if len(spike_timeseries) == 0:
-                continue
-            grouped_spike_timeseries = grouping_timeseries(spike_timeseries, interp_method="linear")
-            zscored_waveform = np.mean(zscore(grouped_spike_timeseries.raw_array, axis=1), axis=0)
-            all_waveforms['spike'].append(TimeSeries(v=zscored_waveform, t=grouped_spike_timeseries.t))
+    # 3. PLOT THE INDIVIDUAL TRACES FIRST (faintly in the background)
+    for ari_scores in all_random_removal_ari:
+        ax.plot(x_axis_percentages, ari_scores, 
+                color='grey', 
+                lw=0.3, 
+                alpha=0.1)
 
-            for spike_type, spike_times in cell_node.potential.spikes.groupby():
-                spike_timeseries = potential_timeseries.batch_segment(
-                    spike_times, CURATION_SPIKE_RANGE_RELATIVE_TO_ALIGNMENT)
-                grouped_spike_timeseries = grouping_timeseries(spike_timeseries, interp_method="linear")
-                zscored_waveform = np.mean(zscore(grouped_spike_timeseries.raw_array, axis=1), axis=0)
-                all_waveforms[spike_type].append(TimeSeries(v=zscored_waveform, t=grouped_spike_timeseries.t))
+    # 4. Plot the mean line on top
+    ax.plot(x_axis_percentages, mean_ari, 
+            color='crimson', 
+            lw=1, 
+            label='Mean', 
+            marker='o', 
+            markersize=1.5,
+            zorder=3) # zorder ensures it's drawn on top
 
-        for ax, spike_type in zip(axs, ("spike", "early_spike", "sustained_spike", "regular_spike")):
-            waveforms = all_waveforms[spike_type]
-            grouped_waveform = grouping_timeseries(waveforms, interp_method="linear")
-            oreo_plot(ax, grouped_waveform, 0, 1, {"color": COHORT_COLORS[dataset.name], "lw": 1}, FILL_BETWEEN_STYLE)
-            ax.set_title(spike_type)
-            ax.spines[['right', 'top', 'bottom', 'left']].set_visible(False)
-            ax.set_xlabel("Time [s]")
-            ax.set_ylabel("norm. amplitude [a.u.]")
-            ax.set_title("all " + spike_type.replace("_", " ").replace("regular", "spont.").replace("spike", "spikes"))
+    # 5. Add the shaded standard deviation region
+    ax.fill_between(x_axis_percentages, 
+                    mean_ari - std_ari, 
+                    mean_ari + std_ari, 
+                    color='crimson', 
+                    alpha=0.2, 
+                    label='S.D.',
+                    lw=0,   
+                    zorder=2)
 
-    legend_handles = [ptchs.Patch(color=color, label=name) for name, color in COHORT_COLORS.items()]
-    axs[0].legend(handles=legend_handles, title="Cohort", loc='upper right')
+    # 6. Refine labels, title, and limits for clarity
+    ax.set_title('Clustering Robustness to Data Removal',)
+    ax.set_xlabel('Data Removed (%)')
+    ax.set_ylabel('Adjusted Rand Index (ARI)')
+    ax.set_xticks(x_axis_percentages)
+    ax.set_ylim(0, 1.05)
+    ax.legend(loc='best', frameon=False)
 
-    fig.set_size_inches(6.5, 1.5)
-    save_path = os.path.join(routing.default_fig_path(datasets[0]), f"Waveform_{prefix_keyword}.png")
-    
+    # Optional: Remove top and right spines
+    ax.spines[['right', 'top']].set_visible(False)
+
+    save_path = os.path.join(dir_save_path, prefix_keyword, f"Robustness_{save_name}.png")
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
     fig.savefig(save_path, dpi=900)
     plt.close(fig)
-    logger.info("Plot saved to" + save_path)
+    logger.info("Plot saved to " + save_path)
+
 
 
 
@@ -1042,10 +712,10 @@ COHORT_COLORS = {
     "PYR_JUX": "#0000FF",
 }
 COHORT_edgecolors = {
-    "SST_JUX": "none",
+    "SST_JUX": "white",
     "SST_WC": "black",
-    "PV_JUX": "none",
-    "PYR_JUX": "none",
+    "PV_JUX": "white",
+    "PYR_JUX": "white",
 }
 
 

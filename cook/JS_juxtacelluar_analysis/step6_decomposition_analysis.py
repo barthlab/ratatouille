@@ -1,7 +1,7 @@
 import logging
 from os import path
 
-from kitchen.plotter.macros.jux_data_macros import multiple_dataset_decomposition_plot
+from kitchen.plotter.macros.jux_data_macros2 import new_multiple_dataset_decomposition_plot
 
 
 
@@ -25,7 +25,7 @@ def main():
             # for preprocessing_method in ("log-scale", "raw", "z-score", "baseline-subtraction", "baseline-rescaling", "baseline-normalization",):
                 for decomposition_method in ("SVD",  ):
                 # for decomposition_method in ("PCA", "SVD", "FA", "SparsePCA", "NMF", "ICA", ):
-                    for n_components in (2, 5):
+                    for n_components in (2, 5,):
                         decomposition_kwargs = {
                             "save_name": f"{activity_period_name}_{preprocessing_method}_{decomposition_method}_{n_components}_{bin_size}",
                             "FEATURE_RANGE": activity_period,
@@ -34,7 +34,7 @@ def main():
                             "n_components": n_components,
                             "BINSIZE": bin_size,
                         }
-                        multiple_dataset_decomposition_plot(
+                        new_multiple_dataset_decomposition_plot(
                             prefix_keyword=f"ALL_{activity_period_name}_{preprocessing_method}",
                             dir_save_path= "tmp_42",
                             **decomposition_kwargs,
