@@ -228,12 +228,12 @@ def raster_plot(
     # upper_bound = mean_rate + group_spikes.variance
     # lower_bound = mean_rate - group_spikes.variance
     # axs[1].fill_between(bin_edges[:-1], lower_bound, upper_bound, alpha=0.4, lw=0, color='gray', step='post')
-    opto_start = 2.0  # s
+
     pulse_duration = 0.005  # 5 ms
     pulse_interval = 0.05   # 50 ms
     num_pulses = 5
     for i in range(num_pulses):
-        start = opto_start + i * pulse_interval
+        start = i * (pulse_interval + pulse_duration)
         end = start + pulse_duration
         axs[1].axvspan(start, end, alpha=0.5, color=STIM_COLOR, lw=0, zorder=-10)
 
