@@ -149,16 +149,17 @@ def _SplitSession2CellSession(session_node: Session, **kwargs: Any) -> List[Cell
 
 
 @overload
-def _trial_splitter(session_level_node: Session, split_by: list[str]) -> List[FovTrial]: ...
+def _trial_splitter(session_level_node: Session, split_by: str | list[str]) -> List[FovTrial]: ...
 
 @overload
-def _trial_splitter(session_level_node: CellSession, split_by: list[str]) -> List[Trial]: ...
+def _trial_splitter(session_level_node: CellSession, split_by: str | list[str]) -> List[Trial]: ...
 
-def _trial_splitter(session_level_node: CellSession | Session, split_by: list[str]) -> List[Trial] | List[FovTrial]:
+def _trial_splitter(session_level_node: CellSession | Session, split_by: str | list[str]) -> List[Trial] | List[FovTrial]:
     assert session_level_node.data.timeline is not None, f"Cannot find timeline in {session_level_node}"
     target_node_type = Trial if isinstance(session_level_node, CellSession) else FovTrial
 
     # find the all trial align event
+    split_by = [split_by] if isinstance(split_by, str) else split_by
     trial_aligns = session_level_node.data.iterablize(*split_by)
 
     # split the session level node into trial level nodes

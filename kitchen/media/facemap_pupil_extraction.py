@@ -68,7 +68,8 @@ def pupil_save_path(video_path: str) -> str:
     matched_prefix = find_only_one(CUSTOM_EXTRACTION_PREFIX, _self = lambda x: file_name.startswith(x))
     matched_format = find_only_one(CUSTOM_EXTRACTION_VIDEO_FORMAT, _self = lambda x: file_name.endswith(x))
     session_name = file_name[len(matched_prefix): -len(matched_format)]
-    save_path = path.join(dir_name, "..", 'pupil', f"PUPIL_{session_name}.csv")
+    indent = ".." if path.basename(dir_name) == "video" else ""
+    save_path = path.join(dir_name, indent, 'pupil', f"PUPIL_{session_name}.csv")
     os.makedirs(path.dirname(save_path), exist_ok=True)
     return save_path
 

@@ -7,17 +7,23 @@ from typing import List
 import numpy as np
 from tqdm import tqdm
 from send2trash import send2trash
+import logging
 
 from kitchen.configs import routing
+from kitchen.settings.loaders import DATA_HODGEPODGE_MODE
 from kitchen.structure.hierarchical_data_structure import Cohort, DataSet
 from kitchen.media.video_settings import INPUT_VIDEO_FPS, OUTPUT_VIDEO_FPS, SUPPORT_VIDEO_FORMAT, TIFF_STACK_FPS, TIFF_STACK_CRF
 
+logger = logging.getLogger(__name__)
 
 def find_all_video_path(dir_path: str, format: str) -> List[str]:
     """Find all video file under dir_path with specific format."""
     assert format[0] == ".", f"format should start with ., but got '{format}'"
     assert format in SUPPORT_VIDEO_FORMAT, f"format {format} not supported, should be one of {SUPPORT_VIDEO_FORMAT}"
-    pattern = os.path.join('video', f'*{format}')
+    if DATA_HODGEPODGE_MODE:
+        pattern = f'*{format}'
+    else:
+        pattern = os.path.join('video', f'*{format}')
     all_video_path = routing.search_pattern_file(pattern, dir_path)
     return all_video_path
 
@@ -27,27 +33,28 @@ def video_convert(dir_path: str, src_format: str = ".h264", dst_format: str = ".
     assert dst_format[0] == ".", f"dst_format should start with ., but got '{dst_format}'"
     assert dst_format in SUPPORT_VIDEO_FORMAT, f"dst_format {dst_format} not supported, should be one of {SUPPORT_VIDEO_FORMAT}"
 
-    print(f"Converting all {src_format} file under {dir_path} to {dst_format}...")
+    logger.info(f"Converting all {src_format} file under {dir_path} to {dst_format}...")
     all_video_path = find_all_video_path(dir_path, src_format)
-
+    logger.info(f"Found {len(all_video_path)} video file to convert")
+    
     # convert all video file under dir_path to dst_format
     for file_path in tqdm(all_video_path, desc="Converting ", unit="video"):
         tmp_dir, tmp_file = path.dirname(file_path), path.basename(file_path)
         output_file = tmp_file.replace(src_format, dst_format)
         output_path = path.join(tmp_dir, output_file)
         if path.exists(output_path):
-            print(f"Video {output_path} already exists, skipping...")
+            logger.info(f"Video {output_path} already exists, skipping...")
             continue
         
         command = (r"ffmpeg -framerate {} -i {} -q:v 6 -vf fps={} "
                 r"-hide_banner -loglevel warning {}").format(
                     INPUT_VIDEO_FPS, file_path, OUTPUT_VIDEO_FPS, output_path)
         
-        print(command)
+        logger.info(command)
         time_start = time.time()
         try:
             subprocess.run(command, check=True, shell=True)
-            print(f"Conversion successful: {output_path}, takes {time.time()-time_start:.2f}s")
+            logger.info(f"Conversion successful: {output_path}, takes {time.time()-time_start:.2f}s")
             """Delete the original file"""
             send2trash(file_path)
         except Exception as e:

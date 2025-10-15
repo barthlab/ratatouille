@@ -94,7 +94,8 @@ class BodyPartExtractor:
     def result_save_path(self) -> str:
         """Path for saving extracted motion data CSV."""
         dir_name, file_name = path.split(self.video_path)
-        save_path = path.join(dir_name, "..", self.part_name.lower(), f"{self.part_name}_{self.session_name}.csv")
+        indent = ".." if path.basename(dir_name) == "video" else ""
+        save_path = path.join(dir_name, indent, self.part_name.lower(), f"{self.part_name}_{self.session_name}.csv")
         os.makedirs(path.dirname(save_path), exist_ok=True)
         return save_path
 
