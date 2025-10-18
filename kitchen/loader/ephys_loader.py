@@ -3,9 +3,9 @@ import logging
 
 from kitchen.loader.behavior_loader import behavior_loader_from_node
 from kitchen.loader.potential_loader import potential_loader_from_cohort
-from kitchen.loader.spike_type_annotator import spike_annotation
-from kitchen.loader.spike_waveform_curator import node_spike_waveform_curation
-from kitchen.loader.trial_type_annotator import trial_type_annotator
+from kitchen.annotator.spike_type_annotator import spike_annotation
+from kitchen.annotator.spike_waveform_curator import node_spike_waveform_curation
+from kitchen.annotator.trial_type_annotator import trial_type_annotator
 from kitchen.settings.timeline import TRIAL_ALIGN_EVENT_DEFAULT
 from kitchen.settings.trials import DEFAULT_TRIAL_RANGE_RELATIVE_TO_ALIGNMENT
 from kitchen.structure.hierarchical_data_structure import CellSession, Cohort, DataSet, FovTrial, MergeCellSession2Session, Session, Trial

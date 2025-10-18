@@ -6,7 +6,7 @@ from tqdm import tqdm
 import logging
 
 from kitchen.loader.fluorescence_loader import fluorescence_loader_from_node
-from kitchen.loader.trial_type_annotator import trial_type_annotator
+from kitchen.annotator.trial_type_annotator import trial_type_annotator
 from kitchen.settings.trials import DEFAULT_TRIAL_RANGE_RELATIVE_TO_ALIGNMENT
 from kitchen.loader.timeline_loader import timeline_loader_from_fov
 from kitchen.loader.behavior_loader import behavior_loader_from_node

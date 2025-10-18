@@ -2,7 +2,7 @@ import os.path as path
 import logging
 
 from kitchen.loader.general_loader_interface import load_dataset
-from kitchen.plotter.macros.new_basic_macros import flat_view_default_macro, stack_view_default_macro
+from kitchen.plotter.macros.basic_macros import beam_view_default_macro, flat_view_default_macro, stack_view_default_macro
 from kitchen.plotter.plotting_manual import PlotManual
 from kitchen.structure.hierarchical_data_structure import Fov, Session
 
@@ -26,7 +26,9 @@ def main():
     
     for mice_node in dataset.select("mice"):
         # flat_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual)
-        stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual,
+        # stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual,
+        #                          _aligment_style="Aligned2Stim")
+        beam_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual,
                                  _aligment_style="Aligned2Stim")
 
 if __name__ == "__main__":
