@@ -25,14 +25,14 @@ Each enforces appropriate coordinate constraints for its hierarchy level.
 
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, Generator, List, Optional, Dict, Self, Sequence, Type, TypeVar, Union
+from typing import Any, Callable, ClassVar, Generator, List, Optional, Dict, Self, Sequence, Type, TypeVar, Union
 import logging
 import pandas as pd
 
 from kitchen.settings.structure import NULL_STRUCTURE_NAME
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate
 from kitchen.structure.neural_data_structure import NeuralData
-from kitchen.utils.sequence_kit import filter_by, split_by
+from kitchen.utils.sequence_kit import filter_by, group_by, split_by
 from kitchen.writer.excel_writer import write_boolean_dataframe
 
 
@@ -48,6 +48,7 @@ class Node:
     """
     coordinate: TemporalObjectCoordinate
     data: NeuralData
+    info: Dict[str, Any] = field(default_factory=dict)
 
     _expected_temporal_uid_level: ClassVar[Optional[str]] = None
     _expected_object_uid_level: ClassVar[Optional[str]] = None
@@ -70,7 +71,7 @@ class Node:
             )
 
     def __getattr__(self, name: str) -> Any:
-        """Look into coordinate and data for attributes."""
+        """Look into coordinate and data for attributes. Cannot access info."""
         if hasattr(self.coordinate, name):
             return getattr(self.coordinate, name)
         if hasattr(self.data, name):
@@ -94,7 +95,7 @@ class Node:
 
     def __str__(self) -> str:
         """Return readable string representation."""
-        return f"{self.hash_key} @{self.coordinate} \n with {self.data}"
+        return f"{self.hash_key} @{self.coordinate} \n with {self.data} \n Info: {self.info}"
     
     def __repr__(self) -> str:
         """Return string representation for debugging."""
@@ -102,7 +103,7 @@ class Node:
     
     def aligned_to(self, align_time: float) -> Self:
         """Align all data to a specific time point."""
-        return self.__class__(coordinate=self.coordinate, data=self.data.aligned_to(align_time))
+        return self.__class__(coordinate=self.coordinate, data=self.data.aligned_to(align_time), info=self.info.copy())
     
         
 
@@ -262,16 +263,17 @@ class DataSet:
         assert hash_key == hash_key.lower(), f"hash_key must be lower case, but got {hash_key}"
         selected_nodes = filter_by(self._fast_lookup[hash_key], **criterion)
         if _empty_warning and len(selected_nodes) == 0:
-            logger.warning(f"Select operation resulted in 0 {hash_key} nodes, check your criterion function: {criterion}")
+            logger.warning(f"Select operation resulted in 0 {hash_key} nodes from {self.name}, check your criterion function: {criterion}")
         return DataSet(name=_specified_name, nodes=selected_nodes)
     
-    def rule_based_selection(self, rule_dict: Dict[str, dict], _empty_warning: bool = False) -> Dict[str, "DataSet"]:
-        """Select nodes based on pre-defined rules."""    
+    def rule_based_group_by(self, key_func: Callable[[Node], Optional[str]], _empty_warning: bool = False) -> Dict[str, "DataSet"]:
+        """Select nodes based on pre-defined rules."""   
         selected_nodes = {}    
-        for name, rule_definition in rule_dict.items():
-            this_type_nodes = self.select(**rule_definition, _empty_warning=_empty_warning)      
-            if len(this_type_nodes) > 0:
-                selected_nodes[name] = this_type_nodes      
+        grouped_dict = group_by(self.nodes, key_func)
+        for key, nodes in grouped_dict.items():
+            selected_nodes[key] = DataSet(name=key, nodes=nodes)
+        if _empty_warning and len(selected_nodes) == 0:
+            logger.warning(f"Rule based selection resulted in 0 nodes from {self.name}, check your key function: {key_func}")
         return selected_nodes
 
     def enumerate_by(self, target_pseudo_node_type: Type[NodeTypeVar]) -> List[NodeTypeVar]:

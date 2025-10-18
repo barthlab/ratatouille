@@ -103,7 +103,8 @@ def default_style(
             except StopIteration:
                 pass
             except Exception as e:
-                raise ValueError(f"Error in {name} at progress {progress}: {e}")
+                coroutine_name = plot_coroutines[plot_coro].replace("\n", " ")
+                raise ValueError(f"Error in {name} at progress {progress} at {coroutine_name}: {e}")
         active_coroutines = next_step_active_coroutines    
     
     # Draw node number

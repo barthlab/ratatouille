@@ -20,9 +20,13 @@ class AdvancedTimeSeries(TimeSeries):
     variance: np.ndarray
     raw_array: np.ndarray
 
+    @classmethod
+    def create_empty(cls) -> Self:
+        return cls(v=np.array([]), t=np.array([]), variance=np.array([]), raw_array=np.empty((0, 0)))
+    
     @property
-    def mean(self) -> np.ndarray:
-        return self.v.copy()
+    def mean(self, default = 0.) -> np.ndarray:
+        return self.v.copy() if len(self) > 0 else np.array([default])
     
     @property
     def var(self) -> np.ndarray:
@@ -58,7 +62,7 @@ class AdvancedTimeSeries(TimeSeries):
     
     def __neg__(self) -> Self:
         return self.__class__(
-            t=self.t.copy(), v=-self.mean, variance=self.variance.copy(), raw_array=-self.raw.copy()
+            t=self.t.copy(), v=-self.v.copy(), variance=self.variance.copy(), raw_array=-self.raw.copy()
         )
 
     def segment(self, start_t: float, end_t: float) -> Self:
@@ -69,7 +73,7 @@ class AdvancedTimeSeries(TimeSeries):
     
     def aligned_to(self, align_time: float) -> Self:
         return self.__class__(
-            v=self.mean.copy(),
+            v=self.v.copy(),
             t=self.t - align_time,
             variance=self.variance.copy(),
             raw_array=self.raw.copy()
@@ -77,7 +81,7 @@ class AdvancedTimeSeries(TimeSeries):
 
     def squeeze(self, axis: int) -> Self:
         return self.__class__(
-            v=np.squeeze(self.mean, axis=axis),
+            v=np.squeeze(self.v, axis=axis),
             t=self.t,
             variance=np.squeeze(self.variance, axis=axis),
             raw_array=np.squeeze(self.raw, axis=axis+1)
@@ -85,7 +89,7 @@ class AdvancedTimeSeries(TimeSeries):
 
     @property
     def mean_ts(self) -> TimeSeries:
-        return TimeSeries(v=self.mean, t=self.t)
+        return TimeSeries(v=self.v.copy(), t=self.t)
 
 
 def calculate_group_tuple(arrs: List[np.ndarray], t: np.ndarray) -> AdvancedTimeSeries:
@@ -102,11 +106,11 @@ def grouping_events_rate(events: List[Events], bin_size: float, use_event_value_
     """Group a list of events in rate."""
     assert bin_size > 0, "bin size should be positive"
     if len(events) == 0:
-        return AdvancedTimeSeries(v=np.array([]), t=np.array([]), variance=np.array([]), raw_array=np.empty((0, 0)))
+        return AdvancedTimeSeries.create_empty()
     group_t = np.sort(np.concatenate([event.t for event in events]))
     # Handle case where all events are empty (no spikes across all trials)
     if len(group_t) == 0:
-        return AdvancedTimeSeries(v=np.array([]), t=np.array([]), variance=np.array([]), raw_array=np.empty((0, 0)))
+        return AdvancedTimeSeries.create_empty()
     bins = np.arange(group_t[0] - bin_size, group_t[-1] + bin_size, bin_size)
     all_rates = [np.histogram(event.t, bins=bins, weights=event.v
                               if use_event_value_as_weight else None)[0] / bin_size for event in events]

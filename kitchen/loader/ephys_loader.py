@@ -5,8 +5,9 @@ from kitchen.loader.behavior_loader import behavior_loader_from_node
 from kitchen.loader.potential_loader import potential_loader_from_cohort
 from kitchen.loader.spike_type_annotator import spike_annotation
 from kitchen.loader.spike_waveform_curator import node_spike_waveform_curation
+from kitchen.loader.trial_type_annotator import trial_type_annotator
 from kitchen.settings.timeline import TRIAL_ALIGN_EVENT_DEFAULT
-from kitchen.settings.trials import TRIAL_RANGE_RELATIVE_TO_ALIGNMENT
+from kitchen.settings.trials import DEFAULT_TRIAL_RANGE_RELATIVE_TO_ALIGNMENT
 from kitchen.structure.hierarchical_data_structure import CellSession, Cohort, DataSet, FovTrial, MergeCellSession2Session, Session, Trial
 from kitchen.structure.meta_data_structure import ObjectUID, TemporalObjectCoordinate, TemporalUID
 from kitchen.structure.neural_data_structure import NeuralData
@@ -40,9 +41,13 @@ def _SplitCohort2CellSession(cohort_node: Cohort, loaders: dict[str, str],
         cell_session_nodes.append(new_cell_session_node)
     return cell_session_nodes
 
-def _SplitCellSession2Trial(session_level_node: CellSession, spike_annotator_name: Optional[str] = None) -> List[Trial]:
+def _SplitCellSession2Trial(session_level_node: CellSession, 
+                            spike_annotator_name: Optional[str] = None,
+                            trial_type_annotator_name: Optional[str] = None,
+                            trial_range: Optional[tuple[float, float]] = None) -> List[Trial]:
     assert session_level_node.data.timeline is not None, f"Cannot find timeline in {session_level_node}"
     target_node_type = Trial if isinstance(session_level_node, CellSession) else FovTrial
+    trial_range = DEFAULT_TRIAL_RANGE_RELATIVE_TO_ALIGNMENT if trial_range is None else trial_range
 
     # find the all trial align event
     trial_aligns = session_level_node.data.timeline.advanced_filter(TRIAL_ALIGN_EVENT_DEFAULT)
@@ -54,8 +59,8 @@ def _SplitCellSession2Trial(session_level_node: CellSession, spike_annotator_nam
             temporal_uid=session_level_node.coordinate.temporal_uid.child_uid(chunk_id=trial_id),
             object_uid=session_level_node.coordinate.object_uid)
         trial_neural_data = session_level_node.data.segment(
-            start_t=trial_t + TRIAL_RANGE_RELATIVE_TO_ALIGNMENT[0],
-            end_t=trial_t + TRIAL_RANGE_RELATIVE_TO_ALIGNMENT[1])
+            start_t=trial_t + trial_range[0],
+            end_t=trial_t + trial_range[1])
         
         new_trial_node = target_node_type(
             coordinate=trial_coordinate,
@@ -66,6 +71,9 @@ def _SplitCellSession2Trial(session_level_node: CellSession, spike_annotator_nam
         if spike_annotator_name is not None:
             spike_annotation(new_trial_node, trial_align=trial_t, spike_annotator_name=spike_annotator_name)
 
+        # annotate trial type
+        trial_type_annotator(new_trial_node, trial_align=trial_t, trial_type_annotator_name=trial_type_annotator_name)
+        
         trial_nodes.append(new_trial_node)
     return trial_nodes
 
@@ -106,7 +114,9 @@ def cohort_loader(template_id: str, cohort_id: str, recipe: dict, name: Optional
         assert isinstance(cell_session_node, CellSession)
         
         # Spike type annotation
-        trial_nodes = _SplitCellSession2Trial(cell_session_node, spike_annotator_name=recipe.get("spike annotation"))
+        trial_nodes = _SplitCellSession2Trial(cell_session_node, spike_annotator_name=recipe.get("spike annotation"),
+                                             trial_range=recipe.get("trial range"),
+                                             trial_type_annotator_name=recipe.get("trial type annotator"))
         # Spike type inherit
         for trial_node in trial_nodes:
             cell_session_node.potential.spikes.update_value(trial_node.potential.spikes)

@@ -4,7 +4,7 @@ import logging
 
 from kitchen.plotter.plotting_manual import PlotManual
 from kitchen.settings.plotting import PLOTTING_OVERLAP_HARSH_MODE
-from kitchen.structure.hierarchical_data_structure import DataSet
+from kitchen.structure.hierarchical_data_structure import DataSet, Node
 from kitchen.utils.sequence_kit import find_only_one, select_from_key
 
 
@@ -19,10 +19,11 @@ def sync_check(dataset: DataSet, sync_events: Tuple[str], plot_manual: PlotManua
         all_status = [select_from_key(node.data.status(), **plot_manual._asdict()) for node in dataset]
         assert all(status == all_status[0] for status in all_status), "Neural data availability mismatch, see status_report.xlsx"
 
-    """All nodes should contain unique align event in timeline"""
-    for node in dataset:
-        assert node.data.timeline is not None, f"Cannot find timeline in {node}"
-        find_only_one(node.data.timeline.v, _self=lambda x: x in sync_events)
+    # """May not required any more, due to new sync_node function"""
+    # """All nodes should contain unique align event in timeline"""
+    # for node in dataset:
+    #     assert node.data.timeline is not None, f"Cannot find timeline in {node}"
+    #     find_only_one(node.data.timeline.v, _self=lambda x: x in sync_events)
     
     """All nodes should have same number of cells"""
     if plot_manual.fluorescence:
@@ -35,16 +36,21 @@ def sync_check(dataset: DataSet, sync_events: Tuple[str], plot_manual: PlotManua
             all_node_object_uid = [node.object_uid for node in dataset if node.data.fluorescence is not None]
             assert len(set(all_node_object_uid)) == 1, f"Object uid mismatch, got {all_node_object_uid}"
         
+def sync_node(node: Node, sync_events: Tuple[str]):    
+    """Align node to the given sync events"""
+    assert node.data.timeline is not None, f"Cannot find timeline in {node}"
+    sync_event_ts = node.data.timeline.filter(sync_events).t
+    assert len(sync_event_ts) > 0, f"Cannot find sync event in {node}"
+    if len(sync_event_ts) > 1 and "raw_ref_t" in node.info:
+        time2sync = sync_event_ts[np.argmin(np.abs(sync_event_ts - node.info["raw_ref_t"]))]
+    else:
+        time2sync = sync_event_ts[0]
+    return node.aligned_to(time2sync)
+
 
 def sync_nodes(dataset: DataSet, sync_events: Tuple[str], plot_manual: PlotManual=PlotManual()):
     sync_check(dataset, sync_events, plot_manual)
-
-    """Align all nodes to the given sync events"""
-    synced_nodes = []
-    for node in dataset:
-        assert node.data.timeline is not None, f"Cannot find timeline in {node}"
-        node = node.aligned_to(node.data.timeline.filter(sync_events).t[0])
-        synced_nodes.append(node)
+    synced_nodes = [sync_node(node, sync_events) for node in dataset]
     return DataSet(name=dataset.name + "_synced", nodes=synced_nodes)
 
 
