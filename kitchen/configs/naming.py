@@ -4,7 +4,7 @@ General naming function for Node objects with type-specific implementations.
 
 from functools import singledispatch
 
-from kitchen.structure.hierarchical_data_structure import Day, FovTrial, Node, Trial, CellSession, Session, Cell, FovDay, Fov, Mice, Cohort
+from kitchen.structure.hierarchical_data_structure import DataSet, Day, FovTrial, Node, Trial, CellSession, Session, Cell, FovDay, Fov, Mice, Cohort
 
 
 @singledispatch
@@ -77,3 +77,8 @@ def _(node: Cohort) -> str:
     cohort_id = node.coordinate.object_uid.cohort_id
     return f"{cohort_id}"
 
+
+
+def get_dataset_name(dataset: DataSet, break2line: bool = True) -> str:
+    breakline = "\n" if break2line else " "
+    return f"Dataset_{dataset.name}{breakline}{dataset.root_coordinate}"
