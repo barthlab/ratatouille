@@ -61,7 +61,7 @@ def numpy_percentile_filter(input_array: np.ndarray, s: int, q: float) -> np.nda
     return result
 
 
-def smart_interp(x_new, xp, fp, method: str = "previous"):
+def smart_interp(x_new, xp, fp, method: str = "linear"):
     if method == "previous":
         f_new = interp1d(xp, fp, kind='previous', axis=-1, bounds_error=False)
     elif method == "nearest":

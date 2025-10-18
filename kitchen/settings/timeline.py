@@ -91,10 +91,15 @@ REWARD_EVENTS_DEFAULT = (
     "NoWaterOn",
 )
 
+AUDITORY_EVENTS_DEFAULT = (
+    "BuzzerOn",
+)
 
-ALIGNMENT_STYLE = {
+
+ALL_ALIGNMENT_STYLE = {
     "Aligned2Stim": STIMULUS_EVENTS_DEFAULT,
     "Aligned2Reward": REWARD_EVENTS_DEFAULT,
-    "Aligned2Buzzer": ("BuzzerOn",),
+    "Aligned2Buzzer": AUDITORY_EVENTS_DEFAULT,
+    "Aligned2Trial": ("TrialOn",),
 }
 

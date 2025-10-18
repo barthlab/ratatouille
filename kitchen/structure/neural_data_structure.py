@@ -59,8 +59,8 @@ class TimeSeries:
             return NotImplemented
 
         new_t = np.union1d(self.t, other.t)
-        self_v = smart_interp(new_t, self.t, self.v)
-        other_v = smart_interp(new_t, other.t, other.v)
+        self_v = smart_interp(new_t, self.t, self.v) if len(self.t) > 0 else np.zeros_like(new_t)
+        other_v = smart_interp(new_t, other.t, other.v) if len(other.t) > 0 else np.zeros_like(new_t)
 
         return TimeSeries(t=new_t, v=self_v + other_v)
     
@@ -287,7 +287,14 @@ class Events:
             v=np.array([x for x in self.v if x in event_types]),
             t=np.array([t for x, t in zip(self.v, self.t) if x in event_types])
         )
-
+    
+    def includes(self, event_types: Any | Iterable[Any], min_num: int = 1, max_num: Optional[int] = None) -> bool:
+        """Check if events include specific types."""
+        if not isinstance(event_types, list | tuple):
+            event_types = [event_types,]
+        num = sum(x in event_types for x in self.v)
+        return (num >= min_num) and (num <= max_num if max_num is not None else True)
+    
 
 @dataclass
 class Timeline(Events):

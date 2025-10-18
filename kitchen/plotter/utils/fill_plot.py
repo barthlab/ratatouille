@@ -6,6 +6,9 @@ from kitchen.structure.neural_data_structure import TimeSeries
 
 def oreo_plot(ax: plt.Axes, group_tuple: AdvancedTimeSeries, y_offset: float, ratio: float, trace_style: dict, fill_between_style: dict, **kwargs):
     """plot oreo: trace + fill_between"""
+    if len(group_tuple) == 0:
+        ax.axhline(y=y_offset, **trace_style, **kwargs)
+        return
     ax.plot(group_tuple.t, group_tuple.mean * ratio + y_offset, **trace_style, **kwargs)
     # fucking stupid pylance stuck here
     ax.fill_between(group_tuple.t,  

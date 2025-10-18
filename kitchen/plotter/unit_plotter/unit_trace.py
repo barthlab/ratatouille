@@ -83,6 +83,8 @@ def unit_plot_lick(lick: None | Events | list[Events], ax: plt.Axes, y_offset: f
     else:
         # plot multiple licks
         group_lick = grouping_events_rate(lick, bin_size=LICK_BIN_SIZE)
+        if len(group_lick) == 0:
+            return 0
         y_height = max(np.nanmax(group_lick.mean) * ratio, 5*ratio)
         oreo_plot(ax, group_lick, y_offset, ratio, LICK_TRACE_STYLE, FILL_BETWEEN_STYLE)
         yticks_combo("lick", ax, y_offset, ratio)
@@ -215,6 +217,8 @@ def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[
 
     # plot multiple cell fluorescence
     group_fluorescence = grouping_timeseries([fluorescence.df_f0 for fluorescence in fluorescence]).squeeze(0)
+    if len(group_fluorescence) == 0:
+        return 0
     oreo_plot(ax, group_fluorescence, y_offset, ratio, FLUORESCENCE_TRACE_STYLE, FILL_BETWEEN_STYLE)
     if individual_trace_flag:
         for individual_fluorescence in group_fluorescence.raw:
@@ -356,6 +360,8 @@ def unit_plot_potential_conv(potential: None | Potential | list[Potential],
 
     # plot multiple cell fluorescence
     group_fluorescence = grouping_timeseries([one_potential.aspect("conv") for one_potential in potential])
+    if len(group_fluorescence) == 0:
+        return 0
     oreo_plot(ax, group_fluorescence, y_offset, ratio, FLUORESCENCE_TRACE_STYLE, FILL_BETWEEN_STYLE)
     if individual_trace_flag:
         for individual_fluorescence, one_potential in zip(group_fluorescence.raw, potential):

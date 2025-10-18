@@ -6,5 +6,7 @@
         "timeline": "default",
         "behavior": "default"
     },
-    "trial split": "timeline"
+    "trial split": "timeline",
+    "trial range": [-2, 15],
+    "trial type annotator": "default"
 }
