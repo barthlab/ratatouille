@@ -11,7 +11,7 @@ from kitchen.plotter.unit_plotter.unit_yticks import yticks_combo
 from kitchen.plotter.utils.alpha_calculator import calibrate_alpha, ind_alpha
 from kitchen.plotter.utils.fill_plot import oreo_plot
 from kitchen.settings.fluorescence import DF_F0_SIGN, Z_SCORE_SIGN
-from kitchen.plotter.color_scheme import FLUORESCENCE_COLOR, GRAND_COLOR_SCHEME, LICK_COLOR, POTENTIAL_COLOR
+from kitchen.plotter.color_scheme import FLUORESCENCE_COLOR, GRAND_COLOR_SCHEME, LICK_COLOR, LOCOMOTION_COLOR, POSITION_COLOR, POTENTIAL_COLOR, PUPIL_COLOR, WHISKER_COLOR
 from kitchen.plotter.plotting_params import LICK_BIN_SIZE, LOCOMOTION_BIN_SIZE, RAW_FLUORESCENCE_RATIO, TIME_TICK_DURATION, WC_POTENTIAL_RATIO
 from kitchen.plotter.style_dicts import DEEMPHASIZED_POTENTIAL_ADD_STYLE, EMPHASIZED_POTENTIAL_ADD_STYLE, FILL_BETWEEN_STYLE, FLUORESCENCE_TRACE_STYLE, INDIVIDUAL_FLUORESCENCE_TRACE_STYLE, LICK_TRACE_STYLE, LOCOMOTION_TRACE_STYLE, MAX_OVERLAP_ALPHA_NUM_DUE_TO_MATPLOTLLIB_BUG, POSITION_SCATTER_STYLE, LICK_VLINES_STYLE, POTENTIAL_TRACE_STYLE, PUPIL_TRACE_STYLE, SPIKE_POTENTIAL_TRACE_STYLE, TIMELINE_SCATTER_STYLE, VLINE_STYLE, VSPAN_STYLE, WHISKER_TRACE_STYLE
 from kitchen.plotter.utils.tick_labels import TICK_PAIR, add_new_yticks
@@ -30,7 +30,8 @@ def sanity_check(data) -> bool:
     return data is not None
 
 
-def unit_plot_locomotion(locomotion: None | Events | list[Events], ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
+def unit_plot_locomotion(locomotion: None | Events | list[Events], ax: plt.Axes, y_offset: float, ratio: float = 1.0,
+                         yticks_flag: bool = True) -> float:
     """plot locomotion"""
     if not sanity_check(locomotion):
         return 0
@@ -51,11 +52,15 @@ def unit_plot_locomotion(locomotion: None | Events | list[Events], ax: plt.Axes,
         oreo_plot(ax, group_locomotion, y_offset, ratio, LOCOMOTION_TRACE_STYLE, FILL_BETWEEN_STYLE)
 
     # add y ticks
-    yticks_combo("locomotion", ax, y_offset, ratio)
+    if yticks_flag:
+        yticks_combo("locomotion", ax, y_offset, ratio)
+    else:
+        add_new_yticks(ax, TICK_PAIR(y_offset, "", LOCOMOTION_COLOR))
     return max(y_height, 2*ratio)
 
 
-def unit_plot_position(position: None | Events, ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
+def unit_plot_position(position: None | Events, ax: plt.Axes, y_offset: float, ratio: float = 1.0,
+                       yticks_flag: bool = True) -> float:
     """plot position"""
     if not sanity_check(position):
         return 0
@@ -65,11 +70,15 @@ def unit_plot_position(position: None | Events, ax: plt.Axes, y_offset: float, r
     ax.scatter(position.t, position.v * ratio + y_offset, **POSITION_SCATTER_STYLE)        
 
     # add y ticks
-    yticks_combo("position", ax, y_offset, ratio)
+    if yticks_flag:
+        yticks_combo("position", ax, y_offset, ratio)
+    else:
+        add_new_yticks(ax, TICK_PAIR(y_offset, "", POSITION_COLOR))
     return 1*ratio
 
 
-def unit_plot_lick(lick: None | Events | list[Events], ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
+def unit_plot_lick(lick: None | Events | list[Events], ax: plt.Axes, y_offset: float, ratio: float = 1.0,
+                   yticks_flag: bool = True) -> float:
     """plot lick"""    
     if not sanity_check(lick):
         return 0
@@ -87,11 +96,15 @@ def unit_plot_lick(lick: None | Events | list[Events], ax: plt.Axes, y_offset: f
             return 0
         y_height = max(np.nanmax(group_lick.mean) * ratio, 5*ratio)
         oreo_plot(ax, group_lick, y_offset, ratio, LICK_TRACE_STYLE, FILL_BETWEEN_STYLE)
-        yticks_combo("lick", ax, y_offset, ratio)
+        if yticks_flag:
+            yticks_combo("lick", ax, y_offset, ratio)
+        else:
+            add_new_yticks(ax, TICK_PAIR(y_offset, "", LICK_COLOR))
     return y_height
 
 
-def unit_plot_pupil(pupil: None | TimeSeries | list[TimeSeries], ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
+def unit_plot_pupil(pupil: None | TimeSeries | list[TimeSeries], ax: plt.Axes, y_offset: float, ratio: float = 1.0,
+                    yticks_flag: bool = True) -> float:
     """plot pupil"""    
     if not sanity_check(pupil):
         return 0
@@ -106,11 +119,15 @@ def unit_plot_pupil(pupil: None | TimeSeries | list[TimeSeries], ax: plt.Axes, y
         oreo_plot(ax, group_pupil, y_offset, ratio, PUPIL_TRACE_STYLE, FILL_BETWEEN_STYLE)
 
     # add y ticks
-    yticks_combo("pupil", ax, y_offset, ratio)
+    if yticks_flag:
+        yticks_combo("pupil", ax, y_offset, ratio)
+    else:
+        add_new_yticks(ax, TICK_PAIR(y_offset, "", PUPIL_COLOR))
     return ratio
 
 
-def unit_plot_whisker(whisker: None | TimeSeries | list[TimeSeries], ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
+def unit_plot_whisker(whisker: None | TimeSeries | list[TimeSeries], ax: plt.Axes, y_offset: float, ratio: float = 1.0,
+                      yticks_flag: bool = True) -> float:
     """plot whisker"""    
     if not sanity_check(whisker):    
         return 0    
@@ -125,11 +142,15 @@ def unit_plot_whisker(whisker: None | TimeSeries | list[TimeSeries], ax: plt.Axe
         oreo_plot(ax, group_whisker, y_offset, ratio, WHISKER_TRACE_STYLE, FILL_BETWEEN_STYLE)
 
     # add y ticks
-    yticks_combo("whisker", ax, y_offset, ratio)
+    if yticks_flag:
+        yticks_combo("whisker", ax, y_offset, ratio)
+    else:
+        add_new_yticks(ax, TICK_PAIR(y_offset, "", WHISKER_COLOR))
     return ratio
 
 
-def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
+def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes, y_offset: float, ratio: float = 1.0,
+                       _hide_vline: bool = False) -> float:
     """plot timeline"""
     if not sanity_check(timeline):
         return 0
@@ -141,7 +162,8 @@ def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes,
             if event_type not in TIMELINE_SCATTER_STYLE:
                 continue
             ax.scatter(event_time, y_offset + 0.5 * ratio , **TIMELINE_SCATTER_STYLE[event_type])
-            ax.axvline(x=event_time, color=GRAND_COLOR_SCHEME[event_type], **VLINE_STYLE)
+            if not _hide_vline:
+                ax.axvline(x=event_time, color=GRAND_COLOR_SCHEME[event_type], **VLINE_STYLE)
 
         # set x ticks
         try:
@@ -171,23 +193,24 @@ def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes,
                     {"alpha": ind_alpha(TIMELINE_SCATTER_STYLE[event_type]["alpha"], num_events)}))
     
     # plot vspan or vline
-    for one_timeline in timeline:
-        for event_time, event_type in zip(one_timeline.t, one_timeline.v):
-            if event_type not in GRAND_COLOR_SCHEME:
-                continue
-            if ("On" not in event_type) or (event_type.replace("On", "Off") not in one_timeline.v):
-                ax.axvline(event_time, color=GRAND_COLOR_SCHEME[event_type], 
-                            **calibrate_alpha(VLINE_STYLE, len(all_event[event_type])))
-                continue
+    if not _hide_vline:
+        for one_timeline in timeline:
+            for event_time, event_type in zip(one_timeline.t, one_timeline.v):
+                if event_type not in GRAND_COLOR_SCHEME:
+                    continue
+                if ("On" not in event_type) or (event_type.replace("On", "Off") not in one_timeline.v):
+                    ax.axvline(event_time, color=GRAND_COLOR_SCHEME[event_type], 
+                                **calibrate_alpha(VLINE_STYLE, len(all_event[event_type])))
+                    continue
 
-            end_event = event_type.replace("On", "Off")
-            end_time = one_timeline.filter(end_event).t[0]
-            if end_time - event_time >= 0.09:
-                ax.axvspan(event_time, end_time, color=GRAND_COLOR_SCHEME[event_type],
-                            **calibrate_alpha(VSPAN_STYLE, len(all_event[event_type])))
-            else:
-                ax.axvline(event_time, color=GRAND_COLOR_SCHEME[event_type], 
-                            **calibrate_alpha(VLINE_STYLE, len(all_event[event_type])))
+                end_event = event_type.replace("On", "Off")
+                end_time = one_timeline.filter(end_event).t[0]
+                if end_time - event_time >= 0.09:
+                    ax.axvspan(event_time, end_time, color=GRAND_COLOR_SCHEME[event_type],
+                                **calibrate_alpha(VSPAN_STYLE, len(all_event[event_type])))
+                else:
+                    ax.axvline(event_time, color=GRAND_COLOR_SCHEME[event_type], 
+                                **calibrate_alpha(VLINE_STYLE, len(all_event[event_type])))
     return ratio
 
 

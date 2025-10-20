@@ -3,6 +3,7 @@ import logging
 
 from kitchen.loader.general_loader_interface import load_dataset
 from kitchen.plotter.macros.basic_macros import beam_view_default_macro, flat_view_default_macro, stack_view_default_macro
+from kitchen.plotter.macros.behavior_macros import trace_view_delta_behavior_macro
 from kitchen.plotter.plotting_manual import PlotManual
 from kitchen.structure.hierarchical_data_structure import Fov, Session
 
@@ -22,14 +23,24 @@ def main():
                            recipe="default_behavior_only", name="sensory_prediction")
     dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
 
-    plot_manual = PlotManual(lick=True, locomotion=True, whisker=True, pupil=True)  
+    plot_manual = PlotManual(locomotion=True, whisker=True, pupil=True)  
     
-    for mice_node in dataset.select("mice"):
-        # flat_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual)
-        # stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual,
-        #                          _aligment_style="Aligned2Stim")
-        beam_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual,
-                                 _aligment_style="Aligned2Stim")
+    trace_view_delta_behavior_macro(dataset, "pupil", "CuedBlank", (1, 3.0), (-1., -0),
+                                    prefix_keyword="AfterStim", _aligment_style="Aligned2Stim", _to_percent=True)
+    trace_view_delta_behavior_macro(dataset, "whisker", "CuedBlank", (1, 3.0), (-1., -0), 
+                                    prefix_keyword="AfterStim", _aligment_style="Aligned2Stim", _to_percent=True)
+
+    
+    # for mice_node in dataset.select("mice"):
+    #     # flat_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual)
+    #     stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual,
+    #                              _aligment_style="Aligned2Stim")
+
+    
+    # plot_manual = PlotManual(whisker=True, pupil=True)  
+    # for session_node in dataset.select("session"):
+    #     beam_view_default_macro(dataset.subtree(session_node, "SessionSubtree"), node_level="session", plot_manual=plot_manual,
+    #                              _aligment_style="Aligned2Stim")
 
 if __name__ == "__main__":
     main()

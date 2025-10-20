@@ -1,5 +1,5 @@
 
-from typing import Generator, Tuple
+from typing import Generator, Optional, Tuple
 import matplotlib.pyplot as plt
 import logging
 
@@ -147,6 +147,7 @@ def beam_view(
         sync_events: Tuple[str],
 
         plot_manual: PlotManual = PlotManual(),
+        beam_offsets: Optional[list[int]] = None,
 ):
     """Beam view of all nodes in the dataset"""
     try:
@@ -156,19 +157,62 @@ def beam_view(
     
     """main logic"""
     y_offset = 0
+    beam_offsets = [0 for _ in dataset_synced] if beam_offsets is None else beam_offsets
+    assert len(beam_offsets) == len(dataset_synced), f"Number of beam offsets mismatch, got {len(beam_offsets)} from {len(dataset_synced)}"
 
-    # 1. plot_timeline    
-    if plot_manual.timeline:    
-        y_offset = yield unit_plot_timeline(    
-            timeline=select_truthy_items([node.data.timeline for node in dataset_synced]), 
-            ax=ax, y_offset=y_offset, ratio=TIMELINE_RATIO)    
-    
-    # 2. plot fluorescence / potential
-    if plot_manual.fluorescence:    
-        raise NotImplementedError
-    elif plot_manual.potential:    
-        for node_index, node in enumerate(dataset_synced):
+    for node_index, (node, beam_offset) in enumerate(zip(dataset_synced, beam_offsets)):
+        # skip the plotting if the beam offset is positive
+        for _ in range(beam_offset):
+            for _ in range(6):
+                y_offset = yield 0
+        
+        show_yticks = (node_index == 0) and (beam_offset == 0)
+
+        # 1. plot_timeline    
+        if plot_manual.timeline:    
+            y_offset = yield unit_plot_timeline(    
+                timeline=node.data.timeline, 
+                ax=ax, y_offset=y_offset, ratio=TIMELINE_RATIO,)
+        else:
+            y_offset = yield 0
+        
+        # 2. plot fluorescence / potential
+        if plot_manual.fluorescence:    
+            raise NotImplementedError
+        elif plot_manual.potential:    
             y_offset = yield unit_plot_potential(
                 potential=node.data.potential, ax=ax, y_offset=y_offset, ratio=POTENTIAL_RATIO, 
-                aspect=plot_manual.potential, yticks_flag=(node_index == 0),
+                aspect=plot_manual.potential, yticks_flag=show_yticks,
                 wc_flag=WC_CONVERT_FLAG(dataset_synced.nodes[0]))
+        else:
+            y_offset = yield 0
+        
+        # 3. plot behavior  
+        if plot_manual.lick:    
+            y_offset = yield unit_plot_lick(
+                lick=node.data.lick, ax=ax, y_offset=y_offset, ratio=LICK_RATIO, yticks_flag=show_yticks)
+        else:
+            y_offset = yield 0
+        
+        # 4. plot locomotion
+        if plot_manual.locomotion:    
+            y_offset = yield unit_plot_locomotion(
+                locomotion=node.data.locomotion, ax=ax, y_offset=y_offset, ratio=LOCOMOTION_RATIO, yticks_flag=show_yticks)
+            y_offset = yield unit_plot_position(
+                position=node.data.position, ax=ax, y_offset=y_offset, ratio=POSITION_RATIO, yticks_flag=show_yticks)
+        else:
+            y_offset = yield 0
+
+        # 5. plot whisker
+        if plot_manual.whisker:    
+            y_offset = yield unit_plot_whisker(
+                whisker=node.data.whisker, ax=ax, y_offset=y_offset, ratio=WHISKER_RATIO, yticks_flag=show_yticks)
+        else:
+            y_offset = yield 0
+
+        # 6. plot pupil
+        if plot_manual.pupil:    
+            y_offset = yield unit_plot_pupil(
+                pupil=node.data.pupil, ax=ax, y_offset=y_offset, ratio=PUPIL_RATIO, yticks_flag=show_yticks)
+        else:
+            y_offset = yield 0

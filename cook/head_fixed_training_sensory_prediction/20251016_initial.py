@@ -2,9 +2,7 @@ import os.path as path
 import logging
 
 from kitchen.loader.general_loader_interface import load_dataset
-from kitchen.media import facemap_pupil_extraction
-from kitchen.plotter.macros.basic_macros import fov_overview, single_node_trial_avg_default, session_overview
-from kitchen.plotter.macros.water_omission_macros import mice_water_omission_overview, mice_water_omission_summary, water_omission_response_compare
+from kitchen.media import facemap_pupil_extraction, video_marker
 from kitchen.plotter.plotting_manual import PlotManual
 from kitchen.structure.hierarchical_data_structure import Fov, Session
 import kitchen.media.format_converter as format_converter
@@ -29,6 +27,10 @@ def preprocessing():
     # custom_extraction.default_collection(dataset)
     # facemap_pupil_extraction.default_collection(dataset)
 
+def label_videos():
+    hft_data_path = r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\HeadFixedTraining\SensoryPrediction_202510"
+    # format_converter.video_convert(hft_data_path)
+    video_marker.marker_video_use_timeline(hft_data_path)
 
 def main():
     dataset = load_dataset(template_id="HeadFixedTraining", cohort_id="SensoryPrediction_202510", 
@@ -42,14 +44,15 @@ def main():
     # mice_water_omission_overview(dataset, plot_manual)
     # mice_water_omission_summary(dataset, plot_manual)
 
-    # fov overview
-    for fov_node in dataset.select(hash_key="fov"):
-        assert isinstance(fov_node, Fov)
-        fov_overview(fov_node, dataset, plot_manual=plot_manual)
+    # # fov overview
+    # for fov_node in dataset.select(hash_key="fov"):
+    #     assert isinstance(fov_node, Fov)
+    #     fov_overview(fov_node, dataset, plot_manual=plot_manual)
 
 
 if __name__ == "__main__":
     # preprocessing()
-    main()
+    label_videos()
+    # main()
 
 

@@ -63,10 +63,7 @@ SPIKE_COLOR_SCHEME = {
     "sustained_spike": SUSTAINED_SPIKE_COLOR,
     "detected_spike": DETECTED_SPIKE_COLOR,
 }
-TABLEAU_10 = (
-    "#1A4E86", '#F28E2B', '#E15759', '#76B7B2', '#59A14F',
-    '#EDC948', '#B07AA1', '#FF9DA7', '#9C755F', '#BAB0AC'
-)
+TABLEAU_10 = list(mcolors.TABLEAU_COLORS.values())
 
 def plot_colortable(colors, *, ncols=4, sort_colors=True):
     cell_width = 212

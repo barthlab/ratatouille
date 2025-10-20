@@ -46,7 +46,7 @@ class HierarchicalUID:
 
     def __add__(self, other) -> Self:
         """Combine two UIDs into the root uid."""
-        assert isinstance(other, self.__class__), f"Cannot add {other} to {self}"
+        assert isinstance(other, self.__class__), f"Cannot add {other} to {self}, should be {self.__class__}, but got {other.__class__}"
 
         new_uid_dict = {}
         for name in self._HIERARCHY_FIELDS:
@@ -88,6 +88,11 @@ class HierarchicalUID:
         if not isinstance(other, self.__class__):
             return NotImplemented
         return self._comparison_tuple < other._comparison_tuple
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        return self._comparison_tuple == other._comparison_tuple
 
     def contains(self, other: "HierarchicalUID") -> bool:
         """
@@ -173,8 +178,8 @@ class TemporalObjectCoordinate:
     Provides complete coordinate system for locating experimental data
     in both spatial and temporal dimensions.
     """
-    object_uid: ObjectUID = field(default_factory=ObjectUID)
     temporal_uid: TemporalUID = field(default_factory=TemporalUID)
+    object_uid: ObjectUID = field(default_factory=ObjectUID)
 
     def contains(self, other: "TemporalObjectCoordinate") -> bool:
         """
@@ -210,7 +215,9 @@ class TemporalObjectCoordinate:
     def __add__(self, other) -> "TemporalObjectCoordinate":
         """Combine two coordinates into the root coordinate."""
         assert isinstance(other, TemporalObjectCoordinate), f"Cannot add {other} to {self}"
-        return TemporalObjectCoordinate(self.object_uid + other.object_uid, self.temporal_uid + other.temporal_uid)
+        return TemporalObjectCoordinate(
+            object_uid=self.object_uid + other.object_uid,
+            temporal_uid=self.temporal_uid + other.temporal_uid)
     
     def __radd__(self, other) -> "TemporalObjectCoordinate":
         """Combine two coordinates into the root coordinate."""
@@ -235,4 +242,3 @@ class TemporalObjectCoordinate:
     def level_index(self) -> Tuple[int, int]:
         """Return the index of the most specific level of the coordinate."""
         return self.object_uid.level_index, self.temporal_uid.level_index
-    

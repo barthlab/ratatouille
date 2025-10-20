@@ -83,6 +83,12 @@ class Node:
         """Return lowercase class name for node type identification."""
         return self.__class__.__name__.lower()
 
+    def __lt__(self, other: object) -> bool:
+        """Check less than based on coordinates."""
+        if not isinstance(other, Node):
+            return NotImplemented
+        return self.coordinate < other.coordinate
+
     def __eq__(self, other: object) -> bool:
         """Check equality based on coordinates."""
         if not isinstance(other, Node):

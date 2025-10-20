@@ -26,7 +26,7 @@ from kitchen.settings.timeline import ALL_ALIGNMENT_STYLE
 from kitchen.structure.hierarchical_data_structure import DataSet
 from kitchen.plotter.decorators.default_decorators import default_style
 from kitchen.plotter.ax_plotter.basic_plot import beam_view, flat_view, stack_view
-from kitchen.utils.sequence_kit import select_from_value
+from kitchen.utils.sequence_kit import get_sorted_merge_indices, select_from_value
 
 
 logger = logging.getLogger(__name__)
@@ -153,13 +153,18 @@ def beam_view_default_macro(
                 all_trial_nodes.rule_based_group_by(lambda x: x.info.get("trial_type")),
                 _self = partial(CHECK_PLOT_MANUAL, plot_manual=plot_manual)
             )
-
+            type2beamoffset = get_sorted_merge_indices({
+                trial_type: subtype_dataset.nodes for trial_type, subtype_dataset in type2dataset.items()},
+                _convert2offset=True,
+            )
+            
             # update mosaic_style and content_dict
             mosaic_style.append([f"{get_node_name(node)}\n{selected_type}" 
                                     for selected_type in type2dataset.keys()])
             content_dict.update({
                 f"{get_node_name(node)}\n{selected_type}": (
-                    partial(beam_view, plot_manual=plot_manual, sync_events=alignment_events),
+                    partial(beam_view, plot_manual=plot_manual, sync_events=alignment_events, 
+                            beam_offsets=type2beamoffset[selected_type]),
                     type2dataset[selected_type])
                 for selected_type in type2dataset.keys()
                 })
@@ -173,6 +178,7 @@ def beam_view_default_macro(
             content_dict=content_dict,
             figsize=(unit_shape[0] * n_col, unit_shape[1] * len(nodes2plot)),
             save_path=routing.default_fig_path(dataset, prefix_str + f"_{{}}_{_aligment_style}.png"),
+            overlap_ratio=0.7,
         )
     except Exception as e:
         logger.debug(f"Cannot plot beam view default macro for {dataset.name} with {_aligment_style}: {e}")

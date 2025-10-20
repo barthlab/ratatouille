@@ -30,21 +30,12 @@ def default_style(
         auto_title: bool = True,
         auto_yscale: bool = True,
         default_padding: float = 0.1,
+        overlap_ratio: float = 0.0,
 
         # Overide style
         plot_settings: Optional[dict[str, dict]] = None,
 ):
-    # Set default font size
-    plt.rcParams["font.family"] = "Arial"
-    plt.rcParams['font.size'] = 3
-    plt.rcParams.update({
-        'xtick.labelsize': 5,      # X-axis tick labels
-        'ytick.labelsize': 5,      # Y-axis tick labels
-        'axes.labelsize': 6,       # X and Y axis labels
-        'legend.fontsize': 3,      # Legend font size
-        'axes.titlesize': 5,       # Plot title
-        'figure.titlesize': 5      # Figure title (suptitle)
-    })
+    default_plt_param()
 
     # Create figure and axis
     fig, axs = plt.subplot_mosaic(
@@ -92,7 +83,7 @@ def default_style(
     progress = 0
     while active_coroutines:
         plot_heights = list(active_coroutines.values())
-        progress += max(plot_heights) + default_padding
+        progress += (1-overlap_ratio) * max(plot_heights) + default_padding
 
         # update the alive coroutines
         next_step_active_coroutines = {}
@@ -126,6 +117,33 @@ def default_style(
             apply_plot_settings(axs[ax_name], ax_setup_dict)
             
     # Save or show the figure
+    default_exit_save(fig, save_path)
+
+
+def default_plt_param():
+    # Set default font size
+    plt.rcParams["font.family"] = "Arial"
+    # plt.rcParams['font.size'] = 3
+    # plt.rcParams.update({
+    #     'xtick.labelsize': 5,      # X-axis tick labels
+    #     'ytick.labelsize': 5,      # Y-axis tick labels
+    #     'axes.labelsize': 6,       # X and Y axis labels
+    #     'legend.fontsize': 3,      # Legend font size
+    #     'axes.titlesize': 5,       # Plot title
+    #     'figure.titlesize': 5,     # Figure title (suptitle)
+    #     "lines.linewidth": 0.5,    # Line width
+    #     "lines.markersize": 3,     # Marker size
+    # })
+
+
+
+def default_exit_save(
+        fig: plt.Figure,
+        save_path: Optional[str] = None, 
+):
+    """
+    Save or show the figure.
+    """
     if save_path:        
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         fig.savefig(save_path, dpi=DPI)
@@ -135,5 +153,3 @@ def default_style(
     
     # Close the figure
     plt.close(fig)
-
-

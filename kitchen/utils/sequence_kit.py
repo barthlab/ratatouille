@@ -2,6 +2,7 @@ from collections import defaultdict
 from functools import reduce
 from typing import Callable, Generator, Iterable, Dict, Any, List, Mapping, Optional, Tuple, TypeVar
 import logging
+from abc import ABCMeta, abstractmethod
 
 logger = logging.getLogger(__name__)
 
@@ -85,3 +86,35 @@ def zip_dicts(*dcts: Mapping[K, Any]) -> Generator[Tuple[K, Any], None, None]:
 def select_truthy_items(datalist: Iterable[Optional[T]]) -> List[T]:
     """Selects items that are 'truthy'."""
     return [item for item in datalist if item]
+
+
+def indices2offset(indices: list[int]) -> list[int]:
+    """Converts a list of indices to a list of offsets."""
+    pad_indices = [-1, *indices]
+    return [b-a-1 for a, b in zip(pad_indices[:-1], pad_indices[1:])]
+
+def get_sorted_merge_indices(pre_merge_dict: Dict[str, list], _convert2offset: bool = False) -> Dict[str, list[int]]:
+    """
+    Finds the indices of elements from sorted lists
+    as they would appear in a final merged, sorted list.
+    """
+    # 1. Collect all values
+    all_values = [
+        value
+        for sorted_list in pre_merge_dict.values()
+        for value in sorted_list
+    ]
+    # 2. Sort and get unique indices
+    sorted_uniques = sorted(list(set(all_values)))
+    value_to_index_map = {
+        value: index
+        for index, value in enumerate(sorted_uniques)
+    }
+    # 3. Map back to original lists
+    output_indices = {
+        source_key: [value_to_index_map[value] for value in sorted_list]
+        for source_key, sorted_list in pre_merge_dict.items()
+    }
+    if _convert2offset:
+        output_indices = {k: indices2offset(v) for k, v in output_indices.items()}
+    return output_indices
