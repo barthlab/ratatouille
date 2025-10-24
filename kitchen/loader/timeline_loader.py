@@ -1,7 +1,7 @@
 import os
 import re
 import os.path as path
-from typing import Generator, Tuple
+from typing import Generator, Iterable, Tuple
 import logging
 import numpy as np
 import pandas as pd
@@ -13,6 +13,15 @@ from kitchen.structure.neural_data_structure import Timeline
 
 
 logger = logging.getLogger(__name__)
+
+def dummy_name_convert(a):
+    for i, special_value in enumerate(a):
+        if special_value.lower() in ("puff", "real"):
+            a[i] = "Puff"
+        elif special_value.lower() in ("blank", "fake"):
+            a[i] = "Blank"
+    return a
+
 
 def timeline_loader_from_fov(fov_node: Fov, timeline_loader_name: str = "default") -> Generator[Tuple[str, str, Timeline], None, None]:
     """
@@ -56,7 +65,7 @@ def timeline_loader_from_fov(fov_node: Fov, timeline_loader_name: str = "default
                     day_name = filename.split("_")[1]
                 
                 extracted_timeline = Timeline(
-                    v=data_array['details'].to_numpy(),
+                    v=dummy_name_convert(data_array['details'].to_numpy()),
                     t=data_array['time'].to_numpy(dtype=np.float32) / 1000
                 )
                 """Yield day name, session name, and timeline data."""

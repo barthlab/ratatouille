@@ -48,7 +48,7 @@ def fluorescence_loader_from_node(
 
         """split into sessions"""
         num_cells, num_total_frames = raw_f.shape
-        print(node.coordinate)
+        
         if n_session is None:
             assert num_total_frames % num_frames_per_session == 0, f"Cannot split {num_total_frames} frames into {num_frames_per_session} frames per session"
             n_session = int(num_total_frames // num_frames_per_session)
@@ -56,7 +56,7 @@ def fluorescence_loader_from_node(
             assert num_total_frames % n_session == 0, f"Cannot split {num_total_frames} frames into {n_session} sessions"
             num_frames_per_session = int(num_total_frames // n_session)
 
-        print(num_cells, num_total_frames, num_frames_per_session, n_session)
+        logger.debug(f"Found {num_cells} cells in {mat_path}. \nSplitting {num_total_frames} frames into {n_session} sessions with {num_frames_per_session} frames per session")
 
         raw_f = np.reshape(raw_f, (num_cells, num_frames_per_session, n_session), order='F')
         fov_motion = np.reshape(fov_motion, (2, num_frames_per_session, n_session), order='F')
@@ -90,7 +90,7 @@ def fluorescence_loader_from_node(
 
             # alignment happens here
             ttl_aligns = timeline.advanced_filter(TTL_EVENT_DEFAULT)
-
+    
             """match ttl and timeline"""
             if FAST_MATCHING_MODE:
                 ttl_to_timeline_offset = ttl_t[0] - ttl_aligns.t[0]

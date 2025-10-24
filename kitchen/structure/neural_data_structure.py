@@ -325,7 +325,7 @@ class Timeline(Events):
     def task_time(self) -> Tuple[float, float]:
         """Return start and end time of task."""            
         task_start = self.filter("task start").t[0] if "task start" in self.v else 0
-        task_end = self.filter("task end").t[0] if "task end" in self.v else DEFAULT_RECORDING_DURATION
+        task_end = self.filter("task end").t[0] if "task end" in self.v else task_start + DEFAULT_RECORDING_DURATION
         return task_start, task_end
 
 

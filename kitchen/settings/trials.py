@@ -14,3 +14,9 @@ BOUT_FILTER_PARAMETERS = {
         "minimal_bout_size": 1,
     },
 }
+
+
+
+# Whisking threshold for trial type annotation
+TRIAL_TYPE_ANNOTATION_WHISKER_THRESHOLD = 0.3
+TRIAL_TYPE_ANNOTATION_WHISKER_RANGE = (-2.5, -0.5)  # s

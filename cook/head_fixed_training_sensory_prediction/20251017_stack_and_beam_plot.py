@@ -33,10 +33,12 @@ def main():
     
     for mice_node in dataset.select("mice"):
         # flat_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual)
-        stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual,
-                                 _aligment_style="Aligned2Stim")
+        # stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual,
+        #                          _aligment_style="Aligned2Stim")
 
-    
+        
+        stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="fov", plot_manual=plot_manual,
+                                    _aligment_style="Aligned2Stim")
     # plot_manual = PlotManual(whisker=True, pupil=True)  
     # for session_node in dataset.select("session"):
     #     beam_view_default_macro(dataset.subtree(session_node, "SessionSubtree"), node_level="session", plot_manual=plot_manual,

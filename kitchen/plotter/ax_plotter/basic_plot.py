@@ -68,6 +68,7 @@ def flat_view(
     # 4. plot locomotion
     if plot_manual.locomotion:      
         y_offset = yield unit_plot_locomotion(locomotion=node.data.locomotion, ax=ax, y_offset=y_offset, ratio=LOCOMOTION_RATIO)
+    if plot_manual.position:
         y_offset = yield unit_plot_position(position=node.data.position, ax=ax, y_offset=y_offset, ratio=POSITION_RATIO)
 
     # 5. plot whisker

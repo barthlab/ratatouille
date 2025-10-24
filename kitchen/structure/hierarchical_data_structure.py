@@ -276,7 +276,7 @@ class DataSet:
         """Select nodes based on pre-defined rules."""   
         selected_nodes = {}    
         grouped_dict = group_by(self.nodes, key_func)
-        for key, nodes in grouped_dict.items():
+        for key, nodes in sorted(grouped_dict.items()):
             selected_nodes[key] = DataSet(name=key, nodes=nodes)
         if _empty_warning and len(selected_nodes) == 0:
             logger.warning(f"Rule based selection resulted in 0 nodes from {self.name}, check your key function: {key_func}")

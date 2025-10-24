@@ -1,10 +1,12 @@
 
 import os
 import csv
+import traceback
 import cv2
 from tqdm import tqdm
 
 from kitchen.configs import routing
+from kitchen.settings.fluorescence import DEFAULT_RECORDING_DURATION
 
 
 def marker_video_use_timeline(dir_path: str):
@@ -41,6 +43,7 @@ def marker_video_use_timeline(dir_path: str):
             print(f"Created: {demo_path}")
         except Exception as e:
             print(f"Error processing {basename}: {e}")
+            traceback.print_exc()
 
 
 def parse_timeline(timeline_file: str):
@@ -60,7 +63,12 @@ def parse_timeline(timeline_file: str):
                 events['end'] = time_val
             else:
                 all_events.append((time_val, detail))
-    
+                
+    if "start" not in events:
+        events['start'] = 0
+    if "end" not in events:
+        events['end'] = events['start'] + DEFAULT_RECORDING_DURATION
+
     # Sort events by time
     all_events.sort(key=lambda x: x[0])
     

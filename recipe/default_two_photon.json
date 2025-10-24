@@ -3,9 +3,11 @@
     "description": "Default template for all two-photon experiments",
     "data_type": "two_photon",
     "loaders": {
-        "timeline": "io_default",
-        "fluorescence": "io_default",
-        "behavior": "io_default"
+        "timeline": "default",
+        "fluorescence": "default",
+        "behavior": "default"
     },
-    "trial split": "timeline"
+    "trial split": "timeline",
+    "trial range": [-5, 5],
+    "trial type annotator": "default"
 }

@@ -38,6 +38,8 @@ def flat_view_default_macro(
         plot_manual: PlotManual,
         prefix_keyword: Optional[str] = None,
         unit_shape: Tuple[float, float] = (FLAT_X_INCHES, FLAT_Y_INCHES),
+
+        **kwargs,
 ) -> None:
     """
     Generate flat view overview plots for all nodes within a dataset.    
@@ -57,6 +59,7 @@ def flat_view_default_macro(
                 },
             figsize=(unit_shape[0], unit_shape[1] * len(nodes2plot)),
             save_path=routing.default_fig_path(dataset, prefix_str + "_{}.png"),
+            **kwargs,
         )
     except Exception as e:
         logger.debug(f"Cannot plot flat view default macro for {dataset.name}: {e}")
@@ -70,15 +73,18 @@ def stack_view_default_macro(
         prefix_keyword: Optional[str] = None,
         unit_shape: Tuple[float, float] = (STACK_X_INCHES, STACK_Y_INCHES),
 
+        _element_trial_level: str = "trial",
         _append_subtract_view: bool = True,  # for two types node only
         _aligment_style: str = "Aligned2Trial",
+
+        **kwargs,
 ) -> None:
     """
     Generate stack view overview plots for all nodes within a dataset.    
     Creates a multi-panel figure with each row per node and each column per selected type.
     """
     nodes2plot = dataset.select(node_level)
-    save_name = f"{dataset.name}_{node_level}_stackview"
+    save_name = f"{dataset.name}_{_element_trial_level}@{node_level}_stackview"
     prefix_str = f"{prefix_keyword}_{save_name}" if prefix_keyword is not None else save_name
 
     alignment_events = ALL_ALIGNMENT_STYLE[_aligment_style]
@@ -86,7 +92,7 @@ def stack_view_default_macro(
         n_col = 0
         mosaic_style, content_dict = [], {}
         for node in nodes2plot:
-            all_trial_nodes = dataset.subtree(node).select("trial", _empty_warning=False)
+            all_trial_nodes = dataset.subtree(node).select(_element_trial_level, _empty_warning=False)
             type2dataset = select_from_value(
                 all_trial_nodes.rule_based_group_by(lambda x: x.info.get("trial_type")),
                 _self = partial(CHECK_PLOT_MANUAL, plot_manual=plot_manual)
@@ -120,6 +126,7 @@ def stack_view_default_macro(
             content_dict=content_dict,
             figsize=(unit_shape[0] * n_col, unit_shape[1] * len(nodes2plot)),
             save_path=routing.default_fig_path(dataset, prefix_str + f"_{{}}_{_aligment_style}.png"),
+            **kwargs,
         )
     except Exception as e:
         logger.debug(f"Cannot plot stack view default macro for {dataset.name} with {_aligment_style}: {e}")
@@ -133,14 +140,17 @@ def beam_view_default_macro(
         prefix_keyword: Optional[str] = None,
         unit_shape: Tuple[float, float] = (PARALLEL_X_INCHES, PARALLEL_Y_INCHES),
 
+        _element_trial_level: str = "trial",
         _aligment_style: str = "Aligned2Trial",
+
+        **kwargs,
 ) -> None:
     """
     Generate beam view overview plots for all nodes within a dataset.    
     Creates a multi-panel figure with each row per node and each column per selected type.
     """
     nodes2plot = dataset.select(node_level)
-    save_name = f"{dataset.name}_{node_level}_beamview"
+    save_name = f"{dataset.name}_{_element_trial_level}@{node_level}_beamview"
     prefix_str = f"{prefix_keyword}_{save_name}" if prefix_keyword is not None else save_name
 
     alignment_events = ALL_ALIGNMENT_STYLE[_aligment_style]
@@ -148,7 +158,7 @@ def beam_view_default_macro(
         n_col = 0
         mosaic_style, content_dict = [], {}
         for node in nodes2plot:
-            all_trial_nodes = dataset.subtree(node).select("trial", _empty_warning=False)
+            all_trial_nodes = dataset.subtree(node).select(_element_trial_level, _empty_warning=False)
             type2dataset = select_from_value(
                 all_trial_nodes.rule_based_group_by(lambda x: x.info.get("trial_type")),
                 _self = partial(CHECK_PLOT_MANUAL, plot_manual=plot_manual)
@@ -179,6 +189,7 @@ def beam_view_default_macro(
             figsize=(unit_shape[0] * n_col, unit_shape[1] * len(nodes2plot)),
             save_path=routing.default_fig_path(dataset, prefix_str + f"_{{}}_{_aligment_style}.png"),
             overlap_ratio=0.7,
+            **kwargs,
         )
     except Exception as e:
         logger.debug(f"Cannot plot beam view default macro for {dataset.name} with {_aligment_style}: {e}")

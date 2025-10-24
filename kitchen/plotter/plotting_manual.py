@@ -8,6 +8,7 @@ PlotManual = namedtuple(
     [
         "timeline",
         "locomotion",
+        "position",
         "lick", 
         "pupil", 
         "tongue", 
@@ -16,7 +17,7 @@ PlotManual = namedtuple(
         "potential",
         "potential_conv"
     ], 
-    defaults=[True, False, False, False, False, False, False, False, False]
+    defaults=[True, False, False, False, False, False, False, False, False, False]
 )
 
 
