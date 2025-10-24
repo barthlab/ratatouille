@@ -3,7 +3,7 @@ import logging
 import numpy as np
 
 from kitchen.settings.timeline import AUDITORY_EVENTS_DEFAULT, REWARD_EVENTS_DEFAULT, STIMULUS_EVENTS_DEFAULT
-from kitchen.settings.trials import DEFAULT_TRIAL_RANGE_FOR_TRIAL_TYPE_ANNOTATION
+from kitchen.settings.trials import DEFAULT_TRIAL_RANGE_FOR_TRIAL_TYPE_ANNOTATION, TRIAL_TYPE_ANNOTATION_WHISKER_RANGE, TRIAL_TYPE_ANNOTATION_WHISKER_THRESHOLD
 from kitchen.structure.hierarchical_data_structure import FovTrial, Trial
 from kitchen.settings.loaders import LOADER_STRICT_MODE
 
@@ -104,10 +104,21 @@ def trial_type_annotator(trial_node: Trial | FovTrial, trial_align: float, trial
         else:
             raise ValueError(f"Cannot determine trial type in {trial_node.timeline.v}, got puff duration {puff_duration}")
         
+    def io_stationary_vs_mobile(trial_node: Trial | FovTrial, trial_align: float):
+        assert trial_node.data.timeline is not None, f"Cannot find timeline in {trial_node}"
+        assert trial_node.data.whisker is not None, f"Cannot find whisker in {trial_node}"
+
+        pre_stim_whisker = trial_node.data.whisker.aligned_to(trial_align).segment(*TRIAL_TYPE_ANNOTATION_WHISKER_RANGE)
+        if pre_stim_whisker.v.mean() < TRIAL_TYPE_ANNOTATION_WHISKER_THRESHOLD:
+            trial_node.info["trial_type"] = "Stationary"
+        else:
+            trial_node.info["trial_type"] = "Mobile"
+        
 
     trial_type_annotator_options = {
         "default": io_default,
         "js_jux": io_js_jux,
+        "stationary_vs_mobile": io_stationary_vs_mobile,
     }
     if trial_type_annotator_name is None:
         logger.debug("No trial type annotator specified, skip trial type annotation")

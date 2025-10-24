@@ -20,21 +20,21 @@ logging.getLogger('numba').setLevel(logging.WARNING)
 
 def main():
     dataset = load_dataset(template_id="HeadFixedTraining", cohort_id="SensoryPrediction_202510", 
-                           recipe="default_behavior_only", name="sensory_prediction")
+                           recipe="default_behavior_only_locomotion_analysis", name="sensory_prediction")
     dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
 
     plot_manual = PlotManual(locomotion=True, whisker=True, pupil=True)  
     
-    trace_view_delta_behavior_macro(dataset, "pupil", "CuedBlank", (1, 3.0), (-1., -0),
-                                    prefix_keyword="AfterStim", _aligment_style="Aligned2Stim", _to_percent=True)
-    trace_view_delta_behavior_macro(dataset, "whisker", "CuedBlank", (1, 3.0), (-1., -0), 
-                                    prefix_keyword="AfterStim", _aligment_style="Aligned2Stim", _to_percent=True)
+    # trace_view_delta_behavior_macro(dataset, "pupil", "CuedBlank", (1, 3.0), (-1., -0),
+    #                                 prefix_keyword="AfterStim", _aligment_style="Aligned2Stim", _to_percent=True)
+    # trace_view_delta_behavior_macro(dataset, "whisker", "CuedBlank", (1, 3.0), (-1., -0), 
+    #                                 prefix_keyword="AfterStim", _aligment_style="Aligned2Stim", _to_percent=True)
 
     
-    # for mice_node in dataset.select("mice"):
-    #     # flat_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual)
-    #     stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual,
-    #                              _aligment_style="Aligned2Stim")
+    for mice_node in dataset.select("mice"):
+        # flat_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual)
+        stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual,
+                                 _aligment_style="Aligned2Stim")
 
     
     # plot_manual = PlotManual(whisker=True, pupil=True)  

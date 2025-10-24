@@ -1,0 +1,12 @@
+{
+    "name": "default behavior only locomotion analysis",
+    "description": "Default template for all behavioral only experiments with locomotion analysis",
+    "data_type": "two_photon",
+    "loaders": {
+        "timeline": "default",
+        "behavior": "default"
+    },
+    "trial split": "timeline",
+    "trial range": [-5, 5],
+    "trial type annotator": "stationary_vs_mobile"
+}

@@ -25,7 +25,7 @@ def preprocessing():
                            recipe="default_behavior_only", name="sensory_prediction")
     dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
     # custom_extraction.default_collection(dataset)
-    # facemap_pupil_extraction.default_collection(dataset)
+    facemap_pupil_extraction.default_collection(dataset)
 
 def label_videos():
     hft_data_path = r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\HeadFixedTraining\SensoryPrediction_202510"
@@ -51,8 +51,8 @@ def main():
 
 
 if __name__ == "__main__":
-    # preprocessing()
-    label_videos()
+    preprocessing()
+    # label_videos()
     # main()
 
 
