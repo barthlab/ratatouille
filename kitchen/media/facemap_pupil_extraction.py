@@ -74,7 +74,7 @@ def pupil_save_path(video_path: str) -> str:
     return save_path
 
 
-def default_collection(data_set: DataSet):
+def default_collection(data_set: DataSet, _expected_format: str = ".avi"):
     """Ask for whether to open Facemap for pupil extraction."""
     open_flag = input("Open Facemap for pupil extraction? ([y]/n): ")
     open_flag = True if open_flag == "y" else False
@@ -84,14 +84,14 @@ def default_collection(data_set: DataSet):
     """Move facemap processed result to PUPIL folder"""
     for cohort_node in data_set.select("cohort"):
         assert isinstance(cohort_node, Cohort)
-        all_video_path = find_all_video_path(routing.default_data_path(cohort_node), ".avi")
+        all_video_path = find_all_video_path(routing.default_data_path(cohort_node), _expected_format)
         for video_path in all_video_path:
-            processed_path = video_path.replace(".avi", "_proc.npy")
-            to_saved_path = pupil_save_path(video_path)
+            processed_path = video_path.replace(_expected_format, "_proc.npy")
             if path.exists(processed_path):
                 print(f"Processing {processed_path}")
                 tmp_data = np.load(processed_path, allow_pickle=True).item()['pupil'][0]
                 area_smooth = tmp_data['area_smooth']
                 save_dict = pd.DataFrame({"Pupil": area_smooth})
+                to_saved_path = pupil_save_path(video_path)
                 save_dict.to_csv(to_saved_path, index_label="Frame")
                 print(f"Saved to {to_saved_path}")

@@ -46,9 +46,15 @@ def video_convert(dir_path: str, src_format: str = ".h264", dst_format: str = ".
             logger.info(f"Video {output_path} already exists, skipping...")
             continue
         
-        command = (r"ffmpeg -framerate {} -i {} -q:v 6 -vf fps={} "
-                r"-hide_banner -loglevel warning {}").format(
-                    INPUT_VIDEO_FPS, file_path, OUTPUT_VIDEO_FPS, output_path)
+        if src_format == ".h264":
+            command = (r"ffmpeg -framerate {} -i {} -q:v 6 -vf fps={} "
+                    r"-hide_banner -loglevel warning {}").format(
+                        INPUT_VIDEO_FPS, file_path, OUTPUT_VIDEO_FPS, output_path)
+        else:
+            command = (r"ffmpeg -i {} -q:v 6 -vf fps={} "
+                    r"-hide_banner -loglevel warning {}").format(
+                        file_path, OUTPUT_VIDEO_FPS, output_path)
+
         
         logger.info(command)
         time_start = time.time()
