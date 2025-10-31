@@ -78,10 +78,16 @@ class Node:
             return getattr(self.data, name)
         raise AttributeError(f"'{self.__class__.__name__}' object [{str(self)}] has no attribute '{name}'")
 
+    @classmethod
     @property
-    def hash_key(self) -> str:
+    def hash_key(cls) -> str:
         """Return lowercase class name for node type identification."""
-        return self.__class__.__name__.lower()
+        return cls.__name__.lower()
+    
+    # @property
+    # def hash_key(self) -> str:
+    #     """Return lowercase class name for node type identification."""
+    #     return self.__class__.__name__.lower()
 
     def __lt__(self, other: object) -> bool:
         """Check less than based on coordinates."""

@@ -60,6 +60,11 @@ class HierarchicalUID:
         """Combine two UIDs into the root uid."""
         return self.__add__(other)
 
+    @property
+    def edge(self) -> Any:
+        """Get value for the most specific field."""
+        return self.get_hier_value(self.level)
+    
     def get_hier_value(self, hier_name: str, default: Any = None) -> Any:
         """Get value for hierarchy field (without "_id" suffix)."""
         assert hier_name in self._HIERARCHY_FIELDS, f"{hier_name} is not a valid field for {self}"
@@ -242,3 +247,8 @@ class TemporalObjectCoordinate:
     def level_index(self) -> Tuple[int, int]:
         """Return the index of the most specific level of the coordinate."""
         return self.object_uid.level_index, self.temporal_uid.level_index
+    
+    @property
+    def edge(self) -> Tuple[Any, Any]:
+        """Get value for the most specific field."""
+        return self.object_uid.edge, self.temporal_uid.edge
