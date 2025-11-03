@@ -1,6 +1,5 @@
 from kitchen.settings.timeline import SUPPORTED_TIMELINE_EVENT
-from kitchen.plotter.color_scheme import DARK_PELTIER_COLOR, DARK_STIM_COLOR, DETECTED_SPIKE_COLOR, EARLY_SPIKE_COLOR, FLUORESCENCE_COLOR, INDIVIDUAL_FLUORESCENCE_COLOR, LOCOMOTION_COLOR, POSITION_COLOR, LICK_COLOR, POTENTIAL_COLOR, PUPIL_COLOR, REGULAR_SPIKE_COLOR, \
-        SUBTRACT_COLOR, SUSTAINED_SPIKE_COLOR, WHISKER_COLOR, DARK_PUFF_COLOR, DARK_BLANK_COLOR, DARK_WATER_COLOR, DARK_NOWATER_COLOR, DARK_BUZZER_COLOR
+import kitchen.plotter.color_scheme as color_scheme
 
 DEFAULT_ALPHA = 0.9
 MAX_OVERLAP_ALPHA_NUM_DUE_TO_MATPLOTLLIB_BUG = 200 # 255, see matplotlib alpha bug
@@ -14,81 +13,81 @@ REFERENCE_LINE_STYLE = {
 }
 
 LOCOMOTION_TRACE_STYLE = {
-    "color": LOCOMOTION_COLOR,
+    "color": color_scheme.LOCOMOTION_COLOR,
     "linewidth": 0.5,
     "alpha": 0.7,
 }
 
 POSITION_SCATTER_STYLE = {
-    "color": POSITION_COLOR,
+    "color": color_scheme.POSITION_COLOR,
     "s": 1,
     "alpha": 0.7,
 }
 
 LICK_VLINES_STYLE = {
-    "colors": LICK_COLOR,
+    "colors": color_scheme.LICK_COLOR,
     "ls": 'solid',
     "alpha": 0.7,
     "lw": 0.1,
 }
 
 LICK_TRACE_STYLE = {
-    "color": LICK_COLOR,
+    "color": color_scheme.LICK_COLOR,
     "linewidth": 0.5,
     "alpha": 0.7,
 }
 
 PUPIL_TRACE_STYLE = {
-    "color": PUPIL_COLOR,
+    "color": color_scheme.PUPIL_COLOR,
     "linewidth": 0.5,
     "alpha": 0.7,
 }
 
 WHISKER_TRACE_STYLE = {
-    "color": WHISKER_COLOR,
+    "color": color_scheme.WHISKER_COLOR,
     "linewidth": 0.5,
     "alpha": 0.7,
 }
 
 FLUORESCENCE_TRACE_STYLE = {
-    "color": FLUORESCENCE_COLOR,
+    "color": color_scheme.FLUORESCENCE_COLOR,
     "lw": 0.3,
     "alpha": 0.7,
 }
 
 POTENTIAL_TRACE_STYLE = {
-    "color": POTENTIAL_COLOR,
+    "color": color_scheme.POTENTIAL_COLOR,
     "lw": 0.1,
     "alpha": 0.7,
 }
 
 SPIKE_POTENTIAL_TRACE_STYLE = {
     "spike":{
-        "color": REGULAR_SPIKE_COLOR,
+        "color": color_scheme.REGULAR_SPIKE_COLOR,
         "lw": 0.1,
         "alpha": 0.7,
         "zorder": 8,
     },
     "early_spike": {
-        "color": EARLY_SPIKE_COLOR,
+        "color": color_scheme.EARLY_SPIKE_COLOR,
         "lw": 0.1,
         "alpha": 0.7,
         "zorder": 10,
     },
     "sustained_spike": {
-        "color": SUSTAINED_SPIKE_COLOR,
+        "color": color_scheme.SUSTAINED_SPIKE_COLOR,
         "lw": 0.1,
         "alpha": 0.7,
         "zorder": 10,
     },
     "regular_spike": {
-        "color": REGULAR_SPIKE_COLOR,
+        "color": color_scheme.REGULAR_SPIKE_COLOR,
         "lw": 0.1,
         "alpha": 0.7,
         "zorder": 9,
     },
     "detected_spike": {
-        "color": DETECTED_SPIKE_COLOR,
+        "color": color_scheme.DETECTED_SPIKE_COLOR,
         "lw": 0.1,
         "alpha": 0.7,
         "zorder": 10,
@@ -106,7 +105,7 @@ DEEMPHASIZED_POTENTIAL_ADD_STYLE = {
 }
 
 INDIVIDUAL_FLUORESCENCE_TRACE_STYLE = {
-    "color": INDIVIDUAL_FLUORESCENCE_COLOR,
+    "color": color_scheme.INDIVIDUAL_FLUORESCENCE_COLOR,
     "lw": 0.1,
     "alpha": 0.9,
 }
@@ -117,7 +116,7 @@ FILL_BETWEEN_STYLE = {
 }
 
 SUBTRACT_STYLE = {
-    "color": SUBTRACT_COLOR,
+    "color": color_scheme.SUBTRACT_COLOR,
     "lw": 0.2,
     "alpha": 0.4,
     "zorder": 10,
@@ -192,7 +191,7 @@ ANNOTATION_TEXT_STYLE_NONSIGNIFICANT = {
 
 TIMELINE_SCATTER_STYLE = {
     "StimOn": {
-        "color": DARK_STIM_COLOR,
+        "color": color_scheme.DARK_STIM_COLOR,
         "s": 8,
         "marker": "|",
         "alpha": 1,
@@ -200,7 +199,7 @@ TIMELINE_SCATTER_STYLE = {
         "zorder": 10,
     },
     "VerticalPuffOn": {
-        "color": DARK_PUFF_COLOR,
+        "color": color_scheme.DARK_PUFF_COLOR,
         "s": 8,
         "marker": "|",
         "alpha": 1,
@@ -208,7 +207,7 @@ TIMELINE_SCATTER_STYLE = {
         "zorder": 10,
     },
     "Puff": {
-        "color": DARK_PUFF_COLOR,
+        "color": color_scheme.DARK_PUFF_COLOR,
         "s": 8,
         "marker": "|",
         "alpha": 1,
@@ -216,7 +215,7 @@ TIMELINE_SCATTER_STYLE = {
         "zorder": 10,
     },
     "PeltierLeftOn": {
-        "color": DARK_PELTIER_COLOR,
+        "color": color_scheme.DARK_PELTIER_COLOR,
         "s": 8,
         "marker": "|",
         "alpha": 1,
@@ -224,7 +223,7 @@ TIMELINE_SCATTER_STYLE = {
         "zorder": 10,
     },
     "PeltierRightOn": {
-        "color": DARK_PELTIER_COLOR,
+        "color": color_scheme.DARK_PELTIER_COLOR,
         "s": 8,
         "marker": "|",
         "alpha": 1,
@@ -232,7 +231,7 @@ TIMELINE_SCATTER_STYLE = {
         "zorder": 10,
     },
     "PeltierBothOn": {
-        "color": DARK_PELTIER_COLOR,
+        "color": color_scheme.DARK_PELTIER_COLOR,
         "s": 8,
         "marker": "|",
         "alpha": 1,
@@ -240,7 +239,7 @@ TIMELINE_SCATTER_STYLE = {
         "zorder": 10,
     },
     "HorizontalPuffOn": {
-        "color": DARK_PUFF_COLOR,
+        "color": color_scheme.DARK_PUFF_COLOR,
         "s": 5,
         "marker": "-",
         "alpha": 1,
@@ -249,7 +248,7 @@ TIMELINE_SCATTER_STYLE = {
     },
     "BlankOn": {
         "facecolors": 'none',
-        "edgecolors": DARK_BLANK_COLOR,
+        "edgecolors": color_scheme.DARK_BLANK_COLOR,
         "s": 4,
         "marker": "o",
         "alpha": 1,
@@ -258,7 +257,7 @@ TIMELINE_SCATTER_STYLE = {
     },
     "FakeRelayOn": {
         "facecolors": 'none',
-        "edgecolors": DARK_BLANK_COLOR,
+        "edgecolors": color_scheme.DARK_BLANK_COLOR,
         "s": 4,
         "marker": "o",
         "alpha": 1,
@@ -267,7 +266,7 @@ TIMELINE_SCATTER_STYLE = {
     },
     "Blank": {
         "facecolors": 'none',
-        "edgecolors": DARK_BLANK_COLOR,
+        "edgecolors": color_scheme.DARK_BLANK_COLOR,
         "s": 4,
         "marker": "o",
         "alpha": 1,
@@ -275,7 +274,7 @@ TIMELINE_SCATTER_STYLE = {
         "zorder": 10,
     },
     "WaterOn": {
-        "color": DARK_WATER_COLOR,
+        "color": color_scheme.DARK_WATER_COLOR,
         "s": 4,
         "marker": "^",
         "alpha": 0.7,
@@ -283,7 +282,7 @@ TIMELINE_SCATTER_STYLE = {
         "zorder": 10,
     },
     "NoWaterOn": {
-        "color": DARK_NOWATER_COLOR,
+        "color": color_scheme.DARK_NOWATER_COLOR,
         "s": 2,
         "marker": "x",
         "alpha": 0.7,
@@ -291,7 +290,7 @@ TIMELINE_SCATTER_STYLE = {
         "zorder": 10,
     },
     "BuzzerOn": {
-        "color": DARK_BUZZER_COLOR,
+        "color": color_scheme.DARK_BUZZER_COLOR,
         "s": 4,
         "marker": "s",
         "alpha": 0.7,

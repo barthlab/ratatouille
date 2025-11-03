@@ -29,7 +29,6 @@ from typing import Any, Callable, ClassVar, Generator, List, Optional, Dict, Sel
 import logging
 import pandas as pd
 
-from kitchen.settings.structure import NULL_STRUCTURE_NAME
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate
 from kitchen.structure.neural_data_structure import NeuralData
 from kitchen.utils.sequence_kit import filter_by, group_by, split_by
@@ -256,26 +255,32 @@ class DataSet:
         """Combine two datasets into one."""
         return self.__add__(other)
         
-    def subset(self, _specified_name: str = NULL_STRUCTURE_NAME, _empty_warning: bool = True, **criterion: Any) -> "DataSet":
+    def subset(self, _specified_name: Optional[str] = None, _empty_warning: bool = True, **criterion: Any) -> "DataSet":
         """Filter all nodes by criterion function."""
         selected_nodes = filter_by(self.nodes, **criterion)
         if _empty_warning and len(selected_nodes) == 0:
             logger.warning("Subset operation resulted in 0 nodes, check your criterion function")
+        if _specified_name is None:
+            _specified_name = f"Subset_{self.name}"
         return DataSet(name=_specified_name, nodes=selected_nodes)
 
-    def subtree(self, root_node: Node, _specified_name: str = NULL_STRUCTURE_NAME, _empty_warning: bool = True) -> "DataSet":
+    def subtree(self, root_node: Node, _specified_name: Optional[str] = None, _empty_warning: bool = True) -> "DataSet":
         """Extract a subtree rooted at a specific node."""
         selected_nodes = [node for node in self if root_node.coordinate.contains(node.coordinate)]
         if _empty_warning and len(selected_nodes) == 0:
             logger.warning("Subtree operation resulted in 0 nodes, check your root node")
+        if _specified_name is None:
+            _specified_name = f"Subtree_{self.name}"
         return DataSet(name=_specified_name, nodes=selected_nodes)
 
-    def select(self, hash_key: str, _specified_name: str = NULL_STRUCTURE_NAME, _empty_warning: bool = True, **criterion: Any) -> "DataSet":
+    def select(self, hash_key: str, _specified_name: Optional[str] = None, _empty_warning: bool = True, **criterion: Any) -> "DataSet":
         """Filter nodes of specific type by criterion. More efficient than subset()."""
         assert hash_key == hash_key.lower(), f"hash_key must be lower case, but got {hash_key}"
         selected_nodes = filter_by(self._fast_lookup[hash_key], **criterion)
         if _empty_warning and len(selected_nodes) == 0:
             logger.warning(f"Select operation resulted in 0 {hash_key} nodes from {self.name}, check your criterion function: {criterion}")
+        if _specified_name is None:
+            _specified_name = f"{hash_key}Select_{self.name}"
         return DataSet(name=_specified_name, nodes=selected_nodes)
     
     def rule_based_group_by(self, key_func: Callable[[Node], Optional[str]], _empty_warning: bool = False) -> Dict[str, "DataSet"]:

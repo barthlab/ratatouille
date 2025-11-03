@@ -11,7 +11,7 @@ from kitchen.plotter.unit_plotter.unit_yticks import yticks_combo
 from kitchen.plotter.utils.alpha_calculator import calibrate_alpha, ind_alpha
 from kitchen.plotter.utils.fill_plot import oreo_plot
 from kitchen.settings.fluorescence import DF_F0_SIGN, Z_SCORE_SIGN
-from kitchen.plotter.color_scheme import FLUORESCENCE_COLOR, GRAND_COLOR_SCHEME, LICK_COLOR, LOCOMOTION_COLOR, POSITION_COLOR, POTENTIAL_COLOR, PUPIL_COLOR, WHISKER_COLOR
+import kitchen.plotter.color_scheme as color_scheme
 from kitchen.plotter.plotting_params import LICK_BIN_SIZE, LOCOMOTION_BIN_SIZE, RAW_FLUORESCENCE_RATIO, TIME_TICK_DURATION, WC_POTENTIAL_RATIO
 from kitchen.plotter.style_dicts import DEEMPHASIZED_POTENTIAL_ADD_STYLE, EMPHASIZED_POTENTIAL_ADD_STYLE, FILL_BETWEEN_STYLE, FLUORESCENCE_TRACE_STYLE, INDIVIDUAL_FLUORESCENCE_TRACE_STYLE, LICK_TRACE_STYLE, LOCOMOTION_TRACE_STYLE, MAX_OVERLAP_ALPHA_NUM_DUE_TO_MATPLOTLLIB_BUG, POSITION_SCATTER_STYLE, LICK_VLINES_STYLE, POTENTIAL_TRACE_STYLE, PUPIL_TRACE_STYLE, SPIKE_POTENTIAL_TRACE_STYLE, TIMELINE_SCATTER_STYLE, VLINE_STYLE, VSPAN_STYLE, WHISKER_TRACE_STYLE
 from kitchen.plotter.utils.tick_labels import TICK_PAIR, add_new_yticks
@@ -55,7 +55,7 @@ def unit_plot_locomotion(locomotion: None | Events | list[Events], ax: plt.Axes,
     if yticks_flag:
         yticks_combo("locomotion", ax, y_offset, ratio)
     else:
-        add_new_yticks(ax, TICK_PAIR(y_offset, "", LOCOMOTION_COLOR))
+        add_new_yticks(ax, TICK_PAIR(y_offset, "", color_scheme.LOCOMOTION_COLOR))
     return max(y_height, 2*ratio)
 
 
@@ -73,7 +73,7 @@ def unit_plot_position(position: None | Events, ax: plt.Axes, y_offset: float, r
     if yticks_flag:
         yticks_combo("position", ax, y_offset, ratio)
     else:
-        add_new_yticks(ax, TICK_PAIR(y_offset, "", POSITION_COLOR))
+        add_new_yticks(ax, TICK_PAIR(y_offset, "", color_scheme.POSITION_COLOR))
     return 1*ratio
 
 
@@ -87,8 +87,8 @@ def unit_plot_lick(lick: None | Events | list[Events], ax: plt.Axes, y_offset: f
     if isinstance(lick, Events):
         # plot single lick
         y_height = ratio
-        ax.vlines(x=lick.t, ymin=y_offset, ymax=y_offset + ratio, **LICK_VLINES_STYLE)        
-        add_new_yticks(ax, TICK_PAIR(y_offset + 0.5 * ratio, "Lick", LICK_COLOR), add_ref_lines=False)
+        ax.vlines(x=lick.t, ymin=y_offset, ymax=y_offset + ratio, **LICK_VLINES_STYLE)
+        add_new_yticks(ax, TICK_PAIR(y_offset + 0.5 * ratio, "Lick", color_scheme.LICK_COLOR), add_ref_lines=False)
     else:
         # plot multiple licks
         group_lick = grouping_events_rate(lick, bin_size=LICK_BIN_SIZE)
@@ -99,7 +99,7 @@ def unit_plot_lick(lick: None | Events | list[Events], ax: plt.Axes, y_offset: f
         if yticks_flag:
             yticks_combo("lick", ax, y_offset, ratio)
         else:
-            add_new_yticks(ax, TICK_PAIR(y_offset, "", LICK_COLOR))
+            add_new_yticks(ax, TICK_PAIR(y_offset, "", color_scheme.LICK_COLOR))
     return y_height
 
 
@@ -122,7 +122,7 @@ def unit_plot_pupil(pupil: None | TimeSeries | list[TimeSeries], ax: plt.Axes, y
     if yticks_flag:
         yticks_combo("pupil", ax, y_offset, ratio)
     else:
-        add_new_yticks(ax, TICK_PAIR(y_offset, "", PUPIL_COLOR))
+        add_new_yticks(ax, TICK_PAIR(y_offset, "", color_scheme.PUPIL_COLOR))
     return ratio
 
 
@@ -145,7 +145,7 @@ def unit_plot_whisker(whisker: None | TimeSeries | list[TimeSeries], ax: plt.Axe
     if yticks_flag:
         yticks_combo("whisker", ax, y_offset, ratio)
     else:
-        add_new_yticks(ax, TICK_PAIR(y_offset, "", WHISKER_COLOR))
+        add_new_yticks(ax, TICK_PAIR(y_offset, "", color_scheme.WHISKER_COLOR))
     return ratio
 
 
@@ -163,7 +163,7 @@ def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes,
                 continue
             ax.scatter(event_time, y_offset + 0.5 * ratio , **TIMELINE_SCATTER_STYLE[event_type])
             if not _hide_vline:
-                ax.axvline(x=event_time, color=GRAND_COLOR_SCHEME[event_type], **VLINE_STYLE)
+                ax.axvline(x=event_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type], **VLINE_STYLE)
 
         # set x ticks
         try:
@@ -196,20 +196,20 @@ def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes,
     if not _hide_vline:
         for one_timeline in timeline:
             for event_time, event_type in zip(one_timeline.t, one_timeline.v):
-                if event_type not in GRAND_COLOR_SCHEME:
+                if event_type not in color_scheme.GRAND_COLOR_SCHEME:
                     continue
                 if ("On" not in event_type) or (event_type.replace("On", "Off") not in one_timeline.v):
-                    ax.axvline(event_time, color=GRAND_COLOR_SCHEME[event_type], 
+                    ax.axvline(event_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type],
                                 **calibrate_alpha(VLINE_STYLE, len(all_event[event_type])))
                     continue
 
                 end_event = event_type.replace("On", "Off")
                 end_time = one_timeline.filter(end_event).t[0]
                 if end_time - event_time >= 0.09:
-                    ax.axvspan(event_time, end_time, color=GRAND_COLOR_SCHEME[event_type],
+                    ax.axvspan(event_time, end_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type],
                                 **calibrate_alpha(VSPAN_STYLE, len(all_event[event_type])))
                 else:
-                    ax.axvline(event_time, color=GRAND_COLOR_SCHEME[event_type], 
+                    ax.axvline(event_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type],
                                 **calibrate_alpha(VLINE_STYLE, len(all_event[event_type])))
     return ratio
 
@@ -230,12 +230,12 @@ def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[
         cell_trace = fluorescence.z_score.v[0]
         ax.plot(fluorescence.z_score.t, cell_trace * ratio + y_offset, **FLUORESCENCE_TRACE_STYLE)      
 
-        # add y ticks  
+        # add y ticks
         add_new_yticks(ax, TICK_PAIR(
-            y_offset, f"Cell {fluorescence.cell_idx[0]}" if cell_id_flag else "Cell", FLUORESCENCE_COLOR))      
+            y_offset, f"Cell {fluorescence.cell_idx[0]}" if cell_id_flag else "Cell", color_scheme.FLUORESCENCE_COLOR))
         add_new_yticks(ax, TICK_PAIR(
             y_offset + 1 * ratio,
-            f"1 {Z_SCORE_SIGN}" if (np.all(fluorescence.cell_order == 0) or (not cell_id_flag)) else "", FLUORESCENCE_COLOR))
+            f"1 {Z_SCORE_SIGN}" if (np.all(fluorescence.cell_order == 0) or (not cell_id_flag)) else "", color_scheme.FLUORESCENCE_COLOR))
         return max(np.nanmax(cell_trace) * ratio, 1*ratio)
 
     # plot multiple cell fluorescence
@@ -251,11 +251,11 @@ def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[
     # add y ticks
     example_fluorescence = fluorescence[0]
     add_new_yticks(ax, TICK_PAIR(
-        y_offset, 
-        f"Cell {example_fluorescence.cell_idx[0]}" if cell_id_flag else "Cell", FLUORESCENCE_COLOR))      
+        y_offset,
+        f"Cell {example_fluorescence.cell_idx[0]}" if cell_id_flag else "Cell", color_scheme.FLUORESCENCE_COLOR))
     add_new_yticks(ax, TICK_PAIR(
-        y_offset + 1 * ratio, 
-        f"1 {DF_F0_SIGN}" if (np.all(example_fluorescence.cell_order == 0) or (not cell_id_flag)) else "", FLUORESCENCE_COLOR))    
+        y_offset + 1 * ratio,
+        f"1 {DF_F0_SIGN}" if (np.all(example_fluorescence.cell_order == 0) or (not cell_id_flag)) else "", color_scheme.FLUORESCENCE_COLOR))
     return max(np.nanmax(group_fluorescence.mean) * ratio, 1*ratio)
         
 
@@ -281,7 +281,7 @@ def unit_plot_potential(potential: None | Potential | list[Potential],
     if yticks_flag:
         yticks_combo(ytick_template, ax, y_offset, ratio)
     else:
-        add_new_yticks(ax, TICK_PAIR(y_offset, "", POTENTIAL_COLOR)) 
+        add_new_yticks(ax, TICK_PAIR(y_offset, "", color_scheme.POTENTIAL_COLOR))
     
     # warning for large spike plotting
     if spike_mark and len(example_potential.spikes) > spike_num_warning_threshold:
@@ -374,11 +374,11 @@ def unit_plot_potential_conv(potential: None | Potential | list[Potential],
                             lineoffsets=y_offset-0.5, linelengths=0.5,
                             **POTENTIAL_TRACE_STYLE | SPIKE_POTENTIAL_TRACE_STYLE[spike_type])
                 
-        # add y ticks  
+        # add y ticks
         add_new_yticks(ax, TICK_PAIR(
-            y_offset, "conv", FLUORESCENCE_COLOR))      
+            y_offset, "conv", color_scheme.FLUORESCENCE_COLOR))
         add_new_yticks(ax, TICK_PAIR(
-            y_offset + 1 * ratio, f"1 {DF_F0_SIGN}", FLUORESCENCE_COLOR))
+            y_offset + 1 * ratio, f"1 {DF_F0_SIGN}", color_scheme.FLUORESCENCE_COLOR))
         return max(np.nanmax(potential.aspect("conv").v) * ratio, 1*ratio)
 
     # plot multiple cell fluorescence
@@ -399,7 +399,7 @@ def unit_plot_potential_conv(potential: None | Potential | list[Potential],
                                 **calibrate_alpha(POTENTIAL_TRACE_STYLE | SPIKE_POTENTIAL_TRACE_STYLE[spike_type], group_fluorescence.data_num))
     # add y ticks
     add_new_yticks(ax, TICK_PAIR(
-        y_offset, "conv", FLUORESCENCE_COLOR))      
+        y_offset, "conv", color_scheme.FLUORESCENCE_COLOR))
     add_new_yticks(ax, TICK_PAIR(
-        y_offset + 1 * ratio, f"1 {DF_F0_SIGN}", FLUORESCENCE_COLOR)) 
+        y_offset + 1 * ratio, f"1 {DF_F0_SIGN}", color_scheme.FLUORESCENCE_COLOR))
     return max(np.nanmax(group_fluorescence.mean) * ratio, 1*ratio)
