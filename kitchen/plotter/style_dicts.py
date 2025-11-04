@@ -8,99 +8,163 @@ REFERENCE_LINE_STYLE = {
     "color": "gray",
     "linewidth": 0.2,
     "linestyle": "--",
-    "alpha": 0.7,
+    "alpha": 0.9,
     "zorder": -5,
 }
 
 LOCOMOTION_TRACE_STYLE = {
     "color": color_scheme.LOCOMOTION_COLOR,
     "linewidth": 0.5,
-    "alpha": 0.7,
+    "alpha": 0.9,
 }
 
 POSITION_SCATTER_STYLE = {
     "color": color_scheme.POSITION_COLOR,
     "s": 1,
-    "alpha": 0.7,
+    "alpha": 0.9,
 }
 
 LICK_VLINES_STYLE = {
     "colors": color_scheme.LICK_COLOR,
     "ls": 'solid',
-    "alpha": 0.7,
+    "alpha": 0.9,
     "lw": 0.1,
 }
 
 LICK_TRACE_STYLE = {
     "color": color_scheme.LICK_COLOR,
     "linewidth": 0.5,
-    "alpha": 0.7,
+    "alpha": 0.9,
 }
 
 PUPIL_TRACE_STYLE = {
     "color": color_scheme.PUPIL_COLOR,
     "linewidth": 0.5,
-    "alpha": 0.7,
+    "alpha": 0.9,
 }
 
 WHISKER_TRACE_STYLE = {
     "color": color_scheme.WHISKER_COLOR,
     "linewidth": 0.5,
-    "alpha": 0.7,
+    "alpha": 0.9,
 }
 
 FLUORESCENCE_TRACE_STYLE = {
     "color": color_scheme.FLUORESCENCE_COLOR,
     "lw": 0.3,
-    "alpha": 0.7,
+    "alpha": 0.9,
 }
 
 POTENTIAL_TRACE_STYLE = {
     "color": color_scheme.POTENTIAL_COLOR,
     "lw": 0.1,
-    "alpha": 0.7,
+    "alpha": 0.9,
 }
 
 SPIKE_POTENTIAL_TRACE_STYLE = {
     "spike":{
         "color": color_scheme.REGULAR_SPIKE_COLOR,
         "lw": 0.1,
-        "alpha": 0.7,
+        "alpha": 0.9,
         "zorder": 8,
     },
     "early_spike": {
         "color": color_scheme.EARLY_SPIKE_COLOR,
         "lw": 0.1,
-        "alpha": 0.7,
+        "alpha": 0.9,
         "zorder": 10,
     },
     "sustained_spike": {
         "color": color_scheme.SUSTAINED_SPIKE_COLOR,
         "lw": 0.1,
-        "alpha": 0.7,
+        "alpha": 0.9,
         "zorder": 10,
     },
     "regular_spike": {
         "color": color_scheme.REGULAR_SPIKE_COLOR,
         "lw": 0.1,
-        "alpha": 0.7,
+        "alpha": 0.9,
         "zorder": 9,
     },
     "detected_spike": {
         "color": color_scheme.DETECTED_SPIKE_COLOR,
         "lw": 0.1,
-        "alpha": 0.7,
+        "alpha": 0.9,
         "zorder": 10,
     },
 }
 
-EMPHASIZED_POTENTIAL_ADD_STYLE = {
+SPIKE_POTENTIAL_SCATTER_STYLE = {
+    "spike":{
+        "c": color_scheme.REGULAR_SPIKE_COLOR,
+        "marker": "v",
+        "s": 15,
+        "edgecolors": "white",
+        "linewidths": 0.3,
+        "alpha": 0.9,
+        "zorder": 8,
+    },
+    "early_spike": {
+        "c": color_scheme.EARLY_SPIKE_COLOR,
+        "marker": "v",
+        "s": 15,
+        "edgecolors": "white",
+        "linewidths": 0.3,
+        "alpha": 0.9,
+        "zorder": 10,
+    },
+    "sustained_spike": {
+        "c": color_scheme.SUSTAINED_SPIKE_COLOR,
+        "marker": "v",
+        "s": 15,
+        "edgecolors": "white",
+        "linewidths": 0.3,
+        "alpha": 0.9,
+        "zorder": 10,
+    },
+    "regular_spike": {
+        "c": color_scheme.REGULAR_SPIKE_COLOR,
+        "marker": "v",
+        "s": 15,
+        "edgecolors": "white",
+        "linewidths": 0.3,
+        "alpha": 0.9,
+        "zorder": 9,
+    },
+    "detected_spike": {
+        "c": color_scheme.DETECTED_SPIKE_COLOR,
+        "marker": "v",
+        "s": 15,
+        "edgecolors": "white",
+        "linewidths": 0.3,
+        "alpha": 0.9,
+        "zorder": 10,
+    },
+}
+
+EMPHASIZED_POTENTIAL_LINE_ADD_STYLE = {
     "alpha": 1,
+    "lw": 0.5,
     "zorder": 5,
 }
 
-DEEMPHASIZED_POTENTIAL_ADD_STYLE = {
+DEEMPHASIZED_POTENTIAL_LINE_ADD_STYLE = {
     "alpha": 0.7,
+    "lw": 0.5,
+    "zorder": 1,
+}
+
+EMPHASIZED_POTENTIAL_SCATTER_ADD_STYLE = {
+    "alpha": 1,
+    "s": 15,
+    "linewidths": 0.3,
+    "zorder": 5,
+}
+
+DEEMPHASIZED_POTENTIAL_SCATTER_ADD_STYLE = {
+    "alpha": 0.7,
+    "s": 5,
+    "linewidths": 0.05,
     "zorder": 1,
 }
 
@@ -129,7 +193,7 @@ LEGEND_STYLE = {
 
 VSPAN_STYLE = {
     "lw": 0,
-    "alpha": 0.5,
+    "alpha": 0.4,
     "zorder": -10,
 }
 
@@ -145,7 +209,7 @@ BARPLOT_STYLE = {
     "capsize": 4,
     "edgecolor": "black",
     "linewidth": 0.2,
-    "error_kw": {'elinewidth': 0.5, "ecolor": "black", "capthick": 0.5, "alpha": 0.7},
+    "error_kw": {'elinewidth': 0.5, "ecolor": "black", "capthick": 0.5, "alpha": 0.9},
     "alpha": 0.8,
     "zorder": -5,
 }
@@ -162,14 +226,14 @@ SWARM_STYLE = {
 COMPARISON_LINE_STYLE = {
     "color": "black",
     "linewidth": 0.5,
-    "alpha": 0.7,
+    "alpha": 0.9,
     "zorder": 10,
 }
 
 ANNOTATION_LINE_STYLE = {
     "color": "black",
     "linewidth": 0.5,
-    "alpha": 0.7,
+    "alpha": 0.9,
     "zorder": 10,
 }
 
@@ -277,7 +341,7 @@ TIMELINE_SCATTER_STYLE = {
         "color": color_scheme.DARK_WATER_COLOR,
         "s": 4,
         "marker": "^",
-        "alpha": 0.7,
+        "alpha": 0.9,
         "lw": 0,
         "zorder": 10,
     },
@@ -285,7 +349,7 @@ TIMELINE_SCATTER_STYLE = {
         "color": color_scheme.DARK_NOWATER_COLOR,
         "s": 2,
         "marker": "x",
-        "alpha": 0.7,
+        "alpha": 0.9,
         "lw": 0.8,
         "zorder": 10,
     },
@@ -293,7 +357,7 @@ TIMELINE_SCATTER_STYLE = {
         "color": color_scheme.DARK_BUZZER_COLOR,
         "s": 4,
         "marker": "s",
-        "alpha": 0.7,
+        "alpha": 0.9,
         "lw": 0,
         "zorder": 10,
     },

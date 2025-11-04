@@ -3,7 +3,7 @@ from os import path
 
 from kitchen.loader.general_loader_interface import load_dataset
 from kitchen.plotter.macros.basic_macros import dataset_overview, session_overview
-from kitchen.plotter.macros.jux_data_macros import SPONT_FR_EVOKED_FR_SCATTER, AnwerOfEverything
+from kitchen.plotter.macros.JS_juxta_data_macros import SPONT_FR_EVOKED_FR_SCATTER, AnwerOfEverything
 from kitchen.plotter.plotting_manual import PlotManual
 
 logger = logging.getLogger()

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Self, Tuple
+from typing import List, Optional, Self, Tuple
 import numpy as np
 from scipy import stats
 
@@ -123,11 +123,11 @@ def grouping_events_histogram(events: List[Events], bins: np.ndarray, use_event_
     return calculate_group_tuple(all_rates, (bins[:-1] + bins[1:]) / 2)
 
 
-def grouping_timeseries(timeseries: List[TimeSeries], scale_factor: float = 2, interp_method: str = "previous") -> AdvancedTimeSeries:
+def grouping_timeseries(timeseries: List[TimeSeries], scale_factor: float = 2, interp_method: str = "previous", _predefined_t: Optional[np.ndarray] = None) -> AdvancedTimeSeries:
     """Group a list of timeseries."""
-    min_t, max_t =max(timeseries, key=lambda x: x.t[0]).t[0], min(timeseries, key=lambda x: x.t[-1]).t[-1]
+    min_t, max_t = max(timeseries, key=lambda x: x.t[0]).t[0], min(timeseries, key=lambda x: x.t[-1]).t[-1]
     max_fs = max(timeseries, key=lambda x: x.fs).fs
-    group_t = np.linspace(min_t, max_t, int((max_t - min_t) * max_fs * scale_factor))
+    group_t = np.linspace(min_t, max_t, int((max_t - min_t) * max_fs * scale_factor)) if _predefined_t is None else _predefined_t
     all_values = [smart_interp(group_t, ts.t, ts.v, interp_method) for ts in timeseries]
     return calculate_group_tuple(all_values, group_t)
 

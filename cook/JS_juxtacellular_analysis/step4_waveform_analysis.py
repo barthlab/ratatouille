@@ -4,7 +4,7 @@ from os import path
 from kitchen.loader.general_loader_interface import load_dataset
 from kitchen.operator.select_trial_rules import PREDEFINED_PASSIVEPUFF_RULES
 from kitchen.plotter.macros.basic_macros import session_overview, single_node_trial_avg_default, single_node_trial_parallel_default, subtree_summary_trial_avg_default
-from kitchen.plotter.macros.jux_data_macros import feature_overview, raster_plot, single_cell_session_parallel_view_jux, subtree_summary_trial_avg_jux, waveform_plot
+from kitchen.plotter.macros.JS_juxta_data_macros import feature_overview, raster_plot, single_cell_session_parallel_view_jux, subtree_summary_trial_avg_jux, waveform_plot
 from kitchen.plotter.plotting_manual import PlotManual
 from kitchen.structure.hierarchical_data_structure import Mice, Session
 

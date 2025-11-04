@@ -1,9 +1,7 @@
 import logging
-from os import path
 
 from kitchen.loader.general_loader_interface import load_dataset
-from kitchen.plotter.macros.basic_macros import dataset_overview, session_overview
-from kitchen.plotter.macros.jux_data_macros import AnwerOfEverything
+from kitchen.plotter.macros.basic_macros import flat_view_default_macro
 from kitchen.plotter.plotting_manual import PlotManual
 
 logger = logging.getLogger()
@@ -20,8 +18,7 @@ logging.getLogger('numba').setLevel(logging.WARNING)
 
 def preload_dataset():
     # preload all datasets and curate spike waveforms
-    for dataset_name in ( "SST_WC",):    
-    # for dataset_name in ("SST_WC", "PV_JUX", "PYR_JUX", "SST_JUX",):    
+    for dataset_name in ("SST_WC", "PV_JUX", "PYR_JUX", "SST_JUX",):    
         load_dataset(template_id="PassivePuff_JuxtaCellular_FromJS_202509", cohort_id=dataset_name, 
                      recipe="default_ephys", name=dataset_name)
 
@@ -34,11 +31,16 @@ def main():
     for dataset_name in ("SST_WC", "PV_JUX", "PYR_JUX", "SST_JUX",):        
         dataset = load_dataset(template_id="PassivePuff_JuxtaCellular_FromJS_202509", cohort_id=dataset_name, 
                                recipe="default_ephys", name=dataset_name)
-        for session_node in dataset.select(hash_key="cellsession"):
-            print(session_node)
-            session_overview(session_node, plot_manual=plot_manual_raw, prefix_keyword="raw")
-            session_overview(session_node, plot_manual=plot_manual_spike4Hz, prefix_keyword="spike4Hz")
-            session_overview(session_node, plot_manual=plot_manual_spike300Hz, prefix_keyword="spike300Hz")
+        for prefix_name, plot_manual in zip(
+                ("raw", "spike4Hz", "spike300Hz", "conv",),
+                (plot_manual_raw, plot_manual_spike4Hz, plot_manual_spike300Hz, plot_manual_conv,),
+        ):
+            flat_view_default_macro(dataset, node_level="cellsession", plot_manual=plot_manual, 
+                                    prefix_keyword=prefix_name, unit_shape=(30, 1))
+            for session_node in dataset.select(hash_key="cellsession"):
+                flat_view_default_macro(dataset.subtree(session_node), node_level="cellsession", plot_manual=plot_manual, 
+                                        prefix_keyword=prefix_name, unit_shape=(30, 2))
+
             
 
 if __name__ == "__main__":

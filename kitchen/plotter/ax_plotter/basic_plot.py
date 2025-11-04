@@ -161,6 +161,11 @@ def beam_view(
     beam_offsets = [0 for _ in dataset_synced] if beam_offsets is None else beam_offsets
     assert len(beam_offsets) == len(dataset_synced), f"Number of beam offsets mismatch, got {len(beam_offsets)} from {len(dataset_synced)}"
 
+    # 1. plot_timeline    
+    y_offset = yield unit_plot_timeline(    
+        timeline=select_truthy_items([node.data.timeline for node in dataset_synced]), 
+        ax=ax, y_offset=y_offset, ratio=TIMELINE_RATIO)
+    
     for node_index, (node, beam_offset) in enumerate(zip(dataset_synced, beam_offsets)):
         # skip the plotting if the beam offset is positive
         for _ in range(beam_offset):
@@ -169,14 +174,6 @@ def beam_view(
         
         show_yticks = (node_index == 0) and (beam_offset == 0)
 
-        # 1. plot_timeline    
-        if plot_manual.timeline:    
-            y_offset = yield unit_plot_timeline(    
-                timeline=node.data.timeline, 
-                ax=ax, y_offset=y_offset, ratio=TIMELINE_RATIO,)
-        else:
-            y_offset = yield 0
-        
         # 2. plot fluorescence / potential
         if plot_manual.fluorescence:    
             raise NotImplementedError

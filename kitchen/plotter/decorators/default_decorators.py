@@ -28,7 +28,7 @@ def default_style(
         uniform_xlabel: str = "", 
         uniform_ylabel: str = "",
         auto_title: bool = True,
-        auto_yscale: bool = True,
+        auto_yscale: bool = False,
         default_padding: float = 0.1,
         overlap_ratio: float = 0.0,
 

@@ -42,17 +42,18 @@ def default_data_path(node: Node, check_exist: bool = True) -> str:
     return node_data_path
 
 
-def default_intermediate_result_path(node: Node, result_name: str) -> str:
+def default_intermediate_result_path(root: Node | DataSet, result_name: str) -> str:
     """Generate the default file system path for a node's intermediate result."""
+    root_coordinate = root.root_coordinate if isinstance(root, DataSet) else root.coordinate
     node_data_path = robust_path_join(
         DATA_PATH,
-        node.coordinate.temporal_uid.template_id,
-        node.coordinate.object_uid.cohort_id,
-        node.coordinate.object_uid.mice_id,
-        node.coordinate.temporal_uid.day_id,
-        node.coordinate.temporal_uid.session_id,
-        node.coordinate.object_uid.fov_id,
-        node.coordinate.object_uid.cell_id, 
+        root_coordinate.temporal_uid.template_id,
+        root_coordinate.object_uid.cohort_id,
+        root_coordinate.object_uid.mice_id,
+        root_coordinate.temporal_uid.day_id,
+        root_coordinate.temporal_uid.session_id,
+        root_coordinate.object_uid.fov_id,
+        root_coordinate.object_uid.cell_id, 
         result_name
     )
     return node_data_path

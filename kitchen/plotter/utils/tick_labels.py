@@ -9,7 +9,7 @@ from kitchen.plotter.style_dicts import LEGEND_STYLE, REFERENCE_LINE_STYLE
 
 TICK_PAIR = namedtuple("TICK_PAIR", ["location", "label", "color"], defaults=["", "black"])
 
-def add_new_yticks(ax: plt.Axes, new_ticks: list[TICK_PAIR] | TICK_PAIR, add_ref_lines: bool = True):    
+def add_new_yticks(ax: plt.Axes, new_ticks: list[TICK_PAIR] | TICK_PAIR, add_ref_lines: bool = False):    
     if isinstance(new_ticks, TICK_PAIR):
         new_ticks = [new_ticks]
     num_new_ticks = len(new_ticks)
@@ -29,7 +29,8 @@ def add_new_yticks(ax: plt.Axes, new_ticks: list[TICK_PAIR] | TICK_PAIR, add_ref
     ax.set_yticks(ticks=current_ticks, labels=current_labels)
     for tick_instance, new_tick in zip(ax.get_yticklabels()[-num_new_ticks:], new_ticks):
         tick_instance.set_color(new_tick.color)
-        ax.axhline(new_tick.location, **REFERENCE_LINE_STYLE)
+        if add_ref_lines:
+            ax.axhline(new_tick.location, **REFERENCE_LINE_STYLE)
 
 
 def add_line_legend(ax: plt.Axes, lines: Dict[str, dict], **kwargs):

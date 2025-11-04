@@ -15,14 +15,14 @@ INDIVIDUAL_FLUORESCENCE_COLOR = "gray"
 SUBTRACT_COLOR = "dimgray"
 
 # Spike color scheme
-REGULAR_SPIKE_COLOR = "gray"
-EARLY_SPIKE_COLOR = "red"
-SUSTAINED_SPIKE_COLOR = "blue"
-DETECTED_SPIKE_COLOR = "red"
+REGULAR_SPIKE_COLOR = "#616161"
+EARLY_SPIKE_COLOR = "#ff7043"
+SUSTAINED_SPIKE_COLOR = "#7e57c2"
+DETECTED_SPIKE_COLOR = "#c2185b"
 
 # Timeline color scheme
 STIM_COLOR = "blue"
-PUFF_COLOR = "green"
+PUFF_COLOR = "#9e9e9e"
 BLANK_COLOR = "lightgray"
 WATER_COLOR = "cornflowerblue"
 NOWATER_COLOR = "orangered"
@@ -65,58 +65,3 @@ SPIKE_COLOR_SCHEME = {
 }
 TABLEAU_10 = list(mcolors.TABLEAU_COLORS.values())
 
-def plot_colortable(colors, *, ncols=4, sort_colors=True):
-    cell_width = 212
-    cell_height = 22
-    swatch_width = 48
-    margin = 12
-
-    # Sort colors by hue, saturation, value and name.
-    if sort_colors is True:
-        names = sorted(
-            colors, key=lambda c: tuple(mcolors.rgb_to_hsv(mcolors.to_rgb(c))))
-    else:
-        names = list(colors)
-
-    n = len(names)
-    nrows = math.ceil(n / ncols)
-
-    width = cell_width * ncols + 2 * margin
-    height = cell_height * nrows + 2 * margin
-    dpi = 72
-
-    fig, ax = plt.subplots(figsize=(width / dpi, height / dpi), dpi=dpi)
-    fig.subplots_adjust(margin/width, margin/height,
-                        (width-margin)/width, (height-margin)/height)
-    ax.set_xlim(0, cell_width * ncols)
-    ax.set_ylim(cell_height * (nrows-0.5), -cell_height/2.)
-    ax.yaxis.set_visible(False)
-    ax.xaxis.set_visible(False)
-    ax.set_axis_off()
-
-    for i, name in enumerate(names):
-        row = i % nrows
-        col = i // nrows
-        y = row * cell_height
-
-        swatch_start_x = cell_width * col
-        text_pos_x = cell_width * col + swatch_width + 7
-
-        ax.text(text_pos_x, y, name, fontsize=14,
-                horizontalalignment='left',
-                verticalalignment='center')
-
-        ax.add_patch(
-            Rectangle(xy=(swatch_start_x, y-9), width=swatch_width,
-                      height=18, facecolor=colors[name], edgecolor='0.7')
-        )
-
-    return fig
-
-def show_colortable():
-    plot_colortable(mcolors.CSS4_COLORS)
-    plt.show()
-
-
-if __name__ == "__main__":
-    show_colortable()

@@ -97,9 +97,9 @@ def trial_type_annotator(trial_node: Trial | FovTrial, trial_align: float, trial
         assert len(puff_off_time) == 1, f"Expected 1 puff off, got {len(puff_off_time)}"
         puff_duration = puff_off_time.t[0] - puff_on_time.t[0]
 
-        if 0.48 < puff_duration < 0.52:
+        if 0.45 < puff_duration < 0.55:
             trial_node.info["trial_type"] = "500msPuff"
-        elif 0.08 < puff_duration < 0.12:
+        elif 0.05 < puff_duration < 0.15:
             trial_node.info["trial_type"] = "100msPuff"
         else:
             raise ValueError(f"Cannot determine trial type in {trial_node.timeline.v}, got puff duration {puff_duration}")
