@@ -9,7 +9,7 @@ def oreo_plot(ax: plt.Axes, group_tuple: AdvancedTimeSeries, y_offset: float, ra
     if len(group_tuple) == 0:
         ax.axhline(y=y_offset, **trace_style, **kwargs)
         return
-    ax.plot(group_tuple.t, group_tuple.mean * ratio + y_offset, **trace_style, **kwargs)
+    ax.plot(group_tuple.t, group_tuple.mean * ratio + y_offset, **(trace_style | kwargs))
     # fucking stupid pylance stuck here
     ax.fill_between(group_tuple.t,  
                     (group_tuple.mean - group_tuple.variance) * ratio + y_offset,  # type: ignore

@@ -1,19 +1,20 @@
 
 from kitchen.configs import routing
-from kitchen.operator.grouping import grouping_events_rate
+from kitchen.operator.grouping import grouping_events_rate, grouping_timeseries
 from kitchen.operator.sync_nodes import sync_nodes
 from kitchen.plotter import style_dicts
 from kitchen.plotter.ax_plotter.basic_plot import beam_view
 import kitchen.plotter.color_scheme as color_scheme
 from kitchen.plotter.plotting_manual import PlotManual
 from kitchen.plotter.unit_plotter import unit_trace
+from kitchen.plotter.utils.fill_plot import oreo_plot
 from kitchen.settings.potential import WC_CONVERT_FLAG
 from kitchen.structure.hierarchical_data_structure import Node, DataSet
 from kitchen.utils.sequence_kit import select_from_value, select_truthy_items
 from kitchen.plotter.decorators.default_decorators import default_style
 from kitchen.configs.naming import get_node_name
 from kitchen.plotter.plotting_manual import CHECK_PLOT_MANUAL
-from kitchen.plotter.plotting_params import PARALLEL_Y_INCHES, POTENTIAL_RATIO, UNIT_X_INCHES
+from kitchen.plotter.plotting_params import PARALLEL_Y_INCHES, POTENTIAL_RATIO, UNIT_X_INCHES, WC_POTENTIAL_RATIO
 
 from functools import partial
 import logging
@@ -144,7 +145,7 @@ def SingleCell_4HZ_BeamView_Beautify(
     plt.rcParams["font.family"] = "Arial"
 
     fig, ax = plt.subplots(1, 1, constrained_layout=True)
-    x_offset, y_offset = 0.5 / len(puff_trials_500ms), 1
+    x_offset, y_offset = 0.5 / len(puff_trials_500ms), 1 if WC_CONVERT_FLAG(node) else 0.5
     ax.spines[['right', 'top',]].set_visible(False)
     ax.set_yticks([])
     style_dicts.EMPHASIZED_POTENTIAL_LINE_ADD_STYLE["lw"] = 0.5
@@ -171,6 +172,48 @@ def SingleCell_4HZ_BeamView_Beautify(
     fig.set_size_inches(6, 3.5)
     
     save_path = routing.default_fig_path(node, "BeautifyBeamView_{}.png")
+    fig.savefig(save_path, dpi=500, transparent=True)
+    plt.close(fig)
+    
+    logger.info("Plot saved to" + save_path)
+
+
+def SingleCell_4HZ_JUST_LFP_AVG(        
+        node: Node,
+        dataset: DataSet,
+) -> None:
+    node_name = get_node_name(node)
+    
+    puff_trials_500ms = get_500ms_puff_trials(node, dataset)
+    if puff_trials_500ms is None:
+        return
+
+    # plotting
+    import matplotlib.pyplot as plt
+    import matplotlib.patheffects as pe
+    plt.rcParams["font.family"] = "Arial"
+
+    fig, ax = plt.subplots(1, 1, constrained_layout=True)
+    # ax.spines[['right', 'top', 'bottom', 'left']].set_visible(False)
+    style_dicts.DEEMPHASIZED_POTENTIAL_LINE_ADD_STYLE["alpha"] = 0.9
+    style_dicts.DEEMPHASIZED_POTENTIAL_LINE_ADD_STYLE["lw"] = 0.7
+    unit_trace.unit_plot_potential(potential=[one_trial.data.potential for one_trial in puff_trials_500ms], 
+                ax=ax, y_offset=0, ratio=POTENTIAL_RATIO, aspect=4, wc_flag=WC_CONVERT_FLAG(node), 
+                spike_mark=0, emphasize_rule="none",)
+    
+    group_potential = grouping_timeseries([one_trial.data.potential.aspect(4) for one_trial in puff_trials_500ms])
+    oreo_plot(ax, group_potential, 0, POTENTIAL_RATIO * WC_POTENTIAL_RATIO if WC_CONVERT_FLAG(node) else POTENTIAL_RATIO,
+               style_dicts.POTENTIAL_TRACE_STYLE, style_dicts.FILL_BETWEEN_STYLE | {"alpha": 0.7}, lw=1., color='black', alpha=0.9)
+    ax.axvspan(0, 0.5, alpha=0.5, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10)
+    # ax.set_xlabel("Time [s]")
+    ax.set_xlim(-0.05, 0.1)
+    ax.set_yticks([])
+    ax.set_xticks([])
+
+    # axs[0].set_title(f"{node_name}")
+    fig.set_size_inches(2.5, 2.5)
+    
+    save_path = routing.default_fig_path(node, "Small_LFP_{}.png")
     fig.savefig(save_path, dpi=500, transparent=True)
     plt.close(fig)
     

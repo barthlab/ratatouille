@@ -1,3 +1,4 @@
+from collections import defaultdict, deque
 import numpy as np
 import pandas as pd
 from scipy import signal
@@ -93,3 +94,34 @@ def smooth_gaussian(arr, window_len, std):
 
 def zscore(arr: np.ndarray, axis: int = 0) -> np.ndarray:
     return (arr - np.mean(arr, axis=axis, keepdims=True)) / (np.std(arr, axis=axis, keepdims=True) + 1e-8)
+
+
+def reorder_indices(A: np.ndarray, B: np.ndarray) -> np.ndarray:
+    """
+    Given two 1-D numpy arrays of strings A and B (same length),
+    return an index array 'order' such that A[order] == B.
+    Raises ValueError if they cannot be matched one-to-one.
+    """
+    A = np.asarray(A)
+    B = np.asarray(B)
+    if A.shape != B.shape:
+        raise ValueError("A and B must have the same shape/length.")
+
+    # Build mapping label -> deque of indices in A
+    idx_map = defaultdict(deque)
+    for i, v in enumerate(A):
+        idx_map[v].append(i)
+
+    # For each label in B, pop one index from the corresponding deque
+    order = []
+    for v in B:
+        if v not in idx_map or not idx_map[v]:
+            raise ValueError(f"Value '{v}' in B has no matching unused element in A.")
+        order.append(idx_map[v].popleft())
+
+    # Sanity: ensure no leftover indices (shouldn't happen if shapes equal and above checks passed)
+    leftover = [k for k, dq in idx_map.items() if dq]
+    if leftover:
+        raise ValueError(f"Extra unused elements left in A (labels): {leftover}")
+
+    return np.array(order, dtype=int)

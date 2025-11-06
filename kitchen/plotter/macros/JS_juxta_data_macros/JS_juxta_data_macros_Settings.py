@@ -10,3 +10,23 @@ COHORT_edgecolors = {
     "PV_JUX": "none",
     "PYR_JUX": "none",
 }
+
+
+CLUSTER_COLORS = {
+    0: "#76B7B2",
+    "cluster 0": "#76B7B2",
+    1: "#59A14F",
+    "cluster 1": "#59A14F",
+    2: "#EDC948",
+    "cluster 2": "#EDC948",
+    3: "#B07AA1",
+    "cluster 3": "#B07AA1",
+    4: "#FF9DA7",
+    "cluster 4": "#FF9DA7",
+    5: "#9C755F",
+    "cluster 5": "#9C755F",
+    6: "#BAB0AC",
+    "cluster 6": "#BAB0AC",
+    7: "#C73F93",
+    "cluster 7": "#C73F93",
+}

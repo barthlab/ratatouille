@@ -293,7 +293,7 @@ def unit_plot_potential(potential: None | Potential | list[Potential],
     elif emphasize_rule == "best":
         emphasize_index = np.argmax(all_mark_offset)
     else:
-        raise ValueError(f"Unknown emphasize rule: {emphasize_rule}")
+        emphasize_index = -1
     
     # plot all the potential
     for potential_index, one_potential in enumerate(potential):

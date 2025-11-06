@@ -218,12 +218,11 @@ def get_weight_tuple_Physiology_Fingerprint(with_spont_FR: bool = True) -> tuple
     return weight_matrix, wanted_df["node_name"].to_numpy(), wanted_df["cohort_name"].to_numpy()
 
 
-def get_weight_tuple_PSTH(variant: str = 'raw') -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    assert variant in ['raw', 'zscore', "log-scale", "normalized"], f"Cannot find {variant} in ['raw', 'zscore', 'log-scale', 'normalized']"
-    t_sst_wc, psth_sst_wc, base_fr_sst_wc, node_names_sst_wc = get_all_cellsession_PSTH_mean("SST_WC")
-    t_sst_jux, psth_sst_jux, base_fr_sst_jux, node_names_sst_jux = get_all_cellsession_PSTH_mean("SST_JUX")
-    t_pv_jux, psth_pv_jux, base_fr_pv_jux, node_names_pv_jux = get_all_cellsession_PSTH_mean("PV_JUX")
-    t_pyr_jux, psth_pyr_jux, base_fr_pyr_jux, node_names_pyr_jux = get_all_cellsession_PSTH_mean("PYR_JUX")
+def get_weight_tuple_PSTH(variant: str = 'raw', binsize: float = 10/1000) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    t_sst_wc, psth_sst_wc, base_fr_sst_wc, node_names_sst_wc = get_all_cellsession_PSTH_mean("SST_WC", BINSIZE=binsize)
+    t_sst_jux, psth_sst_jux, base_fr_sst_jux, node_names_sst_jux = get_all_cellsession_PSTH_mean("SST_JUX", BINSIZE=binsize)
+    t_pv_jux, psth_pv_jux, base_fr_pv_jux, node_names_pv_jux = get_all_cellsession_PSTH_mean("PV_JUX", BINSIZE=binsize)
+    t_pyr_jux, psth_pyr_jux, base_fr_pyr_jux, node_names_pyr_jux = get_all_cellsession_PSTH_mean("PYR_JUX", BINSIZE=binsize)
 
     assert np.allclose(t_sst_wc, t_sst_jux)
     assert np.allclose(t_sst_wc, t_pv_jux)
@@ -242,6 +241,8 @@ def get_weight_tuple_PSTH(variant: str = 'raw') -> tuple[np.ndarray, np.ndarray,
         weight_matrix = numpy_kit.zscore(psth, axis=1)
     elif variant == 'log-scale':
         weight_matrix = np.log(psth + 1)
+    elif variant == "log-zscore":
+        weight_matrix = numpy_kit.zscore(np.log(psth + 1), axis=1)
     else:
         raise ValueError(f"Unknown variant: {variant}")
     return weight_matrix, node_names, cohort_name   
@@ -359,7 +360,8 @@ def Visualize_Decomposition_Weights(variant: str, decomposition_method: str, n_c
 
     plt.rcParams["font.family"] = "Arial"
 
-    fig, axs = plt.subplots(n_components + 1, 2, figsize=(4, 1.5 * (n_components + 1)), constrained_layout=True,)
+    fig, axs = plt.subplots(2, n_components + 1, figsize=(2.5 * (n_components + 1), 3.), 
+                            constrained_layout=True, height_ratios=[4, 6])
     components_list_for_plot = [
         np.ones_like(basis_t),
     ] + [solver.components_[component_id, :] for component_id in range(n_components)]
@@ -370,11 +372,11 @@ def Visualize_Decomposition_Weights(variant: str, decomposition_method: str, n_c
         "Baseline",
     ] + [f"Basis {component_id+1}" for component_id in range(n_components)]
     for component_id in range(2, n_components + 1):        
-        axs[component_id, 0].sharey(axs[1, 0])
+        axs[0, component_id].sharey(axs[0, 1])
 
     for component_id, (component, component_weights, component_name) in enumerate(zip(
         components_list_for_plot, component_weights_for_plot, component_names_for_plot)):
-        axc = axs[component_id, :]
+        axc = axs[:, component_id]
 
         axc_comp = axc[0]
         axc_comp.plot(basis_t, component, lw=1.5, color='black', 
@@ -383,8 +385,13 @@ def Visualize_Decomposition_Weights(variant: str, decomposition_method: str, n_c
         axc_comp.axhline(0, color='gray', linestyle='--', lw=1, alpha=0.5, zorder=-10)
         axc_comp.spines[['right', 'top', 'left', 'bottom',]].set_visible(False)
         axc_comp.set_xlim(-0.5, 1.)
+        axc_comp.set_xticks([])
+        # axc_comp.set_yticks([])
         if component_name == "Baseline":
-            axc_comp.set_ylim(None, 2)
+            axc_comp.set_ylim(0, 2)
+            axc_comp.set_ylabel("Baseline FR")
+        elif component_id == 1:
+            axc_comp.set_ylabel("Basis")
         
         axc_weight = axc[1]
         data = pd.DataFrame({
@@ -410,7 +417,7 @@ def Visualize_Decomposition_Weights(variant: str, decomposition_method: str, n_c
                     edgecolor="black", linewidth=0.5,
                     order=sorted(set(cohort_name)))
         axc_weight.spines[['right', 'top', 'left']].set_visible(False)
-        axc_weight.set_xlabel("Weight [a.u.]")
+        axc_weight.set_xlabel("Weight [a.u.]" if component_id != 0 else "Baseline FR [Hz]")
         axc_weight.set_yticks([])
         axc_weight.axvline(0, color='gray', linestyle='--', lw=1, alpha=0.5, zorder=-10)
         axc_weight.set_ylabel("")
