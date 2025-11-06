@@ -26,6 +26,7 @@ def WC_CONVERT_FLAG(node):
 # Spike range
 SPIKE_RANGE_RELATIVE_TO_ALIGNMENT = (-1./1000, 1./1000)  # s 
 CURATION_SPIKE_RANGE_RELATIVE_TO_ALIGNMENT = (-3/1000, 3/1000)  # s 
+NARROW_SPIKE_RANGE_FOR_VISUALIZATION =  (-2/1000, 2/1000)  # s
 IMPORTANT_SPIKE_TIMEPOINTS = tuple(i/1000 for i in np.linspace(-1, 1, 11))  # s
 
 # Spike type annotation

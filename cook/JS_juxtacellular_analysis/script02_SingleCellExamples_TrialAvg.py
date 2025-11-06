@@ -1,8 +1,8 @@
 import logging
 
 from kitchen.loader.general_loader_interface import load_dataset
-from kitchen.plotter.macros.JS_juxta_data_macros_SingleCell import SingleCell_4HZ_BeamView_Beautify, SingleCell_RasterPlot, SingleCell_4HZ_300HZ_BeamView, SingleCell_4HZ_ZOOMINOUT_StackView
-from kitchen.plotter.macros.JS_juxta_data_macros_Settings import COHORT_COLORS
+from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_SingleCell import SingleCell_4HZ_BeamView_Beautify, SingleCell_RasterPlot, SingleCell_4HZ_300HZ_BeamView, SingleCell_4HZ_ZOOMINOUT_StackView
+from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_Settings import COHORT_COLORS
 import kitchen.plotter.color_scheme as color_scheme
 import kitchen.plotter.style_dicts as style_dicts
 

@@ -1,9 +1,7 @@
 import logging
 
-import kitchen.plotter.color_scheme as color_scheme
-from kitchen.plotter.macros.JS_juxta_data_macros_SummaryMetric import PlainHeatmap_PSTH, SummaryMetric_PSTH, SummaryMetric_LFP, SummaryMetric_Waveform
-import kitchen.plotter.style_dicts as style_dicts
-from kitchen.plotter.macros.JS_juxta_data_macros_Settings import COHORT_COLORS
+from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_SummaryMetric import PlainHeatmap_PSTH, SummaryMetric_PSTH, SummaryMetric_LFP, SummaryMetric_Waveform
+
 
 
 
@@ -23,5 +21,6 @@ def main():
     SummaryMetric_LFP()
     SummaryMetric_Waveform() 
     PlainHeatmap_PSTH()
+
 if __name__ == "__main__":
     main()

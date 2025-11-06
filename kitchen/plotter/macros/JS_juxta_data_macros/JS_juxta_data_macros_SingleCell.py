@@ -78,11 +78,11 @@ def get_500ms_puff_trials(node: Node, dataset: DataSet):
                 _self = partial(CHECK_PLOT_MANUAL, plot_manual=plot_manual_spike4Hz)
             )
     if "500msPuff" not in trial_types:
-        logger.debug(f"Cannot plot raster plot for {get_node_name(node)}: no 500ms puff trials found. Skip...")
+        logger.debug(f"Cannot find 500ms puff trials for {get_node_name(node)}: no 500ms puff trials found. Skip...")
         return None
     trials_500ms_puff = trial_types["500msPuff"]
     if len(trials_500ms_puff) == 0:
-        logger.debug(f"Cannot plot raster plot for {get_node_name(node)}: no puff trials found. Skip...")
+        logger.debug(f"Cannot find 500ms puff trials for {get_node_name(node)}: no puff trials found. Skip...")
         return None
     return sync_nodes(trials_500ms_puff, ("VerticalPuffOn",), plot_manual_spike300Hz)
 

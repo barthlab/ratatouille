@@ -11,14 +11,14 @@ import kitchen.plotter.color_scheme as color_scheme
 from kitchen.plotter.plotting_manual import PlotManual
 import kitchen.plotter.style_dicts as style_dicts
 from kitchen.configs import routing
-from kitchen.plotter.macros.JS_juxta_data_macros_SingleCell import get_500ms_puff_trials
-from kitchen.plotter.macros.JS_juxta_data_macros_Settings import COHORT_COLORS
+from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_SingleCell import get_500ms_puff_trials
+from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_Settings import COHORT_COLORS
 
 import logging
 import numpy as np
 
 from kitchen.plotter.utils.fill_plot import oreo_plot
-from kitchen.settings.potential import CURATION_SPIKE_RANGE_RELATIVE_TO_ALIGNMENT
+from kitchen.settings.potential import CURATION_SPIKE_RANGE_RELATIVE_TO_ALIGNMENT, NARROW_SPIKE_RANGE_FOR_VISUALIZATION
 from kitchen.structure.neural_data_structure import TimeSeries
 from kitchen.utils import numpy_kit
 
@@ -41,7 +41,7 @@ def get_saving_path(dataset_name: Optional[str] = None):
 def get_all_cellsession_PSTH_mean(
           dataset_name: str, 
           BINSIZE = 10/1000,  # s
-          FEATURE_RANGE = (-0.25, 0.75),  # (min, max) s
+          FEATURE_RANGE = (-1, 1.5),  # (min, max) s
     ):
     pkl_save_path = routing.robust_path_join(
         routing.DATA_PATH,
@@ -52,7 +52,7 @@ def get_all_cellsession_PSTH_mean(
     if not os.path.exists(pkl_save_path):        
         bins = np.arange(FEATURE_RANGE[0], FEATURE_RANGE[1] + BINSIZE, BINSIZE)
         bin_centers = (bins[:-1] + bins[1:]) / 2
-        all_spikes_histogram, all_baseline_fr = [], []
+        all_spikes_histogram, all_baseline_fr, all_node_name = [], [], []
         dataset = load_dataset(template_id="PassivePuff_JuxtaCellular_FromJS_202509", cohort_id=dataset_name, 
                                 recipe="default_ephys", name=dataset_name)
         for cell_session_node in dataset.select("cellsession"):
@@ -67,17 +67,20 @@ def get_all_cellsession_PSTH_mean(
             all_spikes_histogram.append(spikes_histogram.mean)
             baseline_fr = np.mean(spikes_histogram.mean[spikes_histogram.t < 0.])
             all_baseline_fr.append(baseline_fr)
+            all_node_name.append(str(cell_session_node.coordinate))
         all_baseline_fr = np.array(all_baseline_fr)
+        all_node_name = np.array(all_node_name)
         all_spikes_histogram = np.stack(all_spikes_histogram, axis=0)
         np.save(pkl_save_path, {
             "spike_histogram": all_spikes_histogram, 
             "baseline_fr": all_baseline_fr,
             "bin_centers": bin_centers,
+            "node_name": all_node_name,
             })  # type: ignore
         logger.info("PSTH saved to " + pkl_save_path)
     tmp_save = np.load(pkl_save_path, allow_pickle=True).item()
     logger.info("PSTH loaded from " + pkl_save_path)
-    return tmp_save["bin_centers"], tmp_save["spike_histogram"], tmp_save["baseline_fr"]
+    return tmp_save["bin_centers"], tmp_save["spike_histogram"], tmp_save["baseline_fr"], tmp_save["node_name"]
 
 
 def SummaryMetric_PSTH(
@@ -96,7 +99,7 @@ def SummaryMetric_PSTH(
     for dataset_index, dataset_name in enumerate(("PYR_JUX", "SST_JUX", "PV_JUX", ) ):        
         color_scheme.POTENTIAL_COLOR = COHORT_COLORS[dataset_name]
         style_dicts.POTENTIAL_TRACE_STYLE["color"] = COHORT_COLORS[dataset_name]
-        bin_centers, all_spikes_histogram, _ = get_all_cellsession_PSTH_mean(dataset_name, BINSIZE, FEATURE_RANGE)
+        bin_centers, all_spikes_histogram, _, _ = get_all_cellsession_PSTH_mean(dataset_name, BINSIZE, FEATURE_RANGE)
         oreo_plot(ax, AdvancedTimeSeries(t=bin_centers + dataset_index * x_offset, 
                                         v=np.mean(all_spikes_histogram, axis=0) + dataset_index * y_offset, 
                                         variance=np.std(all_spikes_histogram, axis=0), 
@@ -140,7 +143,7 @@ def PlainHeatmap_PSTH(
     for ax, dataset_name in zip(axs, ( "SST_JUX", "PV_JUX", "PYR_JUX",) ):        
         color_scheme.POTENTIAL_COLOR = COHORT_COLORS[dataset_name]
         style_dicts.POTENTIAL_TRACE_STYLE["color"] = COHORT_COLORS[dataset_name]
-        bin_centers, all_spikes_histogram, _ = get_all_cellsession_PSTH_mean(dataset_name, BINSIZE, FEATURE_RANGE)
+        bin_centers, all_spikes_histogram, _, _ = get_all_cellsession_PSTH_mean(dataset_name, BINSIZE, FEATURE_RANGE)
         mask = (bin_centers > 0) & (bin_centers < 0.5)
         sorted_order = np.argsort(np.mean(all_spikes_histogram[:, mask], axis=1))
         sns.heatmap(all_spikes_histogram[sorted_order],  
@@ -252,37 +255,36 @@ def get_all_cellsession_Waveform_mean(
         "ARCHIVE_WAVEFORM_short.npy"
     )
     if not os.path.exists(pkl_save_path):        
-        all_waveforms = []
+        all_waveforms, all_node_name = [], []
         dataset = load_dataset(template_id="PassivePuff_JuxtaCellular_FromJS_202509", cohort_id=dataset_name, 
                                 recipe="default_ephys", name=dataset_name)
         for cell_session_node in dataset.select("cellsession"):
             potential_timeseries = cell_session_node.potential.aspect('raw')
             
             spike_timeseries = potential_timeseries.batch_segment(
-                cell_session_node.potential.spikes.t, (-0.001, 0.002))
+                cell_session_node.potential.spikes.t, NARROW_SPIKE_RANGE_FOR_VISUALIZATION)
             if len(spike_timeseries) == 0:
                 continue
             grouped_spike_timeseries = grouping_timeseries(spike_timeseries, interp_method="linear")
             zscored_waveform = np.mean(numpy_kit.zscore(grouped_spike_timeseries.raw_array, axis=1), axis=0)
             all_waveforms.append(TimeSeries(v=zscored_waveform, t=grouped_spike_timeseries.t))
+            all_node_name.append(str(cell_session_node.coordinate))
         all_waveforms = grouping_timeseries(all_waveforms)
         np.save(pkl_save_path, {
                 "waveform": all_waveforms.raw_array, 
                 "t": all_waveforms.t,
+                "node_name": all_node_name,
             })  # type: ignore
         logger.info("Waveform saved to " + pkl_save_path)
     tmp_save = np.load(pkl_save_path, allow_pickle=True).item()
     logger.info("Waveform loaded from " + pkl_save_path)
-    return tmp_save["t"], tmp_save["waveform"]
+    return tmp_save["t"], tmp_save["waveform"], tmp_save["node_name"]
 
 
 def SummaryMetric_Waveform(
 ):
-    
-
     # plotting
     import matplotlib.pyplot as plt    
-    import matplotlib.patches as patches
 
     plt.rcParams["font.family"] = "Arial"
     x_offset, y_offset = 1, 1
@@ -290,7 +292,7 @@ def SummaryMetric_Waveform(
     for dataset_index, dataset_name in enumerate(("PYR_JUX", "SST_JUX", "PV_JUX", ) ):        
         color_scheme.POTENTIAL_COLOR = COHORT_COLORS[dataset_name]
         style_dicts.POTENTIAL_TRACE_STYLE["color"] = COHORT_COLORS[dataset_name]
-        waveform_t, all_waveforms = get_all_cellsession_Waveform_mean(dataset_name)
+        waveform_t, all_waveforms, _ = get_all_cellsession_Waveform_mean(dataset_name)
         oreo_plot(ax, AdvancedTimeSeries(t=waveform_t * 1000 + dataset_index * x_offset, 
                                         v=np.mean(all_waveforms, axis=0) + dataset_index * y_offset, 
                                         variance=np.std(all_waveforms, axis=0), 
