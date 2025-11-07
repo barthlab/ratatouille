@@ -15,40 +15,76 @@ from kitchen.utils import numpy_kit
 
 logger = logging.getLogger(__name__)
    
-DEFAULT_UMAP_KWS = {'n_components': 2, 'random_state': 5, 'n_neighbors': 9}
-def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: str):
-    psth_matrix, psth_node_names, psth_cohort_names = psth_tuple
+DEFAULT_UMAP_KWS = {'n_components': 2, 'random_state': 42, 'n_neighbors': 9}
+
+def get_putative_labels(weight_tuple):
+    
+
+    from umap import UMAP
+    from sklearn.cluster import SpectralClustering
 
     weight_matrix, node_names, cohort_names = weight_tuple
-    n_cell, _ = weight_matrix.shape
-    base_fr = weight_matrix[:, 0]
     component_projection = weight_matrix[:, 1:]
     n_components = component_projection.shape[1]
-    psth_matrix = psth_matrix[numpy_kit.reorder_indices(psth_node_names, node_names), :]
+
+    if n_components == 2:
+        n_clusters = 4
+    elif n_components == 5:
+        n_clusters = 5
+    elif n_components == 4:
+        n_clusters = 3
+    else:
+        raise ValueError(f"n_components {n_components} not supported")
+    
+
+    normalized_weight_matrix = numpy_kit.zscore(weight_matrix, axis=0)
+    embedding = UMAP( **DEFAULT_UMAP_KWS).fit_transform(normalized_weight_matrix)
+    target_cluster_id = SpectralClustering(n_clusters=n_clusters, random_state=42,
+                                           n_neighbors=DEFAULT_UMAP_KWS['n_neighbors']).fit_predict(embedding)
+
+    cluster_names = [f"cluster {i}" for i in target_cluster_id]   
+    for cluster_id in range(n_clusters):
+        idx = [i for i, name in enumerate(cluster_names) if name == f"cluster {cluster_id}"]
+        print(f"Cluster {cluster_id} has {len(idx)} cells")
+        for x in node_names[idx]:
+            print(x)
+        print("------------------")
+    return np.array(cluster_names), (n_clusters, embedding, normalized_weight_matrix)
+
+
+def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: str):
+    from scipy.cluster.hierarchy import linkage, dendrogram
+    import pandas as pd
+
+
+    psth_matrix, psth_node_names, _ = psth_tuple
+
+    weight_matrix, node_names, cohort_names = weight_tuple
+    component_projection = weight_matrix[:, 1:]
+    n_components = component_projection.shape[1]
+
+    shared_node_names = np.intersect1d(psth_node_names, node_names)
+
+    idx_in_both = numpy_kit.reorder_indices(psth_node_names, shared_node_names, _allow_leftover=True)
+    psth_matrix = psth_matrix[idx_in_both, :]
+    psth_node_names = psth_node_names[idx_in_both]
+
+    idx_in_both = numpy_kit.reorder_indices(node_names, shared_node_names, _allow_leftover=True)
+    weight_matrix = weight_matrix[idx_in_both, :]
+    cohort_names = cohort_names[idx_in_both]
+    node_names = node_names[idx_in_both]
+
+    n_cell, _ = weight_matrix.shape    
+
+
+    cluster_names, (n_clusters, embedding, normalized_weight_matrix) = get_putative_labels((weight_matrix, node_names, cohort_names))
+
 
     BINSIZE = 10/1000
     FEATURE_RANGE = (-1, 1.5)
     bins = np.arange(FEATURE_RANGE[0], FEATURE_RANGE[1] + BINSIZE, BINSIZE)
     bin_centers = (bins[:-1] + bins[1:]) / 2
 
-
-    from scipy.cluster.hierarchy import linkage, dendrogram
-    from umap import UMAP
-    from sklearn.cluster import SpectralClustering
-    import pandas as pd
- 
-    if n_components == 2:
-        n_clusters = 4
-    elif n_components == 5:
-        n_clusters = 6
-    else:
-        raise ValueError(f"n_components {n_components} not supported")
-        
-    normalized_weight_matrix = numpy_kit.zscore(weight_matrix, axis=0)
-    embedding = UMAP(**DEFAULT_UMAP_KWS).fit_transform(normalized_weight_matrix)
-    target_cluster_id = SpectralClustering(n_clusters=n_clusters, random_state=42, n_neighbors=DEFAULT_UMAP_KWS['n_neighbors']).fit_predict(embedding)
-
-    cluster_names = [f"cluster {i}" for i in target_cluster_id]   
 
     def draw_ellipse(points, ax, **kwargs):
         from matplotlib.patches import Ellipse
@@ -63,34 +99,35 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
             angle = 0
             width, height = 2 * np.sqrt(covariance)
 
-        ell = Ellipse(xy=position, width=4 * width, height=2.5 * height, angle=angle, **kwargs)
+        ell = Ellipse(xy=position, width=3 * width, height=3 * height, angle=angle, **kwargs)
         
         ax.add_patch(ell)
         return ell
+    
 
+    
+    """
+    Overview figure of clustering composition.
+    
+    
+    """
     from matplotlib.ticker import MaxNLocator
     import matplotlib.patheffects as pe
 
     plt.rcParams["font.family"] = "Arial"
     fig, axs = plt.subplots(1, 4, figsize=(12, 2.75), constrained_layout=True, width_ratios=[1, 1, 1.5, 1.5])
 
-    cluster_legend_handles = []
+    for cohort in ("PV_JUX", "SST_JUX", "PYR_JUX", "SST_WC",):
+        idx = [i for i, name in enumerate(cohort_names) if name == cohort]
+        axs[0].scatter(embedding[idx, 0], embedding[idx, 1],
+                       facecolors=COHORT_COLORS[cohort], edgecolors="black", lw=0.5, s=20, alpha=0.9)
+        axs[1].scatter(embedding[idx, 0], embedding[idx, 1],
+                       facecolors=COHORT_COLORS[cohort], edgecolors="black", lw=0.5, s=20, alpha=0.9)
+        
     for cluster_id in range(n_clusters):
         idx = [i for i, name in enumerate(cluster_names) if name == f"cluster {cluster_id}"]
-        dot_cohort_colors = [COHORT_COLORS[cohort_names[i]] for i in idx]
-        dot_cluster_colors = [CLUSTER_COLORS[f"cluster {cluster_id}"] for i in idx]
-        print(f"Cluster {cluster_id} has {len(idx)} cells")
-        for x, em in zip(node_names[idx], embedding[idx, :]):
-            print(x)
-            print(em)
-            print("------------------")
-        axs[0].scatter(embedding[idx, 0], embedding[idx, 1],
-                       facecolors=dot_cohort_colors, edgecolors="white", lw=0.5, s=12, alpha=0.9)
-        
-        axs[1].scatter(embedding[idx, 0], embedding[idx, 1],
-                       facecolors=dot_cluster_colors, edgecolors='none', lw=0.5, s=15, alpha=0.9)
-        # draw_ellipse(embedding[idx, :], axs[0], edgecolor=CLUSTER_COLORS[f"cluster {cluster_id}"], 
-        #              facecolor='none', lw=1, ls='--', alpha=0.8, zorder=-10)
+        draw_ellipse(embedding[idx, :], axs[1], edgecolor=CLUSTER_COLORS[f"cluster {cluster_id}"], 
+                     facecolor=CLUSTER_COLORS[f"cluster {cluster_id}"], lw=1, ls='--', alpha=0.8, zorder=-10)
         
     
     for ax in axs[:2]:
@@ -150,10 +187,16 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
     fig.savefig(save_path, dpi=500, transparent=True)
     plt.close(fig)
     logger.info("Plot saved to " + save_path)
+
+
+
+
     
-
-
-    # --- Figure 5: Another Heatmap ---
+    """
+    Summary Heatmap with hierarchical dendrogram
+    
+    Weight shown aside
+    """
     from scipy.cluster.hierarchy import linkage, dendrogram
     from matplotlib.colors import SymLogNorm
     import seaborn as sns
@@ -227,7 +270,7 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
     ax = axs[2]
     ax.sharey(axs[0])
     ax.set_ylabel('')
-    ax.set_xticks(np.arange(n_components + 1) + 0.5, ["Baseline FR",] + [f"Basis {i+1}" for i in range(n_components)], 
+    ax.set_xticks(np.arange(n_components + 1) + 0.5, ["Baseline FR",] + [f"PC {i+1}" for i in range(n_components)], 
                     rotation=45, ha='right', fontsize=8)
     ax.set_title('Weights')
     
@@ -251,8 +294,20 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
     plt.close(fig)
     logger.info("Plot saved to " + save_path)
 
-    for cohort_group, cohort_list in zip(("SST", "PV", "PYR"), (["SST_JUX", "SST_WC"], ["PV_JUX",], ["PYR_JUX",])):
-        for cluster_id in range(n_clusters):
+
+
+
+
+
+    """
+    Figure :
+    PSTH
+    Heatmap
+    For each single putative clusters
+    """
+    for cluster_id in range(n_clusters):
+        for cohort_group, cohort_list in zip(("SST", "PV", "PYR", "ALL"), 
+                                             (["SST_JUX", "SST_WC"], ["PV_JUX",], ["PYR_JUX",], ["SST_JUX", "SST_WC", "PV_JUX", "PYR_JUX"])):
             idx_in_cluster = [i for i, name in enumerate(cluster_names) if name == f"cluster {cluster_id}"]
             idx_in_cohort = [i for i, name in enumerate(cohort_names) if name in cohort_list]
             idx_in_both = list(set(idx_in_cluster).intersection(idx_in_cohort))
@@ -265,8 +320,8 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
                     variance=psth_matrix[idx_in_both, :].std(axis=0), 
                     raw_array=psth_matrix[idx_in_both, :])
                 oreo_plot(ax, group_psth, 0, 1,  
-                          {"color": CLUSTER_COLORS[f"cluster {cluster_id}"], "lw": 1, "alpha": 1},
-                          style_dicts.FILL_BETWEEN_STYLE | {"alpha": 0.7, })
+                          {"color": CLUSTER_COLORS[f"cluster {cluster_id}"], "lw": 2, "alpha": 1},
+                          style_dicts.FILL_BETWEEN_STYLE | {"alpha": 0.4, })
                 ax.axvspan(0, 0.5, alpha=0.5, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10)
                 ax.spines[['right', 'top', 'left', 'bottom']].set_visible(False)
                 ax.axhline(0, color='gray', linestyle='--', lw=1, alpha=0.5, zorder=-10)
@@ -285,7 +340,7 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
                             cmap='YlOrBr', norm=SymLogNorm(linthresh=10., vmin=0, vmax=150),)
                 
                 desired_ticks = [0, 0.5]
-                tick_positions = [np.argmin(np.abs(bin_centers - tick)) for tick in desired_ticks]
+                tick_positions = [np.argmin(np.abs(bin_centers[display_mask] - tick)) for tick in desired_ticks]
                 ax.set_xticks(tick_positions, desired_ticks, rotation=0)  
 
                 ax.invert_yaxis()
@@ -295,81 +350,9 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
                 ax.spines[['right', 'top', 'left', 'bottom']].set_visible(True)
 
                 
-                save_path = path.join(get_saving_path(), "ClusteringAnalysis", f"SubCluster_{cohort_group}_cluster{cluster_id}_{feature_space_name}.png")
+                save_path = path.join(get_saving_path(), "ClusteringAnalysis", 
+                                      f"SubCluster_{feature_space_name}_{cohort_group}_cluster{cluster_id}.png")
                 os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 fig.savefig(save_path, dpi=500, transparent=True)
                 plt.close(fig)
                 logger.info("Plot saved to " + save_path)
-
-    # # --- Figure 6: Robustness Plot ---
-    # from sklearn.metrics import adjusted_rand_score
-    # from sklearn.cluster import SpectralClustering
-
-    # all_random_removal_ari = []
-    # for umap_random_seed, spectral_random_seed in zip(range(100), range(100)):
-    #     reducer = UMAP(n_components=2, random_state=umap_random_seed, n_neighbors=umap_kws['n_neighbors'])
-    #     ari_scores = []
-    #     for removal_pct in np.arange(0, 1., 0.1):
-    #         n_samples_to_keep = int(weights_w_baseline.shape[0] * (1 - removal_pct))
-    #         np.random.seed(42)
-    #         subset_indices = np.random.choice(weights_w_baseline.shape[0], n_samples_to_keep, replace=False)
-    #         subset_data = weights_w_baseline[subset_indices, :]
-    #         embedding = reducer.fit_transform(subset_data)
-    #         subset_cluster_id = SpectralClustering(n_clusters=n_clusters, n_neighbors=umap_kws['n_neighbors'], 
-    #                                         random_state=spectral_random_seed).fit_predict(embedding)
-    #         ari = adjusted_rand_score(subset_cluster_id, target_cluster_id[subset_indices])
-    #         ari_scores.append(ari)
-    #     print(f"UMAP random seed {umap_random_seed}, Spectral random seed {spectral_random_seed}: {ari_scores}")
-    #     all_random_removal_ari.append(ari_scores)
-    # all_random_removal_ari = np.array(all_random_removal_ari)
-
-
-    # mean_ari = np.mean(all_random_removal_ari, axis=0)
-    # std_ari = np.std(all_random_removal_ari, axis=0)
-    # x_axis_percentages = np.arange(0, 1., 0.1) * 100
-
-    # # # 2. Use a professional plot style
-    # fig, ax = plt.subplots(figsize=(2, 2), constrained_layout=True)
-
-    # # 3. PLOT THE INDIVIDUAL TRACES FIRST (faintly in the background)
-    # for ari_scores in all_random_removal_ari:
-    #     ax.plot(x_axis_percentages, ari_scores, 
-    #             color='grey', 
-    #             lw=0.3, 
-    #             alpha=0.1)
-
-    # # 4. Plot the mean line on top
-    # ax.plot(x_axis_percentages, mean_ari, 
-    #         color='crimson', 
-    #         lw=1, 
-    #         label='Mean', 
-    #         marker='o', 
-    #         markersize=1.5,
-    #         zorder=3) # zorder ensures it's drawn on top
-
-    # # 5. Add the shaded standard deviation region
-    # ax.fill_between(x_axis_percentages, 
-    #                 mean_ari - std_ari, 
-    #                 mean_ari + std_ari, 
-    #                 color='crimson', 
-    #                 alpha=0.2, 
-    #                 label='S.D.',
-    #                 lw=0,   
-    #                 zorder=2)
-
-    # # 6. Refine labels, title, and limits for clarity
-    # ax.set_title('Clustering Robustness to Data Removal',)
-    # ax.set_xlabel('Data Removed (%)')
-    # ax.set_ylabel('Adjusted Rand Index (ARI)')
-    # ax.set_xticks(x_axis_percentages)
-    # ax.set_ylim(0, 1.05)
-    # ax.legend(loc='best', frameon=False)
-
-    # # Optional: Remove top and right spines
-    # ax.spines[['right', 'top']].set_visible(False)
-
-    # save_path = os.path.join(dir_save_path, prefix_keyword, f"Robustness_{save_name}.png")
-    # os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    # fig.savefig(save_path, dpi=900)
-    # plt.close(fig)
-    # logger.info("Plot saved to " + save_path)

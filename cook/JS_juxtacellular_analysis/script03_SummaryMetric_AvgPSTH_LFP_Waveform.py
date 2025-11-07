@@ -20,7 +20,7 @@ def main():
     SummaryMetric_PSTH()
     SummaryMetric_LFP()
     SummaryMetric_Waveform() 
-    PlainHeatmap_PSTH()
+    # PlainHeatmap_PSTH()
 
 if __name__ == "__main__":
     main()

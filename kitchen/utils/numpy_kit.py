@@ -96,7 +96,12 @@ def zscore(arr: np.ndarray, axis: int = 0) -> np.ndarray:
     return (arr - np.mean(arr, axis=axis, keepdims=True)) / (np.std(arr, axis=axis, keepdims=True) + 1e-8)
 
 
-def reorder_indices(A: np.ndarray, B: np.ndarray) -> np.ndarray:
+def reorder_indices(A: np.ndarray, B: np.ndarray, _allow_leftover: bool = False) -> np.ndarray:
+    """
+    TODO:
+    Can this function works for condtion that B is a subset of A?
+    
+    """
     """
     Given two 1-D numpy arrays of strings A and B (same length),
     return an index array 'order' such that A[order] == B.
@@ -104,7 +109,7 @@ def reorder_indices(A: np.ndarray, B: np.ndarray) -> np.ndarray:
     """
     A = np.asarray(A)
     B = np.asarray(B)
-    if A.shape != B.shape:
+    if (not _allow_leftover) and A.shape != B.shape:
         raise ValueError("A and B must have the same shape/length.")
 
     # Build mapping label -> deque of indices in A
@@ -121,7 +126,7 @@ def reorder_indices(A: np.ndarray, B: np.ndarray) -> np.ndarray:
 
     # Sanity: ensure no leftover indices (shouldn't happen if shapes equal and above checks passed)
     leftover = [k for k, dq in idx_map.items() if dq]
-    if leftover:
+    if leftover and not _allow_leftover:
         raise ValueError(f"Extra unused elements left in A (labels): {leftover}")
-
+    
     return np.array(order, dtype=int)

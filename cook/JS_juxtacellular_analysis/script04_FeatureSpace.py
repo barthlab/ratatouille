@@ -40,7 +40,8 @@ def analyze_waveform():
 
 
 def analyze_decomposition_weights():
-    for variant in ["zscore", "raw", ]:
+    # for variant in ["zscore", "raw", ]:
+    for variant in ["zscore", ]:
         for decomposition_method in ["SVD",]:
             for n_components in [2, 3, 4, 5,]:
                 for append_baseline in [True, False]:

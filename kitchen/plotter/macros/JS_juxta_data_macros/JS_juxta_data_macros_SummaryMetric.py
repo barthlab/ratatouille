@@ -85,40 +85,39 @@ def get_all_cellsession_PSTH_mean(
 
 def SummaryMetric_PSTH(
         BINSIZE = 10/1000,  # s
-        FEATURE_RANGE = (-0.25, 0.75),  # (min, max) s
+        FEATURE_RANGE = (-0.5, 1),  # (min, max) s
 ):
     
 
     # plotting
     import matplotlib.pyplot as plt    
     import matplotlib.patches as patches
+    import matplotlib.patheffects as pe
 
     plt.rcParams["font.family"] = "Arial"
-    x_offset, y_offset = 0.1, 20
+    x_offset = 1.7
     fig, ax = plt.subplots(1, 1, constrained_layout=True)
-    for dataset_index, dataset_name in enumerate(("PYR_JUX", "SST_JUX", "PV_JUX", ) ):        
+    for dataset_index, dataset_name in enumerate(("SST_JUX", "PV_JUX", "PYR_JUX", ) ):        
         color_scheme.POTENTIAL_COLOR = COHORT_COLORS[dataset_name]
         style_dicts.POTENTIAL_TRACE_STYLE["color"] = COHORT_COLORS[dataset_name]
         bin_centers, all_spikes_histogram, _, _ = get_all_cellsession_PSTH_mean(dataset_name, BINSIZE, FEATURE_RANGE)
         oreo_plot(ax, AdvancedTimeSeries(t=bin_centers + dataset_index * x_offset, 
-                                        v=np.mean(all_spikes_histogram, axis=0) + dataset_index * y_offset, 
+                                        v=np.mean(all_spikes_histogram, axis=0),
                                         variance=np.std(all_spikes_histogram, axis=0), 
                                         raw_array=all_spikes_histogram), 0, 1, 
-                    {"color": COHORT_COLORS[dataset_name], "lw": 1.5, "zorder": -dataset_index}, 
-                    style_dicts.FILL_BETWEEN_STYLE | {"alpha": 0.7, "zorder": -dataset_index})
-        ax.axhline(dataset_index * y_offset, color=COHORT_COLORS[dataset_name], 
-                   linestyle='--', lw=1, alpha=0.5, zorder=-10)
-    parallelogram = patches.Polygon(xy=list(zip([0, 0.5, 0.7, 0.2], [0, 0, 40, 40])), 
-                                    alpha=0.3, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10)
-
-    ax.add_patch(parallelogram)
+                    {"color": COHORT_COLORS[dataset_name], "lw": 2.5, "alpha": 0.9, "zorder": -dataset_index,}, 
+                    style_dicts.FILL_BETWEEN_STYLE | {"alpha": 0.4, "zorder": -dataset_index})
+        ax.axvspan(dataset_index * x_offset, dataset_index * x_offset + 0.5, 
+                   alpha=0.5, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10)
+    ax.axhline(0, color='gray', linestyle='--', lw=1, alpha=0.5, zorder=-10)
+    
     ax.spines[['right', 'top']].set_visible(False)
-    ax.set_xlabel("Time [s]")
-    ax.set_ylabel("Firing Rate [Hz]")
+    # ax.set_xlabel("Time [s]")
+    # ax.set_ylabel("Firing Rate [Hz]")
             
     # ax.set_xlim(-0.25, 0.75)
-    ax.set_ylim(-5, None)
-    fig.set_size_inches(3.5, 2.5)
+    ax.set_ylim(-10, 150)
+    fig.set_size_inches(10, 2.5)
 
     save_path = path.join(get_saving_path(), "SummaryMetric_PSTH.png")
     fig.savefig(save_path, dpi=500, transparent=True)
@@ -213,31 +212,28 @@ def SummaryMetric_LFP(
     import matplotlib.patches as patches
 
     plt.rcParams["font.family"] = "Arial"
-    x_offset, y_offset = 0.05, 0.5
+    y_offset = 1.2
     fig, ax = plt.subplots(1, 1, constrained_layout=True)
-    for dataset_index, dataset_name in enumerate(("PYR_JUX", "SST_JUX", "PV_JUX", ) ):        
+    for dataset_index, dataset_name in enumerate(("PYR_JUX", "PV_JUX", "SST_JUX", ) ):        
         color_scheme.POTENTIAL_COLOR = COHORT_COLORS[dataset_name]
         style_dicts.POTENTIAL_TRACE_STYLE["color"] = COHORT_COLORS[dataset_name]
         LFP_t, all_LFP = get_all_cellsession_LFP_mean(dataset_name, FEATURE_RANGE)
-        oreo_plot(ax, AdvancedTimeSeries(t=LFP_t + dataset_index * x_offset, 
+        oreo_plot(ax, AdvancedTimeSeries(t=LFP_t, 
                                         v=np.mean(all_LFP, axis=0) + dataset_index * y_offset, 
                                         variance=np.std(all_LFP, axis=0), 
                                         raw_array=all_LFP), 0, 1, 
-                    {"color": COHORT_COLORS[dataset_name], "lw": 1.5, "zorder": -dataset_index}, 
-                    style_dicts.FILL_BETWEEN_STYLE | {"alpha": 0.7, "zorder": -dataset_index})
+                    {"color": COHORT_COLORS[dataset_name], "lw": 2.5, "alpha": 0.9, "zorder": -dataset_index}, 
+                    style_dicts.FILL_BETWEEN_STYLE | {"alpha": 0.4, "zorder": -dataset_index})
         ax.axhline(dataset_index * y_offset, color=COHORT_COLORS[dataset_name], 
                    linestyle='--', lw=1, alpha=0.5, zorder=-10)
-    parallelogram = patches.Polygon(xy=list(zip([0, 0.5, 0.6, 0.1], [0, 0, 1, 1])), 
-                                    alpha=0.3, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10)
-
-    ax.add_patch(parallelogram)
+    ax.axvspan(0, 0.5, alpha=0.5, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10)
     ax.spines[['right', 'top']].set_visible(False)
-    ax.set_xlabel("Time [s]")
-    ax.set_ylabel("LFP [mV]")
+    # ax.set_xlabel("Time [s]")
+    # ax.set_ylabel("LFP [mV]")
             
-    ax.set_xlim(-0.02, 0.16)
+    ax.set_xlim(-0.02, 0.06)
     # ax.set_ylim(-5, 155)
-    fig.set_size_inches(3.5, 2.5)
+    fig.set_size_inches(3, 3)
 
     save_path = path.join(get_saving_path(), "SummaryMetric_LFP.png")
     fig.savefig(save_path, dpi=500, transparent=True)
@@ -287,25 +283,25 @@ def SummaryMetric_Waveform(
     import matplotlib.pyplot as plt    
 
     plt.rcParams["font.family"] = "Arial"
-    x_offset, y_offset = 1, 1
     fig, ax = plt.subplots(1, 1, constrained_layout=True)
-    for dataset_index, dataset_name in enumerate(("PYR_JUX", "SST_JUX", "PV_JUX", ) ):        
+    for dataset_index, dataset_name in enumerate(("SST_JUX", "PV_JUX",  "PYR_JUX", ) ):        
         color_scheme.POTENTIAL_COLOR = COHORT_COLORS[dataset_name]
         style_dicts.POTENTIAL_TRACE_STYLE["color"] = COHORT_COLORS[dataset_name]
         waveform_t, all_waveforms, _ = get_all_cellsession_Waveform_mean(dataset_name)
-        oreo_plot(ax, AdvancedTimeSeries(t=waveform_t * 1000 + dataset_index * x_offset, 
-                                        v=np.mean(all_waveforms, axis=0) + dataset_index * y_offset, 
+        baseline = np.mean(all_waveforms[:, waveform_t < -1/1000],)
+        oreo_plot(ax, AdvancedTimeSeries(t=waveform_t * 1000, 
+                                        v=np.mean(all_waveforms, axis=0) - baseline, 
                                         variance=np.std(all_waveforms, axis=0), 
                                         raw_array=all_waveforms), 0, 1, 
-                    {"color": COHORT_COLORS[dataset_name], "lw": 1.5, "zorder": -dataset_index}, 
-                    style_dicts.FILL_BETWEEN_STYLE | {"alpha": 0.7, "zorder": -dataset_index})
-        ax.axhline(dataset_index * y_offset, color=COHORT_COLORS[dataset_name], 
-                   linestyle='--', lw=1, alpha=0.5, zorder=-10)
-    ax.spines[['right', 'top', 'left']].set_visible(False)
-    ax.set_xlabel("Time [ms]")
+                    {"color": COHORT_COLORS[dataset_name], "lw": 2.5, "alpha": 0.9, "zorder": -dataset_index}, 
+                    style_dicts.FILL_BETWEEN_STYLE | {"alpha": 0.4, "zorder": -dataset_index})
+        # ax.axhline(dataset_index * y_offset, color=COHORT_COLORS[dataset_name], 
+        #            linestyle='--', lw=1, alpha=0.5, zorder=-10)
+    ax.spines[['right', 'top', ]].set_visible(False)
+    # ax.set_xlabel("Time [ms]")
     # ax.set_ylabel("Norm. Vm [a.u.]")
             
-    fig.set_size_inches(2., 2.)
+    fig.set_size_inches(2.5, 2.5)
 
     save_path = path.join(get_saving_path(), "SummaryMetric_Waveform.png")
     fig.savefig(save_path, dpi=500, transparent=True)

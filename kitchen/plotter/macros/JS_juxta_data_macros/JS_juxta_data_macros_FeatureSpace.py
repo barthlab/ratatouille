@@ -147,7 +147,7 @@ def VisualizeExample_Physiology_Fingerprint():
         fig, ax = plt.subplots(1, 1, figsize=(2, 2), constrained_layout=True)
         sns.boxplot(data=combined_physiology, y="cohort_name", x=feature_name, ax=ax, 
                     hue="cohort_name", palette=COHORT_COLORS, orient="h", zorder=10,
-                    order=["PV_JUX", "SST_JUX", "PYR_JUX", ], showfliers=False,
+                    order=["SST_JUX", "PV_JUX",  "PYR_JUX", ], showfliers=False,
                     # showmeans=True, meanline=True,
                     medianprops={'color': 'k', 'ls': '-', 'lw': 2, },
                     # medianprops={'visible': False},
@@ -157,13 +157,13 @@ def VisualizeExample_Physiology_Fingerprint():
                     width=0.5,
                     )
         sns.stripplot(data=combined_physiology, y="cohort_name", x=feature_name, ax=ax, 
-                      order=["PV_JUX", "SST_JUX", "PYR_JUX", ],
+                      order=["SST_JUX", "PV_JUX", "PYR_JUX", ],
                       hue="cohort_name", palette=COHORT_COLORS,
-                      jitter=0.25,
-                      alpha=0.9, size=5, orient="h", edgecolor="white", linewidth=0.5,)
+                      jitter=0.3,
+                      alpha=0.9, size=6, orient="h", edgecolor="black", linewidth=0.5,)
        
         
-        ax.set_xlabel(feature_name)
+        ax.set_xlabel(feature_name, fontsize=12)
         ax.set_ylabel("")
         ax.set_yticks([])
         if "ACG" in feature_name:
@@ -352,7 +352,7 @@ def get_weight_tuple_Decomposition_Weights(variant: str, decomposition_method: s
 
 
 def Visualize_Decomposition_Weights(variant: str, decomposition_method: str, n_components: int, 
-                                    solver, basis_t, base_fr, component_projection, node_names, cohort_name):
+                                    solver, PC_t, base_fr, component_projection, node_names, cohort_name):
     
     import matplotlib.pyplot as plt    
     import seaborn as sns
@@ -360,38 +360,40 @@ def Visualize_Decomposition_Weights(variant: str, decomposition_method: str, n_c
 
     plt.rcParams["font.family"] = "Arial"
 
-    fig, axs = plt.subplots(2, n_components + 1, figsize=(2.5 * (n_components + 1), 3.), 
-                            constrained_layout=True, height_ratios=[4, 6])
+    fig, axs = plt.subplots(n_components + 1, 2, figsize=(4, 1.5 * (n_components + 1),), 
+                            constrained_layout=True, width_ratios=[6, 4])
     components_list_for_plot = [
-        np.ones_like(basis_t),
+        np.ones_like(PC_t),
     ] + [solver.components_[component_id, :] for component_id in range(n_components)]
     component_weights_for_plot = [
         base_fr
     ] + [component_projection[:, component_id] for component_id in range(n_components)]
     component_names_for_plot = [
         "Baseline",
-    ] + [f"Basis {component_id+1}" for component_id in range(n_components)]
+    ] + [f"PC {component_id+1}" for component_id in range(n_components)]
     for component_id in range(2, n_components + 1):        
-        axs[0, component_id].sharey(axs[0, 1])
+        # axs[0, component_id].sharey(axs[0, 1])      
+        axs[component_id, 0].sharey(axs[1, 0])
 
     for component_id, (component, component_weights, component_name) in enumerate(zip(
         components_list_for_plot, component_weights_for_plot, component_names_for_plot)):
-        axc = axs[:, component_id]
+        # axc = axs[:, component_id]
+        axc = axs[component_id]
 
         axc_comp = axc[0]
-        axc_comp.plot(basis_t, component, lw=1.5, color='black', 
+        axc_comp.plot(PC_t, component, lw=2, color='black', 
                       path_effects=[pe.Stroke(linewidth=2.5, foreground='white'), pe.Normal()])
         axc_comp.axvspan(0, 0.5, alpha=0.5, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10)
         axc_comp.axhline(0, color='gray', linestyle='--', lw=1, alpha=0.5, zorder=-10)
         axc_comp.spines[['right', 'top', 'left', 'bottom',]].set_visible(False)
         axc_comp.set_xlim(-0.5, 1.)
         axc_comp.set_xticks([])
-        # axc_comp.set_yticks([])
+        axc_comp.set_yticks([])
         if component_name == "Baseline":
             axc_comp.set_ylim(0, 2)
             axc_comp.set_ylabel("Baseline FR")
         elif component_id == 1:
-            axc_comp.set_ylabel("Basis")
+            axc_comp.set_ylabel("PC")
         
         axc_weight = axc[1]
         data = pd.DataFrame({
@@ -402,7 +404,7 @@ def Visualize_Decomposition_Weights(variant: str, decomposition_method: str, n_c
                     orient="h",
                     ax=axc_weight, 
                     palette=COHORT_COLORS,  
-                    order=["PV_JUX", "SST_JUX", "PYR_JUX", "SST_WC", ],
+                    order=["SST_JUX",  "SST_WC", "PV_JUX", "PYR_JUX", ],
                     showfliers=False, zorder=10,
                     medianprops={'color': 'k', 'ls': '-', 'lw': 2, },
                     # medianprops={'visible': False},
@@ -413,19 +415,19 @@ def Visualize_Decomposition_Weights(variant: str, decomposition_method: str, n_c
                     )
         sns.stripplot(data=data, x="Weight", y="Cohort", hue="Cohort", 
                       ax=axc_weight, orient="h",
-                    palette=COHORT_COLORS, alpha=0.9, jitter=0.25, size=5,
+                    palette=COHORT_COLORS, alpha=0.9, jitter=0.3, size=8,
                     edgecolor="black", linewidth=0.5,
-                    order=sorted(set(cohort_name)))
+                    order=["SST_JUX",  "SST_WC", "PV_JUX", "PYR_JUX", ])
         axc_weight.spines[['right', 'top', 'left']].set_visible(False)
-        axc_weight.set_xlabel("Weight [a.u.]" if component_id != 0 else "Baseline FR [Hz]")
+        axc_weight.set_ylabel("Weight [a.u.]" if component_id != 0 else "Baseline FR [Hz]")
         axc_weight.set_yticks([])
         axc_weight.axvline(0, color='gray', linestyle='--', lw=1, alpha=0.5, zorder=-10)
-        axc_weight.set_ylabel("")
+        axc_weight.set_xlabel("")
         # new_xticks = [tick_formatter(tick_text.get_text()) for tick_text in axc_weight.get_xticklabels()]
         # axc_weight.set_xticklabels(new_xticks)
 
     save_path = path.join(get_saving_path(), "FeatureSpace", 
-                          f"Basis_Overview_{variant}_{decomposition_method}_{n_components}.png")
+                          f"PC_Overview_{variant}_{decomposition_method}_{n_components}.png")
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     fig.savefig(save_path, dpi=500, transparent=True)
     plt.close(fig)
@@ -440,15 +442,15 @@ def Visualize_Decomposition_Weights(variant: str, decomposition_method: str, n_c
         ax.scatter(
             component_projection[idx, 0], component_projection[idx, 1], base_fr[idx],
             facecolors=COHORT_COLORS[cohort],
-            s=15, alpha=1, edgecolors="black", lw=0.5,
+            s=20, alpha=1, edgecolors="black", lw=0.5,
             )
-        for i, j, k in zip(component_projection[idx, 0], component_projection[idx, 1], base_fr[idx]):
-            ax.plot([i, i], [j, j], [0, k], color=COHORT_COLORS[cohort], lw=1, alpha=0.75, zorder=-10)
-    ax.set_xlabel("Basis 1 Weight [a.u.]", labelpad=-15)
-    ax.set_ylabel("Basis 2 Weight [a.u.]", labelpad=-15)
+        # for i, j, k in zip(component_projection[idx, 0], component_projection[idx, 1], base_fr[idx]):
+        #     ax.plot([i, i], [j, j], [0, k], color=COHORT_COLORS[cohort], lw=1, alpha=0.75, zorder=-10)
+    ax.set_xlabel("PC 1 Weight [a.u.]", labelpad=-15)
+    ax.set_ylabel("PC 2 Weight [a.u.]", labelpad=-15)
     ax.set_zlabel("Baseline FR [Hz]", labelpad=-5)
     ax.set_zlim(0, None)
-    ax.view_init(elev=30, azim=205)
+    ax.view_init(elev=20, azim=205)
     ax.xaxis.pane.fill = False # Left pane
     ax.yaxis.pane.fill = False # Right pane
 
@@ -457,9 +459,9 @@ def Visualize_Decomposition_Weights(variant: str, decomposition_method: str, n_c
     ax.set_xticks([])
     ax.set_yticks([])
     ax.tick_params(axis='z', which='both', pad=0)
-    ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    # ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0))
+    ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0))
+    ax.zaxis.set_pane_color((0.8, 0.8, 0.8, 1))
 
     save_path = path.join(get_saving_path(), "FeatureSpace", 
                           f"Scatter3D_{variant}_{decomposition_method}_{n_components}.png")
@@ -475,7 +477,7 @@ DEFAULT_UMAP_KWS = {'n_components': 2, 'random_state': 42,}
 DEFAULT_TSNE_KWS = {'n_components': 2, 'random_state': 42,}
 DEFAULT_UMAP_N_NEIGHBORS = (6, 7, 8, 9, 10,)
 DEFAULT_TSNE_PERPLEXITY = (5, 10, 15, 20, 30, )
-DEFAULT_DOT_KWS = {"edgecolors": 'lightgray', "lw": 0.5, "s": 15, "alpha": 0.9}
+DEFAULT_DOT_KWS = {"edgecolors": 'black', "lw": 0.5, "s": 20, "alpha": 0.9}
 def simple_Landscope_feature_space(weight_matrix, cohort_name, feature_space_name: str, _normalize_all_dimension: bool = True):
     from umap import UMAP
     from sklearn.manifold import TSNE    
@@ -535,7 +537,7 @@ def simple_pairwise_distance_distribution(weight_matrix, cohort_name, feature_sp
         normalized_weight_matrix = numpy_kit.zscore(weight_matrix, axis=0)
     else:
         normalized_weight_matrix = weight_matrix
-    fig, ax = plt.subplots(1, 1, figsize=(3, 1.5), constrained_layout=True)
+    fig, ax = plt.subplots(1, 1, figsize=(3, 2), constrained_layout=True)
 
     summarized_pairwise_distance = []
     for group_name in np.unique(cohort_name):
@@ -546,7 +548,8 @@ def simple_pairwise_distance_distribution(weight_matrix, cohort_name, feature_sp
     df = pd.concat(summarized_pairwise_distance, ignore_index=True)
     sns.kdeplot(data=df, x="distance", hue="group", multiple="layer", 
                 palette=COHORT_COLORS, hue_order=["SST_JUX", "PYR_JUX", "PV_JUX", ],
-                ax=ax, legend=False, fill=True, alpha=0.7, common_norm=False,)
+                ax=ax, legend=False, fill=True, alpha=0.7, common_norm=False,
+                edgecolor="black", linewidth=0.5,)
     # sns.histplot(pairwise_distance, ax=ax, kde=True, stat="density", binwidth=0.05
     #              fill=True, alpha=0.4, color=COHORT_COLORS[group_name])
     ax.set_xlabel("Pairwise Correlation [R]")

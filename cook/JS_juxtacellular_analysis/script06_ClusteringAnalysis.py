@@ -20,10 +20,14 @@ logging.getLogger('numba').setLevel(logging.WARNING)
 
 def main():
     PSTH_tuple = get_weight_tuple_PSTH("raw", 10/1000)
-    # svd_2_tuple = get_weight_tuple_Decomposition_Weights("zscore", "SVD", 2, True)
-    # Visualize_ClusteringAnalysis(svd_2_tuple, PSTH_tuple, feature_space_name="SVD2")
+
+    # phy_fingerprint = get_weight_tuple_Physiology_Fingerprint()
+    # Visualize_ClusteringAnalysis(phy_fingerprint, PSTH_tuple, feature_space_name="Physiology_Fingerprint")
+
+    svd_2_tuple = get_weight_tuple_Decomposition_Weights("zscore", "SVD", 2, True, _visualize=True)
+    Visualize_ClusteringAnalysis(svd_2_tuple, PSTH_tuple, feature_space_name="SVD2")
     
-    svd_5_tuple = get_weight_tuple_Decomposition_Weights("zscore", "SVD", 5, True,)
+    svd_5_tuple = get_weight_tuple_Decomposition_Weights("zscore", "SVD", 5, True, _visualize=True)
     Visualize_ClusteringAnalysis(svd_5_tuple, PSTH_tuple, feature_space_name="SVD5")
     
 
