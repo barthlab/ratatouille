@@ -38,7 +38,7 @@ def marker_video_use_timeline(dir_path: str):
         # Parse timeline and create demo
         try:
             events = parse_timeline(timeline_file)
-            demo_path = os.path.join(os.path.dirname(video_file), f"DEMO_{basename}.avi")
+            demo_path = os.path.join(os.path.dirname(video_file), f"DEMO_{basename}.mp4")
             create_demo_video(video_file, demo_path, events)
             print(f"Created: {demo_path}")
         except Exception as e:

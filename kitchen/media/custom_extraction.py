@@ -71,14 +71,8 @@ class BodyPartExtractor:
 
     def format_checking(self):
         """Validate video file format and body part type."""
-        dir_name, file_name = path.split(self.video_path)
-        assert path.exists(self.video_path), f"Video {self.video_path} does not exist."
-        assert file_name.endswith(CUSTOM_EXTRACTION_VIDEO_FORMAT),  \
-            f"Only support {CUSTOM_EXTRACTION_VIDEO_FORMAT} format, but got video: {file_name}."
         assert self.part_name.upper() in VIDEO_EXTRACTED_BEHAVIOR_TYPES, \
             f"Only support {VIDEO_EXTRACTED_BEHAVIOR_TYPES} extraction, but got {self.part_name}."
-        assert file_name.startswith(CUSTOM_EXTRACTION_PREFIX), \
-            f"Only support {CUSTOM_EXTRACTION_PREFIX} prefix, but got video: {file_name}."
 
     @cached_property
     def session_name(self) -> str:
@@ -258,13 +252,28 @@ class BodyPartExtractor:
         save_dict.to_csv(self.result_save_path, index_label="Frame")
 
 
-def default_collection(data_set: DataSet, format: str = ".avi", overwrite=False):
+def video_format_checking(video_path: str):    
+    dir_name, file_name = path.split(video_path)
+    assert path.exists(video_path), f"Video {video_path} does not exist."
+    assert file_name.endswith(CUSTOM_EXTRACTION_VIDEO_FORMAT),  \
+        f"Only support {CUSTOM_EXTRACTION_VIDEO_FORMAT} format, but got video: {file_name}."
+    assert file_name.startswith(CUSTOM_EXTRACTION_PREFIX), \
+        f"Only support {CUSTOM_EXTRACTION_PREFIX} prefix, but got video: {file_name}."
+    
+    
+def default_collection(data_set: DataSet, format: str = ".mp4", overwrite=False):
     """Preload all body parts for motion extraction."""
     all_body_parts = []
     for cohort_node in data_set.select("cohort"):
         assert isinstance(cohort_node, Cohort)
         all_video_path = find_all_video_path(routing.default_data_path(cohort_node), format)
         for video_path in all_video_path:
+            try:
+                video_format_checking(video_path)
+            except AssertionError as e:
+                print(f"Skip {video_path} due to: {e}")
+                continue
+            
             for body_part in OPTICAL_FLOW_EXTRACTED_BEHAVIOR_TYPES:
                 all_body_parts.append(BodyPartExtractor(video_path, body_part, overwrite=overwrite))
                 

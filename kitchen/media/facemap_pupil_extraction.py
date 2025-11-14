@@ -74,7 +74,7 @@ def pupil_save_path(video_path: str) -> str:
     return save_path
 
 
-def default_collection(data_set: DataSet, _expected_format: str = ".avi"):
+def default_collection(data_set: DataSet, _expected_format: str = ".mp4"):
     """Ask for whether to open Facemap for pupil extraction."""
     open_flag = input("Open Facemap for pupil extraction? ([y]/n): ")
     open_flag = True if open_flag == "y" else False

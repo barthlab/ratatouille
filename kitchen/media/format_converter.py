@@ -28,7 +28,7 @@ def find_all_video_path(dir_path: str, format: str) -> List[str]:
     return all_video_path
 
 
-def video_convert(dir_path: str, src_format: str = ".h264", dst_format: str = ".avi") -> None:
+def video_convert(dir_path: str, src_format: str = ".h264", dst_format: str = ".mp4") -> None:
     """Convert all video file under dir_path from src_format to dst_format."""
     assert dst_format[0] == ".", f"dst_format should start with ., but got '{dst_format}'"
     assert dst_format in SUPPORT_VIDEO_FORMAT, f"dst_format {dst_format} not supported, should be one of {SUPPORT_VIDEO_FORMAT}"
@@ -45,15 +45,30 @@ def video_convert(dir_path: str, src_format: str = ".h264", dst_format: str = ".
         if path.exists(output_path):
             logger.info(f"Video {output_path} already exists, skipping...")
             continue
-        
+
         if src_format == ".h264":
-            command = (r"ffmpeg -framerate {} -i {} -q:v 6 -vf fps={} "
-                    r"-hide_banner -loglevel warning {}").format(
-                        INPUT_VIDEO_FPS, file_path, OUTPUT_VIDEO_FPS, output_path)
+            base_cmd = (r"ffmpeg -framerate {} -i {} "
+                        r"-hide_banner -loglevel warning").format(
+                            INPUT_VIDEO_FPS, file_path)
+            video_cmd = "-c:v libx264 -crf 18"
+            
+            if INPUT_VIDEO_FPS != OUTPUT_VIDEO_FPS:
+                video_cmd += f" -vf fps={OUTPUT_VIDEO_FPS}"
+            
+            command = f"{base_cmd} {video_cmd} {output_path}"
+
         else:
-            command = (r"ffmpeg -i {} -q:v 6 -vf fps={} "
-                    r"-hide_banner -loglevel warning {}").format(
-                        file_path, OUTPUT_VIDEO_FPS, output_path)
+            command = (r"ffmpeg -i {} -c:v libx264 -crf 18 -vf fps={} "
+                       r"-hide_banner -loglevel warning {}").format(
+                           file_path, OUTPUT_VIDEO_FPS, output_path)
+        # if src_format == ".h264":
+        #     command = (r"ffmpeg -framerate {} -i {} -q:v 6 -vf fps={} "
+        #             r"-hide_banner -loglevel warning {}").format(
+        #                 INPUT_VIDEO_FPS, file_path, OUTPUT_VIDEO_FPS, output_path)
+        # else:
+        #     command = (r"ffmpeg -i {} -q:v 6 -vf fps={} "
+        #             r"-hide_banner -loglevel warning {}").format(
+        #                 file_path, OUTPUT_VIDEO_FPS, output_path)
 
         
         logger.info(command)
@@ -67,14 +82,14 @@ def video_convert(dir_path: str, src_format: str = ".h264", dst_format: str = ".
             raise ValueError(f"Unknown error occurred: {e}")
 
 
-def dataset_interface_h264_2_avi(data_set: DataSet):
-    """Ask for whether to convert video format"""
-    convert_flag = input("Convert video format from h264 to avi? ([y]/n): ")
-    convert_flag = True if convert_flag == "y" else False
-    if convert_flag:
-        for cohort_node in data_set.select("cohort"):
-            assert isinstance(cohort_node, Cohort)
-            video_convert(dir_path=routing.default_data_path(cohort_node), src_format=".h264", dst_format=".avi")
+# def dataset_interface_h264_2_avi(data_set: DataSet):
+#     """Ask for whether to convert video format"""
+#     convert_flag = input("Convert video format from h264 to avi? ([y]/n): ")
+#     convert_flag = True if convert_flag == "y" else False
+#     if convert_flag:
+#         for cohort_node in data_set.select("cohort"):
+#             assert isinstance(cohort_node, Cohort)
+#             video_convert(dir_path=routing.default_data_path(cohort_node), src_format=".h264", dst_format=".avi")
 
 
 def stack_tiff_to_video(dir_path: str):

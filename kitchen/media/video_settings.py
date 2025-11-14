@@ -1,7 +1,7 @@
 # CONVERSION
 SUPPORT_VIDEO_FORMAT = (
     ".h264",
-    ".avi",
+    # ".avi",
     ".mp4",
 )
 INPUT_VIDEO_FPS = 30
@@ -15,7 +15,7 @@ TIFF_STACK_CRF = 19  # Constant Rate Factor (lower is better quality)
 # CUSTOM EXTRACTION
 CUSTOM_EXTRACTION_VIDEO_FORMAT = (
     ".mp4",
-    ".avi",
+    # ".avi",
 )
 CUSTOM_EXTRACTION_PREFIX = (
     "VIDEO_",
