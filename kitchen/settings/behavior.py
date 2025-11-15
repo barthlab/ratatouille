@@ -6,17 +6,20 @@ SUPPORTED_BEHAVIOR_TYPES = {
     "LICK",
     "PUPIL",
     "TONGUE",
-    "WHISKER",
+    "WHISKER",    
+    "NOSE",
 }
 
 VIDEO_EXTRACTED_BEHAVIOR_TYPES = {
     "PUPIL",
     "TONGUE",
-    "WHISKER",
+    "WHISKER",    
+    "NOSE",
 }
 
 OPTICAL_FLOW_EXTRACTED_BEHAVIOR_TYPES = {
     "WHISKER",
+    "NOSE",
 }
 
 # Processing parameters

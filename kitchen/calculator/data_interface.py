@@ -36,7 +36,7 @@ def get_data(
 @overload
 def get_data(
         dataset: DataSet, 
-        data_name: Literal["pupil", "tongue", "whisker"], 
+        data_name: Literal["pupil", "tongue", "whisker", "nose"], 
         sync_events: Optional[Tuple[str]] = None
     ) -> Iterator[TimeSeries]:
     ...

@@ -65,6 +65,9 @@ def calculate_metric(
     elif data_name == "tongue":
         computed_data = {node: calc_func(tongue) 
                          for node, tongue in zip(src_nodes, get_data(src_nodes, data_name, sync_events))}
+    elif data_name == "nose":
+        computed_data = {node: calc_func(nose) 
+                         for node, nose in zip(src_nodes, get_data(src_nodes, data_name, sync_events))}
     elif data_name == "whisker":
         computed_data = {node: calc_func(whisker) 
                          for node, whisker in zip(src_nodes, get_data(src_nodes, data_name, sync_events))}

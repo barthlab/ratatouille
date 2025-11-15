@@ -566,6 +566,7 @@ class NeuralData:
     lick: Optional[Events] = None
     pupil: Optional[TimeSeries] = None
     tongue: Optional[TimeSeries] = None
+    nose: Optional[TimeSeries] = None
     whisker: Optional[TimeSeries] = None
 
     # Potential
@@ -581,8 +582,8 @@ class NeuralData:
         """Validate data types."""
         assert all(isinstance(getattr(self, name), Events | type(None)) for name in ("position", "locomotion", "lick")), \
             f"position, locomotion, lick should be Events or None, got {self.position}, {self.locomotion}, {self.lick}"
-        assert all(isinstance(getattr(self, name), TimeSeries | type(None)) for name in ("pupil", "tongue", "whisker")), \
-            f"pupil, tongue, whisker should be TimeSeries or None, got {self.pupil}, {self.tongue}, {self.whisker}"
+        assert all(isinstance(getattr(self, name), TimeSeries | type(None)) for name in ("pupil", "tongue", "whisker", "nose")), \
+            f"pupil, tongue, whisker, nose should be TimeSeries or None, got {self.pupil}, {self.tongue}, {self.whisker}, {self.nose}"
     
     def __repr__(self):
         """Return string representation."""
