@@ -54,6 +54,9 @@ TTL_EVENT_DEFAULT = (
 
 TRIAL_ALIGN_EVENT_DEFAULT = (
     (
+        "TrialOn",
+    ),
+    (
         "VerticalPuffOn",
         "HorizontalPuffOn",
         "BlankOn",
@@ -61,9 +64,6 @@ TRIAL_ALIGN_EVENT_DEFAULT = (
     (
         "Puff",
         "Blank",
-    ),
-    (
-        "TrialOn",
     ),
     (
         "BuzzerOn",

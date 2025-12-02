@@ -4,6 +4,7 @@ import os
 import numpy as np
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+import pandas as pd
 import logging
 
 from kitchen.operator.grouping import AdvancedTimeSeries
@@ -16,6 +17,14 @@ from kitchen.utils import numpy_kit
 logger = logging.getLogger(__name__)
    
 DEFAULT_UMAP_KWS = {'n_components': 2, 'random_state': 42, 'n_neighbors': 9}
+
+def tick_formatter_cell_type(tick_text):
+    a, b = tick_text.split("_")
+    return fr'$\mathrm{{{a}}}_\mathrm{{{b}}}$'
+def tick_formatter_cluster_type(tick_text):
+    return tick_text.split("cluster ")[1]
+    
+
 
 def get_putative_labels(weight_tuple):
     
@@ -78,8 +87,9 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
 
 
     cluster_names, (n_clusters, embedding, normalized_weight_matrix) = get_putative_labels((weight_matrix, node_names, cohort_names))
-
-
+    for x, y,z in zip(cohort_names, cluster_names, node_names):
+        print(x, y, z)
+    exit()
     BINSIZE = 10/1000
     FEATURE_RANGE = (-1, 1.5)
     bins = np.arange(FEATURE_RANGE[0], FEATURE_RANGE[1] + BINSIZE, BINSIZE)
@@ -137,17 +147,13 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
         ax.set_xticks([])
         ax.set_yticks([])
 
-    def tick_formatter_cell_type(tick_text):
-        a, b = tick_text.split("_")
-        return fr'$\mathrm{{{a}}}_\mathrm{{{b}}}$'
-    def tick_formatter_cluster_type(tick_text):
-        return tick_text.split("cluster ")[1]
-    
     df = pd.DataFrame({
         "Cohort": cohort_names,
         "Cluster": cluster_names,
     })
     cohort_per_cluster = df.groupby(['Cluster', 'Cohort']).size().unstack(fill_value=0)
+    cohort_per_cluster = cohort_per_cluster.reindex(columns=["SST_JUX", "SST_WC", "PV_JUX", "PYR_JUX"], fill_value=0)
+    cohort_per_cluster = cohort_per_cluster.reindex(index=[f"cluster {i}" for i in range(n_clusters)], fill_value=0)
     cohort_per_cluster.plot(kind='bar', stacked=True, ax=axs[2], color=COHORT_COLORS, 
                             edgecolor='black', lw=0.5, legend=False)
     axs[2].set_title("Cohort Composition per Cluster")
@@ -165,6 +171,8 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
     axs[2].yaxis.set_major_locator(MaxNLocator(integer=True))
 
     cluster_per_cohort = df.groupby(['Cohort', 'Cluster']).size().unstack(fill_value=0)
+    cluster_per_cohort = cluster_per_cohort.reindex(index=["SST_JUX", "SST_WC", "PV_JUX", "PYR_JUX"], fill_value=0)
+    cluster_per_cohort = cluster_per_cohort.reindex(columns=[f"cluster {i}" for i in range(n_clusters)], fill_value=0)
     cluster_per_cohort.plot(kind='bar', stacked=True, ax=axs[3], color=CLUSTER_COLORS, legend=False,
                             edgecolor='black', lw=0.5)
     axs[3].set_title("Cluster Composition per Cohort")
@@ -190,6 +198,14 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
 
 
 
+    """
+    Overview figure of clustering composition.
+    """
+
+    Visualize_data_composition(cohort_per_cluster, cluster_per_cohort, feature_space_name)
+
+
+
 
     
     """
@@ -202,7 +218,7 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
     import seaborn as sns
     from scipy.cluster import hierarchy
 
-    fig, axs = plt.subplots(1, 3, figsize=(10, 4), constrained_layout=True, width_ratios=[0.3, 1, 0.2])
+    fig, axs = plt.subplots(1, 3, figsize=(6, 4), constrained_layout=True, width_ratios=[0.3, 1, 0.2])
 
     linked_weight = linkage(normalized_weight_matrix, method='ward', metric='euclidean')
 
@@ -231,8 +247,8 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
         if plotted_clusters[i] != plotted_clusters[i+1]:
             boundary_indices.append(i)
     for y_pos in boundary_indices:
-        axs[1].axhline(y=y_pos * 10 + 10, color='white', ls='--', linewidth=1)
-        axs[2].axhline(y=y_pos * 10 + 10, color='gray', ls=(5, (10, 3)), linewidth=1)
+        axs[1].axhline(y=y_pos * 10 + 10, color='black', ls='--', linewidth=1)
+        axs[2].axhline(y=y_pos * 10 + 10, color='black', ls=(5, (10, 3)), linewidth=1)
 
     ax = axs[0]
     ax.spines[['right', 'top', 'bottom', 'left']].set_visible(False)
@@ -254,7 +270,7 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
         
     sorted_idx = dendro_info['leaves']
     sns.heatmap(psth_matrix[sorted_idx, :].repeat(10, axis=0), 
-                ax=axs[1], cmap='viridis', norm=SymLogNorm(linthresh=10., vmin=0, vmax=None),
+                ax=axs[1], cmap='YlOrBr', norm=SymLogNorm(linthresh=10., vmin=0, vmax=150),
                 )
     ax = axs[1]
     ax.sharey(axs[0])
@@ -270,7 +286,7 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
     ax = axs[2]
     ax.sharey(axs[0])
     ax.set_ylabel('')
-    ax.set_xticks(np.arange(n_components + 1) + 0.5, ["Baseline FR",] + [f"PC {i+1}" for i in range(n_components)], 
+    ax.set_xticks(np.arange(n_components + 1) + 0.5, ["Base FR",] + [f"PC {i+1}" for i in range(n_components)], 
                     rotation=45, ha='right', fontsize=8)
     ax.set_title('Weights')
     
@@ -356,3 +372,219 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
                 fig.savefig(save_path, dpi=500, transparent=True)
                 plt.close(fig)
                 logger.info("Plot saved to " + save_path)
+
+
+
+
+
+def Visualize_data_composition(
+        cohort_per_cluster: pd.DataFrame, 
+        cluster_per_cohort: pd.DataFrame, 
+        feature_space_name: str,
+):
+    n_clusters = len(cohort_per_cluster.index)
+    n_cohorts = len(cluster_per_cohort.index)
+    max_cols = max(n_clusters, n_cohorts)
+
+    fig1, axs1 = plt.subplots(2, max_cols, figsize=(max_cols * 3, 2*3,), constrained_layout=True)
+
+    # Row 1: Cohort Composition per Cluster
+    for i, cluster_id in enumerate(cohort_per_cluster.index):
+        data = cohort_per_cluster.loc[cluster_id]
+        ax = axs1[0, i]
+        
+        # Filter out zero values to avoid clutter
+        data = data[data > 0]
+        
+        if data.empty:
+            continue
+        def func(pct):
+            absolute = int(round(pct/100.*data.sum()))
+            return f"{pct:.1f}%\n({absolute})"
+        pie_colors = [COHORT_COLORS[cohort_name] for cohort_name in data.index]
+        ax.pie(data, 
+            # labels=data.index, 
+            colors=pie_colors, 
+            autopct=func,
+            shadow=False, 
+            startangle=90, 
+            pctdistance=0.8,
+            wedgeprops={'edgecolor': 'black', 'lw': 1})
+        
+        centre_circle = plt.Circle((0,0),0.6,fc="white", ec="black", lw=1)
+        ax.add_artist(centre_circle)
+        ax.text(0, 0, cluster_id, ha='center', va='center', fontsize=25, 
+                c=CLUSTER_COLORS[cluster_id], )
+        
+        # ax.set_title(f"Cluster {cluster_id}")
+        ax.axis('equal') # Equal aspect ratio ensures that pie is drawn as a circle.
+
+    # Row 2: Cluster Composition per Cohort
+    for i, cohort_name in enumerate(cluster_per_cohort.index):
+        data = cluster_per_cohort.loc[cohort_name]
+        ax = axs1[1, i]
+
+        # Filter out zero values
+        data = data[data > 0]
+        if data.empty:
+            continue
+        def func(pct):
+            absolute = int(round(pct/100.*data.sum()))
+            return f"{pct:.1f}%\n({absolute})"
+
+        pie_colors = [CLUSTER_COLORS[cluster_id] for cluster_id in data.index]
+        ax.pie(data, 
+            # labels=data.index, 
+            colors=pie_colors, 
+            autopct=func,
+            shadow=False, 
+            startangle=90,
+            pctdistance=0.8,
+            wedgeprops={'edgecolor': 'black', 'lw': 1})
+        
+        # Donut chart
+        centre_circle = plt.Circle((0,0),0.6,fc="white", ec="black", lw=1)
+        ax.add_artist(centre_circle)
+        ax.text(0, 0, tick_formatter_cell_type(cohort_name), ha='center', va='center', fontsize=25, 
+                c=COHORT_COLORS[cohort_name], fontweight='bold')
+        # ax.set_title(f"{cohort_name}")
+        ax.axis('equal')
+
+    # Hide unused subplots
+    for i in range(n_clusters, max_cols):
+        axs1[0, i].axis('off')
+    for i in range(n_cohorts, max_cols):
+        axs1[1, i].axis('off')
+
+    save_path = path.join(get_saving_path(), "ClusteringAnalysis", 
+                                        f"Composition_PiChart_{feature_space_name}.png")
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    fig1.savefig(save_path, dpi=500, transparent=True)
+    plt.close(fig1)
+    logger.info("Plot saved to " + save_path)
+
+
+
+
+
+    # === 2. Heatmap (Confusion Matrix) ===
+    print("Generating Plot 2: Heatmap...")
+    import seaborn as sns
+    import matplotlib.patheffects as pe
+
+    cluster_per_cohort_pct = cluster_per_cohort.div(cluster_per_cohort.sum(axis=1), axis=0) * 100
+    cluster_per_cohort_pct = cluster_per_cohort_pct.fillna(0) # handle cohorts with 0 cells
+
+    fig2, ax2 = plt.subplots(1, 1, figsize=(3, 2), constrained_layout=True)
+
+    annot_labels = cluster_per_cohort_pct.applymap(lambda x: f'{x:.0f}%' if x > 0 else '')  # type: ignore
+    sns.heatmap(cluster_per_cohort, 
+                annot=annot_labels, 
+                fmt='s',           
+                cmap='GnBu',      
+                linewidths=0.5,
+                linecolor='black',
+                ax=ax2,
+                square=True,
+                cbar_kws={'label': 'Number of Cells'},
+                annot_kws={"size": 8})
+
+    # Apply custom tick formatting
+    # Y-axis (Clusters)
+    cluster_labels_orig = [tick.get_text() for tick in ax2.get_xticklabels()]
+    cluster_labels_new = [tick_formatter_cluster_type(l) for l in cluster_labels_orig]
+    ax2.set_xticklabels(cluster_labels_new, rotation=0)
+
+    for tick_label in ax2.get_xticklabels():
+        cluster_int = int(tick_label.get_text()) 
+        tick_label.set_color(CLUSTER_COLORS[cluster_int])
+        tick_label.set_fontweight('bold')
+        # tick_label.set_path_effects([pe.withStroke(linewidth=0.3, foreground='black')])        
+
+    # X-axis (Cohorts)
+    cohort_labels_orig = [tick.get_text() for tick in ax2.get_yticklabels()]
+    tick_colors = [COHORT_COLORS[label] for label in cohort_labels_orig]
+    cohort_labels_new = [tick_formatter_cell_type(label) for label in cohort_labels_orig]
+    ax2.set_yticklabels(cohort_labels_new, rotation=0)
+
+    for tick_label, tick_color in zip(ax2.get_yticklabels(), tick_colors):
+        tick_label.set_color(tick_color)
+        tick_label.set_fontweight('bold')
+        # tick_label.set_path_effects([pe.withStroke(linewidth=0.3, foreground='black')])
+
+    ax2.set_ylabel("Cohort", )
+    ax2.set_xlabel("Cluster",)
+    save_path = path.join(get_saving_path(), "ClusteringAnalysis", 
+                                            f"Composition_ConfusionMatrix_{feature_space_name}.png")
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    fig2.savefig(save_path, dpi=500, transparent=True)
+    plt.close(fig2)
+    logger.info("Plot saved to " + save_path)
+
+
+    # === 3. Percentage Stacked Bar Graphs ===
+    print("Generating Plot 3: Percentage Bar Charts...")
+
+    # Normalize the data
+    # axis=0: divide each column
+    # axis=1: divide each row
+    cohort_per_cluster_pct = cohort_per_cluster.div(cohort_per_cluster.sum(axis=1), axis=0) * 100
+    cluster_per_cohort_pct = cluster_per_cohort.div(cluster_per_cohort.sum(axis=1), axis=0) * 100
+
+    fig3, axs3 = plt.subplots(1, 2, figsize=(3.5 * 2, 2.5), constrained_layout=True)
+
+    # Plot 1: Cohort Composition per Cluster (Percentage)
+    plot_colors_1 = [COHORT_COLORS[c] for c in cohort_per_cluster_pct.columns]
+    cohort_per_cluster_pct.plot(kind='bar', 
+                                stacked=True, 
+                                ax=axs3[0], 
+                                color=plot_colors_1,
+                                edgecolor='black', 
+                                legend=False,
+                                lw=0.5)
+
+    axs3[0].set_xlabel("Cluster")
+    axs3[0].set_ylabel("Percentage (%)")
+    axs3[0].spines[['right', 'top']].set_visible(False)
+    axs3[0].set_ylim(0, 100) # Ensure Y-axis is 0-100
+
+    # Apply cluster tick formatting
+    new_xticks = [tick_formatter_cluster_type(tick.get_text()) for tick in axs3[0].get_xticklabels()]
+    axs3[0].set_xticklabels(new_xticks, rotation=0)
+    for tick_label in axs3[0].get_xticklabels():
+        cluster_int = int(tick_label.get_text())
+        tick_label.set_color(CLUSTER_COLORS[cluster_int])
+        tick_label.set_fontweight('bold')
+        # tick_label.set_path_effects([pe.withStroke(linewidth=0.3, foreground='black')])
+
+    # Plot 2: Cluster Composition per Cohort (Percentage)
+    plot_colors_2 = [CLUSTER_COLORS[c] for c in cluster_per_cohort_pct.columns]
+    cluster_per_cohort_pct.plot(kind='bar', 
+                                stacked=True, 
+                                ax=axs3[1], 
+                                color=plot_colors_2,
+                                edgecolor='black', 
+                                legend=False,
+                                lw=0.5)
+
+    axs3[1].set_xlabel("Cohort")
+    axs3[1].set_ylabel("Percentage (%)")
+    axs3[1].spines[['right', 'top']].set_visible(False)
+    axs3[1].set_ylim(0, 100)
+
+    # Apply cohort tick formatting
+    tick_colors = [COHORT_COLORS[tick.get_text()] for tick in axs3[1].get_xticklabels()]
+    new_xticks = [tick_formatter_cell_type(tick.get_text()) for tick in axs3[1].get_xticklabels()]
+    axs3[1].set_xticklabels(new_xticks, rotation=0)
+    for tick_label, tick_color in zip(axs3[1].get_xticklabels(), tick_colors):
+        tick_label.set_color(tick_color)
+        tick_label.set_fontweight('bold')
+        # tick_label.set_path_effects([pe.withStroke(linewidth=0.3, foreground='black')])
+
+    save_path = path.join(get_saving_path(), "ClusteringAnalysis", 
+                                            f"Composition_Percentage_{feature_space_name}.png")
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    fig3.savefig(save_path, dpi=500, transparent=True)
+    plt.close(fig3)
+    logger.info("Plot saved to " + save_path)
+

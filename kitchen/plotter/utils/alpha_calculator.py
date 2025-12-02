@@ -11,7 +11,7 @@ def ind_alpha(total_alpha: float, num_overlaps: int):
         return 1./255
     if total_alpha >= 1.0:
         return 1.0
-    return -math.expm1(math.log1p(-total_alpha) / num_overlaps)
+    return max(-math.expm1(math.log1p(-total_alpha) / num_overlaps), 1./255)
 
 
 def calibrate_alpha(style: dict, num_overlaps: int):

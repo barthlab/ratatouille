@@ -2,7 +2,7 @@ import logging
 
 from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_ClusteringAnalysis import get_putative_labels
 from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_FeatureSpace import get_weight_tuple_Decomposition_Weights, get_weight_tuple_PSTH, get_weight_tuple_Physiology_Fingerprint, get_weight_tuple_Waveform
-from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_FeatureSpaceComparison import Visualize_metric_score
+from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_FeatureSpaceComparison import Visualize_metric_score, Visualize_within_group_correlation
 
 
 logger = logging.getLogger()
@@ -53,21 +53,29 @@ def prepare_all_feature_spaces():
 
 
 def main():
-    
+    phy_tuple = get_weight_tuple_Physiology_Fingerprint()
+    phy_labels, _ = get_putative_labels(phy_tuple)
     svd_2_tuple = get_weight_tuple_Decomposition_Weights("zscore", "SVD", 2, True)
     svd_2_labels, _ = get_putative_labels(svd_2_tuple)
     svd_5_tuple = get_weight_tuple_Decomposition_Weights("zscore", "SVD", 5, True,)
     svd_5_labels, _ = get_putative_labels(svd_5_tuple)
     all_labels = {
-        "Ground Truth Cell Type": (svd_2_tuple[1], svd_2_tuple[2]),
+        "Physiology Fingerprint Putative Cluster": (phy_tuple[1], phy_labels),
         "SVD 2 Putative Cluster": (svd_2_tuple[1], svd_2_labels),
         "SVD 5 Putative Cluster": (svd_5_tuple[1], svd_5_labels),
     }
 
 
-    all_feature_spaces = prepare_all_feature_spaces()
-    Visualize_metric_score(all_feature_spaces, label_dict=all_labels, metric_name= "silhouette_score")
-    Visualize_metric_score(all_feature_spaces, label_dict=all_labels, metric_name= "calinski_harabasz_score")
-    Visualize_metric_score(all_feature_spaces, label_dict=all_labels, metric_name= "davies_bouldin_score")
+    # all_feature_spaces = prepare_all_feature_spaces()
+    # Visualize_metric_score(all_feature_spaces, label_dict=all_labels, metric_name= "silhouette_score")
+    # Visualize_metric_score(all_feature_spaces, label_dict=all_labels, metric_name= "calinski_harabasz_score")
+    # Visualize_metric_score(all_feature_spaces, label_dict=all_labels, metric_name= "davies_bouldin_score")
+
+    PSTH_tuple = get_weight_tuple_PSTH("raw", 10/1000)
+    all_feature_spaces = {
+        "PSTH": PSTH_tuple,
+        "Physiology Fingerprint": phy_tuple
+    }
+    Visualize_within_group_correlation(all_labels, all_feature_spaces)
 if __name__ == "__main__":
     main()

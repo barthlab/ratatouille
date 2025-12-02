@@ -135,6 +135,10 @@ class TimeSeries:
                 events_v.append(down_crossing_event)
                 events_t.append(self.t[i + 1])
         return Events(v=np.array(events_v), t=np.array(events_t))
+
+    def copy(self) -> Self:
+        """Return a copy of the time series."""
+        return self.__class__(v=self.v.copy(), t=self.t.copy())
     
 
 @dataclass

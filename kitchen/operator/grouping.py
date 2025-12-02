@@ -66,7 +66,16 @@ class AdvancedTimeSeries(TimeSeries):
         )
 
     def segment(self, start_t: float, end_t: float) -> Self:
-        raise NotImplementedError("segment is not allowed for AdvancedTimeSeries")
+        assert end_t >= start_t, f"start time {start_t} should be earlier than end time {end_t}"
+        segment_start_index = np.searchsorted(self.t, start_t)
+        segment_end_index = np.searchsorted(self.t, end_t)
+        return self.__class__(
+            v=self.v[segment_start_index: segment_end_index],
+            t=self.t[segment_start_index: segment_end_index],
+            variance=self.variance[segment_start_index: segment_end_index],
+            raw_array=self.raw[..., segment_start_index: segment_end_index]
+        )
+        
 
     def batch_segment(self, ts: np.ndarray, segment_range: Tuple[float, float]):
         raise NotImplementedError("batch_segment is not allowed for AdvancedTimeSeries")
@@ -102,7 +111,8 @@ def calculate_group_tuple(arrs: List[np.ndarray], t: np.ndarray) -> AdvancedTime
     return AdvancedTimeSeries(v=means, t=t, variance=variances, raw_array=np.array(arrs))
 
 
-def grouping_events_rate(events: List[Events], bin_size: float, use_event_value_as_weight: bool = True) -> AdvancedTimeSeries:
+def grouping_events_rate(events: List[Events], bin_size: float, use_event_value_as_weight: bool = True,
+                         baseline_subtraction: Optional[Tuple[float, float]] = None) -> AdvancedTimeSeries:
     """Group a list of events in rate."""
     assert bin_size > 0, "bin size should be positive"
     if len(events) == 0:
@@ -114,7 +124,14 @@ def grouping_events_rate(events: List[Events], bin_size: float, use_event_value_
     bins = np.arange(group_t[0] - bin_size, group_t[-1] + bin_size, bin_size)
     all_rates = [np.histogram(event.t, bins=bins, weights=event.v
                               if use_event_value_as_weight else None)[0] / bin_size for event in events]
-    return calculate_group_tuple(all_rates, bins[:-1] + bin_size/2)
+
+    bin_centers = bins[:-1] + bin_size/2
+    # baseline subtraction
+    if baseline_subtraction is not None:
+        baseline_start, baseline_end = baseline_subtraction
+        baseline_mask = (bin_centers >= baseline_start) & (bin_centers < baseline_end)
+        all_rates = [rate - np.mean(rate[baseline_mask]) for rate in all_rates]
+    return calculate_group_tuple(all_rates, bin_centers)
 
 
 def grouping_events_histogram(events: List[Events], bins: np.ndarray, use_event_value_as_weight: bool = True) -> AdvancedTimeSeries:
@@ -123,11 +140,17 @@ def grouping_events_histogram(events: List[Events], bins: np.ndarray, use_event_
     return calculate_group_tuple(all_rates, (bins[:-1] + bins[1:]) / 2)
 
 
-def grouping_timeseries(timeseries: List[TimeSeries], scale_factor: float = 2, interp_method: str = "previous", _predefined_t: Optional[np.ndarray] = None) -> AdvancedTimeSeries:
+def grouping_timeseries(timeseries: List[TimeSeries], scale_factor: float = 2, interp_method: str = "previous", 
+                        baseline_subtraction: Optional[Tuple[float, float]] = None,
+                        _predefined_t: Optional[np.ndarray] = None) -> AdvancedTimeSeries:
     """Group a list of timeseries."""
     min_t, max_t = max(timeseries, key=lambda x: x.t[0]).t[0], min(timeseries, key=lambda x: x.t[-1]).t[-1]
     max_fs = max(timeseries, key=lambda x: x.fs).fs
     group_t = np.linspace(min_t, max_t, int((max_t - min_t) * max_fs * scale_factor)) if _predefined_t is None else _predefined_t
     all_values = [smart_interp(group_t, ts.t, ts.v, interp_method) for ts in timeseries]
+    if baseline_subtraction is not None:
+        baseline_start, baseline_end = baseline_subtraction
+        baseline_mask = (group_t >= baseline_start) & (group_t < baseline_end)
+        all_values = [value - np.mean(value[baseline_mask]) for value in all_values]
     return calculate_group_tuple(all_values, group_t)
 

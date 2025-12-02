@@ -64,3 +64,34 @@ def Visualize_metric_score(all_feature_spaces, label_dict, metric_name: str):
     logger.info("Plot saved to " + save_path)
 
 
+
+def Visualize_within_group_correlation(label_dict, list_of_feature_space_tuple):
+
+    import matplotlib.pyplot as plt   
+    import numpy as np
+    from scipy.spatial.distance import pdist
+
+    plt.rcParams["font.family"] = "Arial"
+
+    fig, axs = plt.subplots(3, len(list_of_feature_space_tuple), constrained_layout=True)
+    for axr, (feature_space_name, (weight_matrix, node_names, cohort_names)) in zip(axs.T, list_of_feature_space_tuple.items()):
+        axr[0].set_title(feature_space_name)
+        for clustering_name, (clustering_node_names, clustering_node_labels) in label_dict.items():
+            shared_node_names = np.intersect1d(node_names, clustering_node_names)
+            sub_weight_matrix = weight_matrix[numpy_kit.reorder_indices(node_names, shared_node_names, _allow_leftover=True), :]
+            sub_node_labels = clustering_node_labels[numpy_kit.reorder_indices(clustering_node_names, shared_node_names, _allow_leftover=True)]
+
+            within_group_correlation = []
+            for group_id in np.unique(sub_node_labels):
+                group_idx = sub_node_labels == group_id
+                if np.sum(group_idx) > 1:
+                    within_group_correlation.append(pdist(sub_weight_matrix[group_idx, :], metric="correlation"))
+            within_group_correlation = np.mean(within_group_correlation)
+            axr[0].bar(clustering_name, within_group_correlation, width=0.5)
+        axr[0].set_ylabel("Within Group Correlation")
+        
+        for ax in axr:
+            ax.spines[['right', 'top']].set_visible(False)
+    
+    plt.show()
+    plt.close(fig)

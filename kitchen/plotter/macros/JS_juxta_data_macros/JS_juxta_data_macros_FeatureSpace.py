@@ -10,7 +10,8 @@ from kitchen.configs import routing
 from kitchen.loader.general_loader_interface import load_dataset
 from kitchen.operator.grouping import grouping_timeseries
 from kitchen.plotter import color_scheme
-from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_Settings import COHORT_COLORS
+from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_ClusteringAnalysis import get_putative_labels
+from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_Settings import CLUSTER_COLORS, COHORT_COLORS
 from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_SingleCell import get_500ms_puff_trials
 from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_SummaryMetric import get_all_cellsession_PSTH_mean, get_all_cellsession_Waveform_mean, get_saving_path
 from kitchen.settings.potential import NARROW_SPIKE_RANGE_FOR_VISUALIZATION, SPIKE_ANNOTATION_EARLY_WINDOW
@@ -314,6 +315,78 @@ def Visualize_Waveform():
     logger.info("Plot saved to " + save_path)
 
 
+def Visualize_Waveform_With_CLUSTER_LABEL(cluster_weight_tuple, psth_tuple, feature_space_name: str):
+    waveform_weight_matrix, waveform_node_names, waveform_cohort_name = get_weight_tuple_Waveform()
+
+    psth_matrix, psth_node_names, _ = psth_tuple
+
+    weight_matrix, node_names, cohort_names = cluster_weight_tuple
+
+    shared_node_names = np.intersect1d(psth_node_names, node_names)
+
+    idx_in_both = numpy_kit.reorder_indices(psth_node_names, shared_node_names, _allow_leftover=True)
+    psth_matrix = psth_matrix[idx_in_both, :]
+    psth_node_names = psth_node_names[idx_in_both]
+
+    idx_in_both = numpy_kit.reorder_indices(node_names, shared_node_names, _allow_leftover=True)
+    weight_matrix = weight_matrix[idx_in_both, :]
+    cohort_names = cohort_names[idx_in_both]
+    node_names = node_names[idx_in_both]
+
+    n_cell, _ = weight_matrix.shape    
+
+
+    cluster_names, (n_clusters, embedding, normalized_weight_matrix) = get_putative_labels((weight_matrix, node_names, cohort_names))
+
+    final_shared_node_names = np.intersect1d(waveform_node_names, shared_node_names)
+    
+    idx_in_both = numpy_kit.reorder_indices(waveform_node_names, final_shared_node_names, _allow_leftover=True)
+    waveform_weight_matrix = waveform_weight_matrix[idx_in_both, :]
+    waveform_cohort_name = waveform_cohort_name[idx_in_both]
+    waveform_node_names = waveform_node_names[idx_in_both]
+
+    idx_in_both = numpy_kit.reorder_indices(node_names, final_shared_node_names, _allow_leftover=True)
+    cluster_names = cluster_names[idx_in_both]
+
+    from umap import UMAP
+    import matplotlib.pyplot as plt    
+
+    plt.rcParams["font.family"] = "Arial"
+
+    n_cell, n_feature = waveform_weight_matrix.shape
+    x_scale, y_scale = 0.15, 0.03
+    t = np.linspace(0, 1, n_feature)
+    normalized_weight_matrix = waveform_weight_matrix
+    cluster_colors = [CLUSTER_COLORS[name] for name in cluster_names]
+    cohort_colors = [COHORT_COLORS[name] for name in waveform_cohort_name]
+    n_col =  len(DEFAULT_UMAP_N_NEIGHBORS)
+    fig, axs = plt.subplots(2, n_col, figsize=(2.5 * n_col, 5), constrained_layout=True)
+
+    for ax1, ax2, n_neighbors in zip(axs[0], axs[1], DEFAULT_UMAP_N_NEIGHBORS):
+        umap_embedding = UMAP(n_neighbors=n_neighbors, **DEFAULT_UMAP_KWS).fit_transform(normalized_weight_matrix)
+        umap_embedding = numpy_kit.zscore(umap_embedding, axis=0)
+        
+        for cell_idx, (x, y), waveform_vector in zip(range(n_cell), umap_embedding, waveform_weight_matrix):
+            ax1.plot(t * x_scale + x, waveform_vector * y_scale + y, color=cohort_colors[cell_idx], lw=0.3, alpha=0.9)
+            ax2.plot(t * x_scale + x, waveform_vector * y_scale + y, color=cluster_colors[cell_idx], lw=0.3, alpha=0.9)
+        for ax in [ax1, ax2]:
+            ax.set_xlabel("UMAP 1")
+            ax.set_ylabel("UMAP 2")
+            ax.set_title(f"UMAP, n_neighbors={n_neighbors}")
+  
+    
+    for ax in axs.flatten():
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.spines[['right', 'top']].set_visible(False)
+
+    save_path = path.join(get_saving_path(), "FeatureSpace", f"Scatter_Small_Waveforms_CLUSTER_{feature_space_name}.png")
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    fig.savefig(save_path, dpi=900, transparent=True)
+    plt.close(fig)
+    logger.info("Plot saved to " + save_path)
+
+
 
 def get_weight_tuple_Decomposition_Weights(variant: str, decomposition_method: str, n_components: int, append_baseline: bool, _visualize: bool = False):
     from sklearn.decomposition import PCA, TruncatedSVD, FactorAnalysis, SparsePCA, NMF, FastICA
@@ -360,7 +433,7 @@ def Visualize_Decomposition_Weights(variant: str, decomposition_method: str, n_c
 
     plt.rcParams["font.family"] = "Arial"
 
-    fig, axs = plt.subplots(n_components + 1, 2, figsize=(4, 1.5 * (n_components + 1),), 
+    fig, axs = plt.subplots(n_components + 1, 2, figsize=(2.5, 1.5 * (n_components + 1),), 
                             constrained_layout=True, width_ratios=[6, 4])
     components_list_for_plot = [
         np.ones_like(PC_t),
@@ -374,6 +447,7 @@ def Visualize_Decomposition_Weights(variant: str, decomposition_method: str, n_c
     for component_id in range(2, n_components + 1):        
         # axs[0, component_id].sharey(axs[0, 1])      
         axs[component_id, 0].sharey(axs[1, 0])
+        axs[component_id, 1].sharex(axs[1, 1])
 
     for component_id, (component, component_weights, component_name) in enumerate(zip(
         components_list_for_plot, component_weights_for_plot, component_names_for_plot)):
@@ -417,12 +491,20 @@ def Visualize_Decomposition_Weights(variant: str, decomposition_method: str, n_c
                       ax=axc_weight, orient="h",
                     palette=COHORT_COLORS, alpha=0.9, jitter=0.3, size=8,
                     edgecolor="black", linewidth=0.5,
-                    order=["SST_JUX",  "SST_WC", "PV_JUX", "PYR_JUX", ])
+                    order=["SST_JUX",  "SST_WC", "PV_JUX", "PYR_JUX", ], clip_on=False,
+                    )
         axc_weight.spines[['right', 'top', 'left']].set_visible(False)
-        axc_weight.set_ylabel("Weight [a.u.]" if component_id != 0 else "Baseline FR [Hz]")
+        # axc_weight.set_ylabel("Weight [a.u.]" if component_id != 0 else "Baseline FR [Hz]")
+        axc_weight.set_ylabel("")
         axc_weight.set_yticks([])
         axc_weight.axvline(0, color='gray', linestyle='--', lw=1, alpha=0.5, zorder=-10)
         axc_weight.set_xlabel("")
+        
+        if component_name == "Baseline":
+            axc_weight.set_title("Baseline FR [Hz]")
+        elif component_id == 1:
+            axc_weight.set_title("Weights [a.u.]")
+
         # new_xticks = [tick_formatter(tick_text.get_text()) for tick_text in axc_weight.get_xticklabels()]
         # axc_weight.set_xticklabels(new_xticks)
 
