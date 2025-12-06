@@ -261,7 +261,7 @@ def video_format_checking(video_path: str):
         f"Only support {CUSTOM_EXTRACTION_PREFIX} prefix, but got video: {file_name}."
     
     
-def default_collection(data_set: DataSet, format: str = ".mp4", overwrite=False):
+def default_collection(data_set: DataSet, format: str = ".mp4", overwrite=False, reextract=False):
     """Preload all body parts for motion extraction."""
     all_body_parts = []
     for cohort_node in data_set.select("cohort"):
@@ -275,8 +275,13 @@ def default_collection(data_set: DataSet, format: str = ".mp4", overwrite=False)
                 continue
             
             for body_part in OPTICAL_FLOW_EXTRACTED_BEHAVIOR_TYPES:
-                all_body_parts.append(BodyPartExtractor(video_path, body_part, overwrite=overwrite))
+                extractor = BodyPartExtractor(video_path, body_part, overwrite=overwrite)
+                if extractor.loaded:
+                    all_body_parts.append(extractor)
                 
     """Extract motion intensity for all body parts"""
     for body_part in all_body_parts:
+        if path.exists(body_part.result_save_path) and (not reextract):
+            print(f"Result already exists for {body_part.part_name} in {body_part.video_path}, skip extraction.")
+            continue
         body_part.optical_flow_extraction()
