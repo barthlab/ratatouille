@@ -87,7 +87,9 @@ class HierarchicalUID:
     @property
     def _comparison_tuple(self) -> tuple:
         """Returns a tuple of hierarchy values for comparison."""
-        return tuple(str(self.get_hier_value(name, "")) for name in self._HIERARCHY_FIELDS )
+        def zfill_num(x):
+            return str(x).zfill(5) if isinstance(x, int) else str(x)
+        return tuple(zfill_num(self.get_hier_value(name, "")) for name in self._HIERARCHY_FIELDS)
 
     def __lt__(self, other):
         if not isinstance(other, self.__class__):
