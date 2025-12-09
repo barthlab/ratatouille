@@ -5,12 +5,12 @@ import numpy as np
 import pandas as pd
 
 from kitchen.configs import routing
-from kitchen.settings.behavior import LICK_INACTIVATE_WINDOW, LOCOMOTION_CIRCUMFERENCE, LOCOMOTION_NUM_TICKS, VIDEO_EXTRACTED_BEHAVIOR_MIN_MAX_PERCENTILE, VIDEO_EXTRACTED_BEHAVIOR_TYPES
+from kitchen.settings.behavior import IS_BLINK_THRESHOLD, LICK_INACTIVATE_WINDOW, LOCOMOTION_CIRCUMFERENCE, LOCOMOTION_NUM_TICKS, OPTICAL_FLOW_EXTRACTED_BEHAVIOR_TYPES, PUPIL_AREA_NORMALIZATION, PUPIL_CENTER_NORMALIZATION, VIDEO_EXTRACTED_BEHAVIOR_MIN_MAX_PERCENTILE, VIDEO_EXTRACTED_BEHAVIOR_TYPES, VIDOE_CLOSE_DELAY
 from kitchen.settings.loaders import DATA_HODGEPODGE_MODE, LOADER_STRICT_MODE
 from kitchen.structure.hierarchical_data_structure import Node
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate
-from kitchen.structure.neural_data_structure import Events, TimeSeries, Timeline
-from kitchen.utils.numpy_kit import smooth_uniform
+from kitchen.structure.neural_data_structure import Events, Pupil, TimeSeries, Timeline
+from kitchen.utils.numpy_kit import smooth_uniform, remove_project
 from kitchen.utils.sequence_kit import find_only_one
 
 logger = logging.getLogger(__name__)
@@ -82,8 +82,8 @@ def behavior_loader_from_node(
             except Exception as e:
                 logger.debug(f"Cannot load locomotion from {dir_path}: {e}")
 
-            """load video extracted behavior"""
-            for behavior_type in VIDEO_EXTRACTED_BEHAVIOR_TYPES:                
+            """load video extracted behavior optical flow video"""
+            for behavior_type in OPTICAL_FLOW_EXTRACTED_BEHAVIOR_TYPES:                
                 try:                    
                     if DATA_HODGEPODGE_MODE:
                         behavior_path = find_only_one(routing.search_pattern_file(
@@ -102,11 +102,39 @@ def behavior_loader_from_node(
                     behavior_values = np.array(behavior_data[:, 1], dtype=np.float32)
                     down_value, up_value = np.nanpercentile(behavior_values, VIDEO_EXTRACTED_BEHAVIOR_MIN_MAX_PERCENTILE)
                     normalized_values = np.clip((behavior_values - down_value) / (up_value - down_value), 0, 1)
-                    video_time = np.linspace(task_start, task_end, len(behavior_values), dtype=np.float32)
+                    video_time = np.linspace(task_start, task_end + VIDOE_CLOSE_DELAY, len(behavior_values), dtype=np.float32)
                     behavior_timeseries = TimeSeries(v=normalized_values, t=video_time)
                     session_behavior[behavior_type.lower()] = behavior_timeseries
                 except Exception as e:
                     logger.debug(f"Cannot load {behavior_type} from {dir_path}: {e}")
+
+            """load extracted pupil measurement"""
+            try:                
+                if DATA_HODGEPODGE_MODE:
+                    pupil_path = find_only_one(routing.search_pattern_file(
+                        pattern=f"PUPIL_{session_coordinate.temporal_uid.session_id}.csv", search_dir=dir_path))
+                else:
+                    pupil_path = path.join(dir_path, "pupil",
+                                           f"PUPIL_{session_coordinate.temporal_uid.session_id}.csv")
+                # check if behavior file exists
+                task_start, task_end = timeline.task_time()
+                assert path.exists(pupil_path), f"Cannot find pupil path: {pupil_path}"
+                behavior_data = pd.read_csv(pupil_path, header=0)
+                
+                pupil_area = behavior_data["pupil-area"].to_numpy() / PUPIL_AREA_NORMALIZATION
+                pupil_x = behavior_data["pupil-x"].to_numpy()
+                pupil_x = (pupil_x - np.nanmean(pupil_x)) / PUPIL_CENTER_NORMALIZATION
+                pupil_y = behavior_data["pupil-y"].to_numpy() 
+                pupil_y = (pupil_y - np.nanmean(pupil_y)) / PUPIL_CENTER_NORMALIZATION
+                is_blink = behavior_data["blink"].to_numpy() > IS_BLINK_THRESHOLD
+                video_time = np.linspace(task_start, task_end + VIDOE_CLOSE_DELAY, len(pupil_area), dtype=np.float32)
+                session_behavior["pupil"] = Pupil(
+                    t=video_time, 
+                    area=pupil_area, 
+                    center=np.array([pupil_x, pupil_y]), 
+                    is_blink=is_blink)
+            except Exception as e:
+                logger.debug(f"Cannot load pupil from {dir_path}: {e}")
 
             yield session_behavior
  
@@ -136,7 +164,8 @@ def behavior_loader_from_node(
                     behavior_values = smooth_uniform(behavior_values, window_len=5)
 
                     down_value, up_value = np.nanpercentile(behavior_values, VIDEO_EXTRACTED_BEHAVIOR_MIN_MAX_PERCENTILE)
-                    normalized_values = np.clip((behavior_values - down_value) / (up_value - down_value), 0, 1)               
+                    # normalized_values = np.clip((behavior_values - down_value) / (up_value - down_value), 0, 1)    
+                    normalized_values = np.clip(behavior_values / up_value, 0, 1)      
                     video_time = timeline.t[:len(behavior_values)]
                     behavior_timeseries = TimeSeries(v=normalized_values, t=video_time)
                     session_behavior[behavior_type.lower()] = behavior_timeseries
