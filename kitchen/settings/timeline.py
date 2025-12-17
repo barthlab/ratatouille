@@ -30,6 +30,8 @@ SUPPORTED_TIMELINE_EVENT = {
     "Frame",
     "StimOn",
     "StimOff",
+    "blueLEDOn",
+    "blueLEDOff",
 }
 
 TTL_EVENT_DEFAULT = (
@@ -45,6 +47,9 @@ TTL_EVENT_DEFAULT = (
         "BlankOn",
         "Puff",
         "Blank",
+    ),
+    (
+        "blueLEDOn",
     ),
     (
         "WaterOn",
@@ -69,6 +74,9 @@ TRIAL_ALIGN_EVENT_DEFAULT = (
         "BuzzerOn",
     ),
     (
+        "blueLEDOn",
+    ),
+    (
         "WaterOn",
         "NoWaterOn",
     ),
@@ -84,6 +92,7 @@ STIMULUS_EVENTS_DEFAULT = (
     "PeltierRightOn",
     "PeltierBothOn",
     "FakeRelayOn",
+    "blueLEDOn",
 )
 
 REWARD_EVENTS_DEFAULT = (

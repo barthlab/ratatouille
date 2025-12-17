@@ -1,9 +1,11 @@
 # Ratio
 POSITION_RATIO = 0.6
-LOCOMOTION_RATIO = 0.15
+LOCOMOTION_RATIO = 0.05
 LICK_RATIO = 0.1
-PUPIL_RATIO = 1
+PUPIL_RATIO = 2.5
+SACCADE_RATIO = 2
 WHISKER_RATIO = 1
+NOSE_RATIO = 1
 
 RAW_FLUORESCENCE_RATIO = 0.2
 FLUORESCENCE_RATIO = 1
@@ -21,6 +23,7 @@ RATIO_DICT = {
     "whisker": WHISKER_RATIO,
     "fluorescence": FLUORESCENCE_RATIO,
     "timeline": TIMELINE_RATIO,
+    "nose": NOSE_RATIO,
 }
 
 # Bin size
@@ -46,7 +49,7 @@ FLAT_X_INCHES = 30      # inches
 FLAT_Y_INCHES = 6       # inches
 
 STACK_X_INCHES = 4.     # inches
-STACK_Y_INCHES = 10.    # inches
+STACK_Y_INCHES = 4.    # inches
 
 UNIT_X_INCHES = 5       # inches
 UNIT_Y_INCHES = 2.      # inches
@@ -54,3 +57,24 @@ UNIT_Y_INCHES = 2.      # inches
 PARALLEL_X_INCHES = 2.4 # inches
 PARALLEL_Y_INCHES = 4.  # inches
 ZOOMED_Y_INCHES = 8     # inches
+
+
+# Heamap params
+HEATMAP_OFFSET_RANGE = (1., 10.)
+
+LOCOMOTION_VMIN_VMAX = {
+    False: {"vmin": -2, "vmax": +2},
+    True: {"vmin": 0, "vmax": 2.5},
+}
+WHISKER_VMIN_VMAX = {
+    False: {"vmin": -1, "vmax": +1},
+    True: {"vmin": 0, "vmax": 1.},
+}
+PUPIL_VMIN_VMAX = {
+    False: {"vmin": -0.2, "vmax": +0.2},
+    True: {"vmin": 0, "vmax": 0.5},
+}
+PUPIL_CENTER_VMIN_VMAX = {
+    False: {"vmin": -0.1, "vmax": +0.1},
+    True: {"vmin": 0, "vmax": 0.2},
+}

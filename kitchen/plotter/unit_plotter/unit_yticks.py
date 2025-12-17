@@ -1,6 +1,6 @@
 from matplotlib import pyplot as plt
 
-from kitchen.plotter.color_scheme import FLUORESCENCE_COLOR, LICK_COLOR, LOCOMOTION_COLOR, POSITION_COLOR, POTENTIAL_COLOR, PUPIL_COLOR, WHISKER_COLOR
+from kitchen.plotter.color_scheme import FLUORESCENCE_COLOR, LICK_COLOR, LOCOMOTION_COLOR, NOSE_COLOR, POSITION_COLOR, POTENTIAL_COLOR, PUPIL_CENTER_COLOR, PUPIL_COLOR, WHISKER_COLOR
 from kitchen.plotter.utils.tick_labels import TICK_PAIR, add_new_yticks
 from kitchen.settings.fluorescence import DF_F0_SIGN
 from kitchen.utils.value_dispatch import value_dispatch
@@ -14,6 +14,11 @@ def yticks_combo(command: str, ax: plt.Axes, y_offset: float, ratio: float = 1.0
 @yticks_combo.register("locomotion")
 def _yticks_combo_locomotion(command: str, ax: plt.Axes, y_offset: float, ratio: float = 1.0, **kwargs):
     add_new_yticks(ax, [TICK_PAIR(y_offset, "Locomotion", LOCOMOTION_COLOR), 
+                        TICK_PAIR(y_offset + 2 * ratio, "2 cm/s", LOCOMOTION_COLOR)])
+    
+@yticks_combo.register("delta_locomotion")
+def _yticks_combo_delta_locomotion(command: str, ax: plt.Axes, y_offset: float, ratio: float = 1.0, **kwargs):
+    add_new_yticks(ax, [TICK_PAIR(y_offset, r"$\Delta$ Locomotion", LOCOMOTION_COLOR), 
                         TICK_PAIR(y_offset + 2 * ratio, "2 cm/s", LOCOMOTION_COLOR)])
     
 
@@ -32,14 +37,37 @@ def _yticks_combo_lick(command: str, ax: plt.Axes, y_offset: float, ratio: float
 
 @yticks_combo.register("pupil")
 def _yticks_combo_pupil(command: str, ax: plt.Axes, y_offset: float, ratio: float = 1.0, **kwargs):
-    add_new_yticks(ax, [TICK_PAIR(y_offset, "Min Pupil", PUPIL_COLOR),
-                        TICK_PAIR(y_offset + ratio, "Max Pupil", PUPIL_COLOR)])
+    add_new_yticks(ax, [TICK_PAIR(y_offset, "pupil area", PUPIL_COLOR),
+                        TICK_PAIR(y_offset + ratio, "1e4 px^2", PUPIL_COLOR)])
+
+
+@yticks_combo.register("pupil_center")
+def _yticks_combo_pupil_center(command: str, ax: plt.Axes, y_offset: float, ratio: float = 1.0, **kwargs):
+    add_new_yticks(ax, [TICK_PAIR(y_offset, "saccade", PUPIL_CENTER_COLOR),
+                        TICK_PAIR(y_offset + 0.2*ratio, "20 px", PUPIL_CENTER_COLOR)])
+                        
+
+@yticks_combo.register("delta_pupil")
+def _yticks_combo_delta_pupil(command: str, ax: plt.Axes, y_offset: float, ratio: float = 1.0, **kwargs):
+    add_new_yticks(ax, [TICK_PAIR(y_offset, r"$\Delta$ Pupil", PUPIL_COLOR),
+                        TICK_PAIR(y_offset + 0.1 * ratio, "1e3 px^2", PUPIL_COLOR)])
     
 
 @yticks_combo.register("whisker")
 def _yticks_combo_whisker(command: str, ax: plt.Axes, y_offset: float, ratio: float = 1.0, **kwargs):    
     add_new_yticks(ax, [TICK_PAIR(y_offset, "Min Whisker", WHISKER_COLOR),
                         TICK_PAIR(y_offset + ratio, "Max Whisker", WHISKER_COLOR)])
+
+@yticks_combo.register("delta_whisker")
+def _yticks_combo_delta_whisker(command: str, ax: plt.Axes, y_offset: float, ratio: float = 1.0, **kwargs):    
+    add_new_yticks(ax, [TICK_PAIR(y_offset, r"$\Delta$ Whisker", WHISKER_COLOR),
+                        TICK_PAIR(y_offset + 0.2 * ratio, "20%", WHISKER_COLOR)])
+    
+    
+@yticks_combo.register("nose")
+def _yticks_combo_nose(command: str, ax: plt.Axes, y_offset: float, ratio: float = 1.0, **kwargs):    
+    add_new_yticks(ax, [TICK_PAIR(y_offset, "Min Nose", NOSE_COLOR),
+                        TICK_PAIR(y_offset + ratio, "Max Nose", NOSE_COLOR)])
     
 
 @yticks_combo.register("fluorescence")

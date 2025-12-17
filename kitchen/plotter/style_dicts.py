@@ -12,6 +12,12 @@ REFERENCE_LINE_STYLE = {
     "zorder": -5,
 }
 
+TICK_LINE_STYLE = {
+    "color": "black",
+    "linewidth": 0.4,
+    "alpha": 1,
+}
+
 LOCOMOTION_TRACE_STYLE = {
     "color": color_scheme.LOCOMOTION_COLOR,
     "linewidth": 0.5,
@@ -43,8 +49,32 @@ PUPIL_TRACE_STYLE = {
     "alpha": 0.9,
 }
 
+PUPIL_CENTER_X_TRACE_STYLE = {
+    "color": color_scheme.PUPIL_CENTER_X_COLOR,
+    "linewidth": 0.5,
+    "alpha": 0.9,
+}
+
+PUPIL_CENTER_Y_TRACE_STYLE = {
+    "color": color_scheme.PUPIL_CENTER_Y_COLOR,
+    "linewidth": 0.5,
+    "alpha": 0.9,
+}
+
+IS_BLINK_TRACE_STYLE = {
+    "color": color_scheme.IS_BLINK_COLOR,
+    "linewidth": 0.5,
+    "alpha": 0.9,
+}
+
 WHISKER_TRACE_STYLE = {
     "color": color_scheme.WHISKER_COLOR,
+    "linewidth": 0.5,
+    "alpha": 0.9,
+}
+
+NOSE_TRACE_STYLE = {
+    "color": color_scheme.NOSE_COLOR,
     "linewidth": 0.5,
     "alpha": 0.9,
 }
@@ -184,6 +214,25 @@ SUBTRACT_STYLE = {
     "lw": 0.2,
     "alpha": 0.4,
     "zorder": 10,
+}
+
+HEATMAP_STYLE = {
+    "aspect": "auto",
+    "origin": "upper",
+    "zorder": -20,
+    "interpolation": "nearest",
+}
+
+HEATMAP_SEP_LINE_MAJOR_STYLE = {
+    "color": "black",
+    "lw": 0.3,
+    "alpha": 1,
+}
+HEATMAP_SEP_LINE_MINOR_STYLE = {
+    "color": "black",
+    "lw": 0.2,
+    "alpha": 1,
+    "ls": "--",
 }
 
 LEGEND_STYLE = {

@@ -20,6 +20,6 @@ def sushi_plot(ax: plt.Axes, f1: TimeSeries | AdvancedTimeSeries, f2: TimeSeries
                y_offset: float, ratio: float, fill_between_style: dict):
     cell_trace_diff = f2 - f1
     # fucking stupid pylance stuck here
-    ax.fill_between(x=cell_trace_diff.t, y1=cell_trace_diff.v * ratio + y_offset,  # type: ignore 
-                    y2=y_offset, **fill_between_style)
+    # ax.fill_between(x=cell_trace_diff.t, y1=cell_trace_diff.v * ratio + y_offset,  # type: ignore 
+    #                 y2=y_offset, **fill_between_style)
     

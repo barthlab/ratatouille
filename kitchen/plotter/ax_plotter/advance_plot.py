@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 
 from kitchen.operator.sync_nodes import sync_check, sync_nodes
 from kitchen.plotter.plotting_manual import PlotManual
-from kitchen.plotter.plotting_params import FLUORESCENCE_RATIO, TIMELINE_RATIO, LICK_RATIO, LOCOMOTION_RATIO, PUPIL_RATIO, WHISKER_RATIO
+from kitchen.plotter.plotting_params import FLUORESCENCE_RATIO, SACCADE_RATIO, TIMELINE_RATIO, LICK_RATIO, LOCOMOTION_RATIO, PUPIL_RATIO, WHISKER_RATIO
 from kitchen.plotter.unit_plotter.unit_trace import unit_plot_timeline
-from kitchen.plotter.unit_plotter.unit_trace_advance import SUBTRACT_MANUAL, unit_subtract_lick, unit_subtract_locomotion, unit_subtract_pupil, unit_subtract_single_cell_fluorescence, unit_subtract_whisker
+from kitchen.plotter.unit_plotter.unit_trace_advance import SUBTRACT_MANUAL, unit_subtract_lick, unit_subtract_locomotion, unit_subtract_pupil, unit_subtract_pupil_center, unit_subtract_single_cell_fluorescence, unit_subtract_whisker
 from kitchen.plotter.utils.tick_labels import add_line_legend
 from kitchen.structure.hierarchical_data_structure import DataSet
 from kitchen.utils.sequence_kit import select_truthy_items
@@ -65,7 +65,8 @@ def subtract_view(
             locomotion1=select_truthy_items([node.data.locomotion for node in dataset1_synced]),
             locomotion2=select_truthy_items([node.data.locomotion for node in dataset2_synced]),
             subtract_manual=subtract_manual,
-            ax=ax, y_offset=y_offset, ratio=LOCOMOTION_RATIO)
+            ax=ax, y_offset=y_offset, ratio=LOCOMOTION_RATIO,
+            baseline_subtraction=plot_manual.baseline_subtraction)
 
     # 5. plot whisker
     if plot_manual.whisker:
@@ -73,7 +74,8 @@ def subtract_view(
             whisker1=select_truthy_items([node.data.whisker for node in dataset1_synced]),
             whisker2=select_truthy_items([node.data.whisker for node in dataset2_synced]),
             subtract_manual=subtract_manual,
-            ax=ax, y_offset=y_offset, ratio=WHISKER_RATIO)
+            ax=ax, y_offset=y_offset, ratio=WHISKER_RATIO,
+            baseline_subtraction=plot_manual.baseline_subtraction)
 
     # 6. plot pupil
     if plot_manual.pupil:
@@ -81,8 +83,16 @@ def subtract_view(
             pupil1=select_truthy_items([node.data.pupil for node in dataset1_synced]),
             pupil2=select_truthy_items([node.data.pupil for node in dataset2_synced]),
             subtract_manual=subtract_manual,
-            ax=ax, y_offset=y_offset, ratio=PUPIL_RATIO)
-
+            ax=ax, y_offset=y_offset, ratio=PUPIL_RATIO,
+            baseline_subtraction=plot_manual.baseline_subtraction)
+    if plot_manual.saccade:
+        y_offset = yield unit_subtract_pupil_center(
+            pupil1=select_truthy_items([node.data.pupil for node in dataset1_synced]),
+            pupil2=select_truthy_items([node.data.pupil for node in dataset2_synced]),
+            subtract_manual=subtract_manual,
+            ax=ax, y_offset=y_offset, ratio=SACCADE_RATIO,
+            baseline_subtraction=plot_manual.baseline_subtraction)
+        
     # 7. add legend
     if subtract_manual.name1 is not None and subtract_manual.name2 is not None:
         add_line_legend(ax, {subtract_manual.name1: {"color": subtract_manual.color1, "lw": 0.5}, 

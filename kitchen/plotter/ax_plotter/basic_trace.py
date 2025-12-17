@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
+from kitchen.plotter.color_scheme import num_to_color
 from kitchen.structure.hierarchical_data_structure import DataSet, Node
 
 
@@ -38,7 +39,7 @@ def trace_view(
         err_kw = {"errorbar": None,}
         
     for group_idx, (group_name, dataset) in enumerate(group_of_datasets.items()):
-        group_settings = {"color": f"C{group_idx}",} | plotting_settings.get(group_name, {})
+        group_settings = {"color": num_to_color(group_idx),} | plotting_settings.get(group_name, {})
         x_values = np.array([x_axis_func(node) for node in dataset])
         y_values = np.array([y_axis_func(node) for node in dataset])
         df = pd.DataFrame({"x": x_values, "y": y_values})
@@ -56,5 +57,5 @@ def trace_view(
                         **err_kw, **group_settings, )
 
     if _legend:
-        ax.legend(frameon=False, loc='best')
+        ax.legend(frameon=False, loc='upper left', ncol=2)
     

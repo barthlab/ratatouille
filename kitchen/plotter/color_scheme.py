@@ -1,4 +1,6 @@
+import colorsys
 import math
+import hashlib
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.patches import Rectangle
@@ -6,12 +8,22 @@ from matplotlib.patches import Rectangle
 # Behavior color scheme
 LOCOMOTION_COLOR = "Blue"
 POSITION_COLOR = "Orange"
+
 LICK_COLOR = "Red"
+
 PUPIL_COLOR = "Purple"
+PUPIL_CENTER_COLOR = "Brown"
+IS_BLINK_COLOR = "Blue"
+PUPIL_CENTER_X_COLOR = "Red"
+PUPIL_CENTER_Y_COLOR = "Green"
+
 WHISKER_COLOR = "Green"
+NOSE_COLOR = "Pink"
+
 FLUORESCENCE_COLOR = "Black"
 POTENTIAL_COLOR = "Black"
 INDIVIDUAL_FLUORESCENCE_COLOR = "gray"
+
 SUBTRACT_COLOR = "dimgray"
 
 # Spike color scheme
@@ -23,7 +35,7 @@ DETECTED_SPIKE_COLOR = "#c2185b"
 # Timeline color scheme
 STIM_COLOR = "blue"
 PUFF_COLOR = "#9e9e9e"
-BLANK_COLOR = "lightgray"
+BLANK_COLOR = "whitesmoke"
 WATER_COLOR = "cornflowerblue"
 NOWATER_COLOR = "orangered"
 BUZZER_COLOR = "darkorange"
@@ -65,3 +77,55 @@ SPIKE_COLOR_SCHEME = {
 }
 TABLEAU_10 = list(mcolors.TABLEAU_COLORS.values())
 
+
+# Behavior color map
+BASELINE_SUBTRACTION_COLORMAP = "RdYlBu_r"
+
+LOCOMOTION_COLORMAP = "Blues"
+POSITION_COLORMAP = "Oranges"
+
+LICK_COLORMAP = "Reds"
+
+PUPIL_COLORMAP = "Purples"
+PUPIL_CENTER_COLORMAP = "Oranges"
+
+WHISKER_COLORMAP = "Greens"
+# NOSE_COLORMAP = "RdYlBu_r"
+
+# FLUORESCENCE_COLORMAP = "RdYlBu_r"
+# POTENTIAL_COLORMAP = "RdYlBu_r"
+# INDIVIDUAL_FLUORESCENCE_COLORMAP = "RdYlBu_r"
+
+# SUBTRACT_COLORMAP = "RdYlBu_r"
+
+
+
+def string_to_hex_color(text: str) -> str:
+    data = text.encode('utf-8')
+
+    hash_object = hashlib.md5(data)
+    hex_dig = hash_object.hexdigest()
+
+    return f"#{hex_dig[:6]}"
+
+
+
+def num_to_color(n: int) -> str:
+    """
+    Returns a consistent color for any positive integer.
+    0-9  : Returns standard "Cn" strings (Matplotlib Tableaus).
+    10+  : Generates a unique Hex color that fits the style but is distinct.
+    """
+    if 0 <= n < 10:
+        return f"C{n}"
+
+    golden_ratio = 0.618033988749895
+    
+    h = (n * golden_ratio) % 1.0
+    
+    s = 0.75 
+    v = 0.95 
+
+    r, g, b = colorsys.hsv_to_rgb(h, s, v)
+    
+    return '#{:02x}{:02x}{:02x}'.format(int(r*255), int(g*255), int(b*255))

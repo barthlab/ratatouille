@@ -1,23 +1,27 @@
 from collections import namedtuple
+from typing import Optional
 import matplotlib.pyplot as plt
 import numpy as np
 
 from kitchen.operator.grouping import grouping_events_rate, grouping_timeseries
+from kitchen.plotter import color_scheme
 from kitchen.plotter.unit_plotter.unit_trace import sanity_check
+from kitchen.plotter.unit_plotter.unit_yticks import yticks_combo
 from kitchen.plotter.utils.fill_plot import oreo_plot, sushi_plot
 from kitchen.settings.fluorescence import DF_F0_SIGN, Z_SCORE_SIGN
 from kitchen.plotter.color_scheme import FLUORESCENCE_COLOR, LOCOMOTION_COLOR, LICK_COLOR, PUPIL_COLOR, WHISKER_COLOR
 from kitchen.plotter.plotting_params import LICK_BIN_SIZE, LOCOMOTION_BIN_SIZE, RAW_FLUORESCENCE_RATIO
-from kitchen.plotter.style_dicts import FILL_BETWEEN_STYLE, FLUORESCENCE_TRACE_STYLE, LICK_TRACE_STYLE, LOCOMOTION_TRACE_STYLE, PUPIL_TRACE_STYLE, SUBTRACT_STYLE, WHISKER_TRACE_STYLE
+from kitchen.plotter.style_dicts import FILL_BETWEEN_STYLE, FLUORESCENCE_TRACE_STYLE, LICK_TRACE_STYLE, LOCOMOTION_TRACE_STYLE, PUPIL_CENTER_X_TRACE_STYLE, PUPIL_CENTER_Y_TRACE_STYLE, PUPIL_TRACE_STYLE, SUBTRACT_STYLE, WHISKER_TRACE_STYLE
 from kitchen.plotter.utils.tick_labels import TICK_PAIR, add_new_yticks
-from kitchen.structure.neural_data_structure import Events, Fluorescence, TimeSeries
+from kitchen.structure.neural_data_structure import Events, Fluorescence, Pupil, TimeSeries
 
 
 
 SUBTRACT_MANUAL = namedtuple(
     "SUBTRACT_MANUAL", 
     ["color1", "name1", "color2", "name2"], 
-    defaults=["#298c8c", None, "#f1a226", None]
+    # defaults=["#298c8c", None, "#f1a226", None]
+    defaults=["C0", None, "C1", None]
 )
 
 
@@ -25,15 +29,17 @@ def unit_subtract_locomotion(
         locomotion1: None | list[Events],
         locomotion2: None | list[Events],
         subtract_manual: SUBTRACT_MANUAL,
-        ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
+        ax: plt.Axes, y_offset: float, ratio: float = 1.0,
+        yticks_flag: bool = True,
+        baseline_subtraction: Optional[tuple[float, float]] = None) -> float:
     """plot locomotion"""
     if not sanity_check(locomotion1) or not sanity_check(locomotion2):
         return 0
     assert locomotion1 is not None and locomotion2 is not None, "Sanity check failed"
 
     # plot multiple locomotion rates
-    group_locomotion1 = grouping_events_rate(locomotion1, bin_size=LOCOMOTION_BIN_SIZE)
-    group_locomotion2 = grouping_events_rate(locomotion2, bin_size=LOCOMOTION_BIN_SIZE)
+    group_locomotion1 = grouping_events_rate(locomotion1, bin_size=LOCOMOTION_BIN_SIZE, baseline_subtraction=baseline_subtraction)
+    group_locomotion2 = grouping_events_rate(locomotion2, bin_size=LOCOMOTION_BIN_SIZE, baseline_subtraction=baseline_subtraction)
 
     oreo_plot(ax, group_locomotion1, y_offset, ratio, LOCOMOTION_TRACE_STYLE | {"color": subtract_manual.color1}, FILL_BETWEEN_STYLE)
     oreo_plot(ax, group_locomotion2, y_offset, ratio, LOCOMOTION_TRACE_STYLE | {"color": subtract_manual.color2}, FILL_BETWEEN_STYLE)
@@ -42,8 +48,10 @@ def unit_subtract_locomotion(
     sushi_plot(ax, group_locomotion1, group_locomotion2, y_offset, ratio, SUBTRACT_STYLE)
 
     # add y ticks
-    add_new_yticks(ax, [TICK_PAIR(y_offset, "Locomotion", LOCOMOTION_COLOR), 
-                        TICK_PAIR(y_offset + 2 * ratio, "2 cm/s", LOCOMOTION_COLOR)])
+    if yticks_flag:
+        yticks_combo("locomotion" if baseline_subtraction is None else "delta_locomotion", ax, y_offset, ratio)
+    else:
+        add_new_yticks(ax, TICK_PAIR(y_offset, "", color_scheme.LOCOMOTION_COLOR))
     return max(np.nanmax(group_locomotion1.mean) * ratio, np.nanmax(group_locomotion2.mean) * ratio, 2*ratio)
 
 
@@ -74,45 +82,118 @@ def unit_subtract_lick(
 
 
 def unit_subtract_pupil(
-        pupil1: None | TimeSeries | list[TimeSeries],
-        pupil2: None | TimeSeries | list[TimeSeries],
+        pupil1: None | Pupil | list[Pupil],
+        pupil2: None | Pupil | list[Pupil],
         subtract_manual: SUBTRACT_MANUAL,
-        ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
+        ax: plt.Axes, y_offset: float, ratio: float = 1.0,
+        yticks_flag: bool = True,
+        baseline_subtraction: Optional[tuple[float, float]] = None) -> float:
     """plot pupil"""    
     if not sanity_check(pupil1) or not sanity_check(pupil2):
         return 0
     assert pupil1 is not None and pupil2 is not None, "Sanity check failed"
 
-    if isinstance(pupil1, TimeSeries):
+    if isinstance(pupil1, Pupil):
         # plot single pupil
         assert isinstance(pupil2, TimeSeries), "Sanity check failed"
-        ax.plot(pupil1.t, pupil1.v * ratio + y_offset, **PUPIL_TRACE_STYLE | {"color": subtract_manual.color1})
-        ax.plot(pupil2.t, pupil2.v * ratio + y_offset, **PUPIL_TRACE_STYLE | {"color": subtract_manual.color2})      
+        plotting_pupil1 = pupil1.area_ts.copy()
+        plotting_pupil2 = pupil2.area_ts.copy()
+        if baseline_subtraction is not None:
+            plotting_pupil1.v -= np.mean(plotting_pupil1.segment(*baseline_subtraction).v)
+            plotting_pupil2.v -= np.mean(plotting_pupil2.segment(*baseline_subtraction).v)
+        ax.plot(plotting_pupil1.t, plotting_pupil1.v * ratio + y_offset, **PUPIL_TRACE_STYLE | {"color": subtract_manual.color1})
+        ax.plot(plotting_pupil2.t, plotting_pupil2.v * ratio + y_offset, **PUPIL_TRACE_STYLE | {"color": subtract_manual.color2})
 
         # plot subtraction
-        sushi_plot(ax, pupil1, pupil2, y_offset, ratio, FILL_BETWEEN_STYLE | SUBTRACT_STYLE)
+        sushi_plot(ax, pupil1.area_ts, pupil2.area_ts, y_offset, ratio, FILL_BETWEEN_STYLE | SUBTRACT_STYLE)
+        y_height = max(np.nanmax(plotting_pupil1.v), np.nanmax(plotting_pupil2.v)) * ratio
     else:
         # plot multiple pupils
         assert isinstance(pupil2, list), "Sanity check failed"
-        group_pupil1 = grouping_timeseries(pupil1)
-        group_pupil2 = grouping_timeseries(pupil2)
+        group_pupil1 = grouping_timeseries([single_pupil.area_ts for single_pupil in pupil1], 
+                                           baseline_subtraction=baseline_subtraction)
+        group_pupil2 = grouping_timeseries([single_pupil.area_ts for single_pupil in pupil2],
+                                           baseline_subtraction=baseline_subtraction)
         oreo_plot(ax, group_pupil1, y_offset, ratio, PUPIL_TRACE_STYLE | {"color": subtract_manual.color1}, FILL_BETWEEN_STYLE)
         oreo_plot(ax, group_pupil2, y_offset, ratio, PUPIL_TRACE_STYLE | {"color": subtract_manual.color2}, FILL_BETWEEN_STYLE)
 
         # plot subtraction
         sushi_plot(ax, group_pupil1, group_pupil2, y_offset, ratio, FILL_BETWEEN_STYLE | SUBTRACT_STYLE)     
+        y_height = max(np.nanmax(group_pupil1.mean), np.nanmax(group_pupil2.mean)) * ratio
 
     # add y ticks
-    add_new_yticks(ax, [TICK_PAIR(y_offset, "Min Pupil", PUPIL_COLOR),
-                        TICK_PAIR(y_offset + ratio, "Max Pupil", PUPIL_COLOR)])
-    return ratio
+    if yticks_flag:
+        yticks_combo("pupil" if baseline_subtraction is None else "delta_pupil", ax, y_offset, ratio)
+    else:
+        add_new_yticks(ax, TICK_PAIR(y_offset, "", color_scheme.PUPIL_COLOR))
+    return y_height
+
+
+def unit_subtract_pupil_center(
+        pupil1: None | Pupil | list[Pupil],
+        pupil2: None | Pupil | list[Pupil],
+        subtract_manual: SUBTRACT_MANUAL,
+        ax: plt.Axes, y_offset: float, ratio: float = 1.0,
+        yticks_flag: bool = True,
+        baseline_subtraction: Optional[tuple[float, float]] = None) -> float:
+    """plot pupil"""    
+    if not sanity_check(pupil1) or not sanity_check(pupil2):
+        return 0
+    assert pupil1 is not None and pupil2 is not None, "Sanity check failed"
+
+    if isinstance(pupil1, Pupil):
+        # plot single pupil
+        assert isinstance(pupil2, Pupil), "Sanity check failed"
+        plotting_pupil_center_x1 = pupil1.center_x_ts.copy()
+        plotting_pupil_center_x2 = pupil2.center_x_ts.copy()
+        if baseline_subtraction is not None:
+            plotting_pupil_center_x1.v -= np.mean(plotting_pupil_center_x1.segment(*baseline_subtraction).v)
+            plotting_pupil_center_x2.v -= np.mean(plotting_pupil_center_x2.segment(*baseline_subtraction).v)
+        ax.plot(plotting_pupil_center_x1.t, plotting_pupil_center_x1.v * ratio + y_offset, **PUPIL_CENTER_X_TRACE_STYLE | {"color": subtract_manual.color1})
+        ax.plot(plotting_pupil_center_x2.t, plotting_pupil_center_x2.v * ratio + y_offset, **PUPIL_CENTER_X_TRACE_STYLE | {"color": subtract_manual.color2})
+
+        plotting_pupil_center_y1 = pupil1.center_y_ts.copy()
+        plotting_pupil_center_y2 = pupil2.center_y_ts.copy()
+        if baseline_subtraction is not None:
+            plotting_pupil_center_y1.v -= np.mean(plotting_pupil_center_y1.segment(*baseline_subtraction).v)
+            plotting_pupil_center_y2.v -= np.mean(plotting_pupil_center_y2.segment(*baseline_subtraction).v)
+        ax.plot(plotting_pupil_center_y1.t, plotting_pupil_center_y1.v * ratio + y_offset, **PUPIL_CENTER_Y_TRACE_STYLE | {"color": subtract_manual.color1})
+        ax.plot(plotting_pupil_center_y2.t, plotting_pupil_center_y2.v * ratio + y_offset, **PUPIL_CENTER_Y_TRACE_STYLE | {"color": subtract_manual.color2})
+        y_height = max(np.nanmax(plotting_pupil_center_x1.v), np.nanmax(plotting_pupil_center_x2.v), 
+                       np.nanmax(plotting_pupil_center_y1.v), np.nanmax(plotting_pupil_center_y2.v)) * ratio
+    else:
+        # plot multiple pupils
+        assert isinstance(pupil2, list), "Sanity check failed"
+        group_pupil_center_x1 = grouping_timeseries([single_pupil.center_x_ts for single_pupil in pupil1], 
+                                                    baseline_subtraction=baseline_subtraction)
+        group_pupil_center_x2 = grouping_timeseries([single_pupil.center_x_ts for single_pupil in pupil2], 
+                                                    baseline_subtraction=baseline_subtraction)
+        oreo_plot(ax, group_pupil_center_x1, y_offset, ratio, PUPIL_CENTER_X_TRACE_STYLE | {"color": subtract_manual.color1}, FILL_BETWEEN_STYLE)
+        oreo_plot(ax, group_pupil_center_x2, y_offset, ratio, PUPIL_CENTER_X_TRACE_STYLE | {"color": subtract_manual.color2}, FILL_BETWEEN_STYLE)
+
+        group_pupil_center_y1 = grouping_timeseries([single_pupil.center_y_ts for single_pupil in pupil1], 
+                                                    baseline_subtraction=baseline_subtraction)
+        group_pupil_center_y2 = grouping_timeseries([single_pupil.center_y_ts for single_pupil in pupil2], 
+                                                    baseline_subtraction=baseline_subtraction)
+        oreo_plot(ax, group_pupil_center_y1, y_offset, ratio, PUPIL_CENTER_Y_TRACE_STYLE | {"color": subtract_manual.color1}, FILL_BETWEEN_STYLE)
+        oreo_plot(ax, group_pupil_center_y2, y_offset, ratio, PUPIL_CENTER_Y_TRACE_STYLE | {"color": subtract_manual.color2}, FILL_BETWEEN_STYLE)
+        y_height = max(np.nanmax(group_pupil_center_x1.mean), np.nanmax(group_pupil_center_x2.mean), 
+                       np.nanmax(group_pupil_center_y1.mean), np.nanmax(group_pupil_center_y2.mean)) * ratio
+    # add y ticks
+    if yticks_flag:
+        yticks_combo("pupil_center", ax, y_offset, ratio)
+    else:
+        add_new_yticks(ax, TICK_PAIR(y_offset, "", color_scheme.PUPIL_CENTER_COLOR))
+    return y_height
 
 
 def unit_subtract_whisker(
         whisker1: None | TimeSeries | list[TimeSeries],
         whisker2: None | TimeSeries | list[TimeSeries],
         subtract_manual: SUBTRACT_MANUAL,
-        ax: plt.Axes, y_offset: float, ratio: float = 1.0) -> float:
+        ax: plt.Axes, y_offset: float, ratio: float = 1.0,
+        yticks_flag: bool = True,
+        baseline_subtraction: Optional[tuple[float, float]] = None) -> float:
     """plot whisker"""   
     if not sanity_check(whisker1) or not sanity_check(whisker2):
         return 0
@@ -121,16 +202,21 @@ def unit_subtract_whisker(
     if isinstance(whisker1, TimeSeries):
         # plot single whisker
         assert isinstance(whisker2, TimeSeries), "Sanity check failed"
-        ax.plot(whisker1.t, whisker1.v * ratio + y_offset, **WHISKER_TRACE_STYLE | {"color": subtract_manual.color1})
-        ax.plot(whisker2.t, whisker2.v * ratio + y_offset, **WHISKER_TRACE_STYLE | {"color": subtract_manual.color2})      
+        plotting_whisker1 = whisker1.copy()
+        plotting_whisker2 = whisker2.copy()
+        if baseline_subtraction is not None:
+            plotting_whisker1.v -= np.mean(plotting_whisker1.segment(*baseline_subtraction).v)
+            plotting_whisker2.v -= np.mean(plotting_whisker2.segment(*baseline_subtraction).v)
+        ax.plot(plotting_whisker1.t, plotting_whisker1.v * ratio + y_offset, **WHISKER_TRACE_STYLE | {"color": subtract_manual.color1})
+        ax.plot(plotting_whisker2.t, plotting_whisker2.v * ratio + y_offset, **WHISKER_TRACE_STYLE | {"color": subtract_manual.color2})   
 
         # plot subtraction
         sushi_plot(ax, whisker1, whisker2, y_offset, ratio, FILL_BETWEEN_STYLE | SUBTRACT_STYLE)
     else:
         # plot multiple whiskers
         assert isinstance(whisker2, list), "Sanity check failed"
-        group_whisker1 = grouping_timeseries(whisker1)
-        group_whisker2 = grouping_timeseries(whisker2)
+        group_whisker1 = grouping_timeseries(whisker1, baseline_subtraction=baseline_subtraction)
+        group_whisker2 = grouping_timeseries(whisker2, baseline_subtraction=baseline_subtraction)
         oreo_plot(ax, group_whisker1, y_offset, ratio, WHISKER_TRACE_STYLE | {"color": subtract_manual.color1}, FILL_BETWEEN_STYLE)
         oreo_plot(ax, group_whisker2, y_offset, ratio, WHISKER_TRACE_STYLE | {"color": subtract_manual.color2}, FILL_BETWEEN_STYLE)
 
@@ -138,9 +224,11 @@ def unit_subtract_whisker(
         sushi_plot(ax, group_whisker1, group_whisker2, y_offset, ratio, FILL_BETWEEN_STYLE | SUBTRACT_STYLE)
 
     # add y ticks
-    add_new_yticks(ax, [TICK_PAIR(y_offset, "Min Whisker", WHISKER_COLOR),
-                        TICK_PAIR(y_offset + ratio, "Max Whisker", WHISKER_COLOR)])
-    return ratio
+    if yticks_flag:
+        yticks_combo("whisker" if baseline_subtraction is None else "delta_whisker", ax, y_offset, ratio)
+    else:
+        add_new_yticks(ax, TICK_PAIR(y_offset, "", color_scheme.WHISKER_COLOR))
+    return ratio if baseline_subtraction is None else 0.5 * ratio
 
 
 def unit_subtract_single_cell_fluorescence(

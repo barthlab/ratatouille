@@ -112,7 +112,7 @@ def calculate_group_tuple(arrs: List[np.ndarray], t: np.ndarray) -> AdvancedTime
 
 
 def grouping_events_rate(events: List[Events], bin_size: float, use_event_value_as_weight: bool = True,
-                         baseline_subtraction: Optional[Tuple[float, float]] = None) -> AdvancedTimeSeries:
+                         baseline_subtraction: Optional[Tuple[float, float, bool]] = None) -> AdvancedTimeSeries:
     """Group a list of events in rate."""
     assert bin_size > 0, "bin size should be positive"
     if len(events) == 0:
@@ -128,9 +128,11 @@ def grouping_events_rate(events: List[Events], bin_size: float, use_event_value_
     bin_centers = bins[:-1] + bin_size/2
     # baseline subtraction
     if baseline_subtraction is not None:
-        baseline_start, baseline_end = baseline_subtraction
+        baseline_start, baseline_end, if_absolute = baseline_subtraction
         baseline_mask = (bin_centers >= baseline_start) & (bin_centers < baseline_end)
         all_rates = [rate - np.mean(rate[baseline_mask]) for rate in all_rates]
+        if if_absolute:
+            all_rates = [np.abs(rate) for rate in all_rates]
     return calculate_group_tuple(all_rates, bin_centers)
 
 
@@ -141,7 +143,7 @@ def grouping_events_histogram(events: List[Events], bins: np.ndarray, use_event_
 
 
 def grouping_timeseries(timeseries: List[TimeSeries], scale_factor: float = 2, interp_method: str = "previous", 
-                        baseline_subtraction: Optional[Tuple[float, float]] = None,
+                        baseline_subtraction: Optional[Tuple[float, float, bool]] = None,
                         _predefined_t: Optional[np.ndarray] = None) -> AdvancedTimeSeries:
     """Group a list of timeseries."""
     min_t, max_t = max(timeseries, key=lambda x: x.t[0]).t[0], min(timeseries, key=lambda x: x.t[-1]).t[-1]
@@ -149,8 +151,10 @@ def grouping_timeseries(timeseries: List[TimeSeries], scale_factor: float = 2, i
     group_t = np.linspace(min_t, max_t, int((max_t - min_t) * max_fs * scale_factor)) if _predefined_t is None else _predefined_t
     all_values = [smart_interp(group_t, ts.t, ts.v, interp_method) for ts in timeseries]
     if baseline_subtraction is not None:
-        baseline_start, baseline_end = baseline_subtraction
+        baseline_start, baseline_end, if_absolute = baseline_subtraction
         baseline_mask = (group_t >= baseline_start) & (group_t < baseline_end)
         all_values = [value - np.mean(value[baseline_mask]) for value in all_values]
+        if if_absolute:
+            all_values = [np.abs(value) for value in all_values]
     return calculate_group_tuple(all_values, group_t)
 

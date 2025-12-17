@@ -66,7 +66,7 @@ def split_by(datalist: Iterable, attr_name: str, _none_warning: bool = True) -> 
         split_dict[attr_value].append(item)
     return split_dict
 
-def group_by(datalist: Iterable[T], key_func: Callable[[T], K], _none_warning: bool = True) -> Dict[K, list[T]]:
+def group_by(datalist: Iterable[T], key_func: Callable[[T], K], _none_warning: bool = True, _sort_key: bool = False) -> Dict[K, list[T]]:
     """Group a list into groups based on a key function."""
     group_dict = defaultdict(list)
     for item in datalist:
@@ -74,7 +74,23 @@ def group_by(datalist: Iterable[T], key_func: Callable[[T], K], _none_warning: b
         if key is None and _none_warning:
             logger.warning(f"Cannot find key for {item}")
         group_dict[key].append(item)
+    if _sort_key:
+        sorted_keys = sorted(group_dict, key=lambda x: (x is None, x))
+        group_dict = {k: group_dict[k] for k in sorted_keys}
     return group_dict
+
+def count_by(datalist: Iterable[T], key_func: Callable[[T], K], _none_warning: bool = True, _sort_key: bool = False) -> Dict[K, int]:
+    """Count items in a list based on a key function."""
+    count_dict = defaultdict(int)
+    for item in datalist:
+        key = key_func(item)
+        if key is None and _none_warning:
+            logger.warning(f"Cannot find key for {item}")
+        count_dict[key] += 1
+    if _sort_key:
+        sorted_keys = sorted(count_dict, key=lambda x: (x is None, x))
+        count_dict = {k: count_dict[k] for k in sorted_keys}
+    return count_dict
 
 
 def zip_dicts(*dcts: Mapping[K, Any]) -> Generator[Tuple[K, Any], None, None]:

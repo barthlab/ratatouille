@@ -130,3 +130,8 @@ def reorder_indices(A: np.ndarray, B: np.ndarray, _allow_leftover: bool = False)
         raise ValueError(f"Extra unused elements left in A (labels): {leftover}")
     
     return np.array(order, dtype=int)
+
+
+def remove_project(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Remove the projection of b from a."""
+    return a - (np.dot(a, b) / np.dot(b, b)) * b

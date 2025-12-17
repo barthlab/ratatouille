@@ -38,6 +38,8 @@ def sync_check(dataset: DataSet, sync_events: Tuple[str], plot_manual: PlotManua
         
 def sync_node(node: Node, sync_events: Tuple[str]):    
     """Align node to the given sync events"""
+    if node.info.get("trial_type") == "Dummy":
+        return node.aligned_to(node.info["raw_ref_t"])
     assert node.data.timeline is not None, f"Cannot find timeline in {node}"
     sync_event_ts = node.data.timeline.filter(sync_events).t
     assert len(sync_event_ts) > 0, f"Cannot find sync event in {node}"

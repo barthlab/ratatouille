@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from kitchen.configs import routing
-from kitchen.settings.behavior import IS_BLINK_THRESHOLD, LICK_INACTIVATE_WINDOW, LOCOMOTION_CIRCUMFERENCE, LOCOMOTION_NUM_TICKS, OPTICAL_FLOW_EXTRACTED_BEHAVIOR_TYPES, PUPIL_AREA_NORMALIZATION, PUPIL_CENTER_NORMALIZATION, VIDEO_EXTRACTED_BEHAVIOR_MIN_MAX_PERCENTILE, VIDEO_EXTRACTED_BEHAVIOR_TYPES, VIDOE_CLOSE_DELAY
+from kitchen.settings.behavior import IS_BLINK_THRESHOLD, LICK_INACTIVATE_WINDOW, LOCOMOTION_CIRCUMFERENCE, LOCOMOTION_NUM_TICKS, OPTICAL_FLOW_EXTRACTED_BEHAVIOR_TYPES, PUPIL_AREA_NORMALIZATION, PUPIL_CENTER_NORMALIZATION, VIDEO_EXTRACTED_BEHAVIOR_MIN_MAX_PERCENTILE, VIDEO_EXTRACTED_BEHAVIOR_TYPES, VIDOE_ONOFF_DELAY
 from kitchen.settings.loaders import DATA_HODGEPODGE_MODE, LOADER_STRICT_MODE
 from kitchen.structure.hierarchical_data_structure import Node
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate
@@ -102,7 +102,7 @@ def behavior_loader_from_node(
                     behavior_values = np.array(behavior_data[:, 1], dtype=np.float32)
                     down_value, up_value = np.nanpercentile(behavior_values, VIDEO_EXTRACTED_BEHAVIOR_MIN_MAX_PERCENTILE)
                     normalized_values = np.clip((behavior_values - down_value) / (up_value - down_value), 0, 1)
-                    video_time = np.linspace(task_start, task_end + VIDOE_CLOSE_DELAY, len(behavior_values), dtype=np.float32)
+                    video_time = np.linspace(task_start+VIDOE_ONOFF_DELAY[0], task_end-VIDOE_ONOFF_DELAY[1], len(behavior_values), dtype=np.float32)
                     behavior_timeseries = TimeSeries(v=normalized_values, t=video_time)
                     session_behavior[behavior_type.lower()] = behavior_timeseries
                 except Exception as e:
@@ -127,7 +127,7 @@ def behavior_loader_from_node(
                 pupil_y = behavior_data["pupil-y"].to_numpy() 
                 pupil_y = (pupil_y - np.nanmean(pupil_y)) / PUPIL_CENTER_NORMALIZATION
                 is_blink = behavior_data["blink"].to_numpy() > IS_BLINK_THRESHOLD
-                video_time = np.linspace(task_start, task_end + VIDOE_CLOSE_DELAY, len(pupil_area), dtype=np.float32)
+                video_time = np.linspace(task_start+VIDOE_ONOFF_DELAY[0], task_end-VIDOE_ONOFF_DELAY[1], len(pupil_area), dtype=np.float32)
                 session_behavior["pupil"] = Pupil(
                     t=video_time, 
                     area=pupil_area, 

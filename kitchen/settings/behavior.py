@@ -34,4 +34,4 @@ PUPIL_AREA_NORMALIZATION = 10000  # normalize pupil area to 10000 pixel^2
 PUPIL_CENTER_NORMALIZATION = 100  # normalize pupil center to 100 pixel
 IS_BLINK_THRESHOLD = 0.5  # threshold for is_blink
 
-VIDOE_CLOSE_DELAY = 0.2  # s - delay for closing the picamera, see https://github.com/raspberrypi/picamera2/issues/1136
+VIDOE_ONOFF_DELAY = (0.06, 0.06)  # s - delay for (starting the picamera, closing the picamera)

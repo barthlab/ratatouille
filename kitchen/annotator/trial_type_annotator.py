@@ -28,8 +28,10 @@ def trial_type_annotator(trial_node: Trial | FovTrial, trial_align: float, trial
             raise ValueError(f"Cannot determine buzzer mark in {trial_node.coordinate}")
         
         # Stim mark
-        if core_trial_timeline.includes(("VerticalPuffOn", "Puff")):
+        if core_trial_timeline.includes(("VerticalPuffOn", "Puff"), max_num=1):
             stim_mark = 1
+        elif core_trial_timeline.includes(("VerticalPuffOn", "Puff"), min_num=2, max_num=2):
+            stim_mark = 1.1
         elif core_trial_timeline.includes(("BlankOn", "FakeRelayOn", "Blank")):
             stim_mark = -1
         elif core_trial_timeline.includes("PeltierLeftOn"):
@@ -68,6 +70,8 @@ def trial_type_annotator(trial_node: Trial | FovTrial, trial_align: float, trial
             trial_node.info["trial_type"] = "BlankNoWater"
         elif core_marks == (0, 1, 0):
             trial_node.info["trial_type"] = "PuffOnly"
+        elif core_marks == (0, 1.1, 0):
+            trial_node.info["trial_type"] = "DoublePuff"
         elif core_marks == (0, -1, 0):
             trial_node.info["trial_type"] = "BlankOnly"
         elif core_marks == (0, 2, 1):
@@ -77,11 +81,14 @@ def trial_type_annotator(trial_node: Trial | FovTrial, trial_align: float, trial
         elif core_marks == (0, 4, 1):
             trial_node.info["trial_type"] = "PeltierBothWater"
         elif core_marks == (1, 1, 0):
-            trial_node.info["trial_type"] = "CuedPuff"
+            puff_cue_duration = core_trial_timeline.filter("VerticalPuffOn").t[0] - core_trial_timeline.filter("BuzzerOn").t[0]
+            trial_node.info["trial_type"] = "CuedPuff" if puff_cue_duration > 0 else "PuffCue"
         elif core_marks == (1, -1, 0):
             trial_node.info["trial_type"] = "CuedBlank"
         elif core_marks == (0, 1, 0):
             trial_node.info["trial_type"] = "UncuedPuff"
+        elif core_marks == (1, 0, 0):
+            trial_node.info["trial_type"] = "CueOnly"
         else:
             raise ValueError(f"Cannot determine trial type in {trial_node.timeline.v}, got core marks {core_marks}")
 
@@ -133,3 +140,33 @@ def trial_type_annotator(trial_node: Trial | FovTrial, trial_align: float, trial
         if LOADER_STRICT_MODE:
             raise ValueError(f"Error annotating trial type in {trial_node.coordinate} with {trial_type_annotator_name}: {e}")
         logger.debug(f"Error annotating trial type in {trial_node.coordinate} with {trial_type_annotator_name}: {e}")
+
+
+
+INTRINSIC_TRIAL_TYPE_ORDER = (
+    
+    "CuedPuff",
+    "PuffCue",
+
+    "CuedBlank",
+
+    "CueOnly",
+
+    "DoublePuff",
+    
+    "PuffOnly", 
+
+
+
+    "WaterOnly",
+    "NoWaterOnly",
+    "PuffWater",
+    "PuffNoWater",
+    "BlankWater",   
+    "BlankNoWater",
+    "BlankOnly",
+    "PeltierLeftWater",
+    "PeltierRightNoWater",
+    "PeltierBothWater",
+    "UncuedPuff",
+)

@@ -17,7 +17,7 @@ import kitchen.plotter.style_dicts as style_dicts
 from kitchen.plotter.utils.tick_labels import TICK_PAIR, add_new_yticks
 from kitchen.settings.plotting import PLOTTING_OVERLAP_HARSH_MODE
 from kitchen.settings.potential import SPIKE_RANGE_RELATIVE_TO_ALIGNMENT
-from kitchen.structure.neural_data_structure import Events, Fluorescence, Potential, TimeSeries, Timeline
+from kitchen.structure.neural_data_structure import Events, Fluorescence, Potential, Pupil, TimeSeries, Timeline
 from kitchen.utils.sequence_kit import group_by
 
 
@@ -31,7 +31,7 @@ def sanity_check(data) -> bool:
 
 
 def unit_plot_locomotion(locomotion: None | Events | list[Events], ax: plt.Axes, y_offset: float, ratio: float = 1.0,
-                         yticks_flag: bool = True) -> float:
+                         yticks_flag: bool = True, baseline_subtraction: Optional[tuple[float, float]] = None) -> float:
     """plot locomotion"""
     if not sanity_check(locomotion):
         return 0
@@ -41,19 +41,21 @@ def unit_plot_locomotion(locomotion: None | Events | list[Events], ax: plt.Axes,
         # plot single locomotion rate
         if len(locomotion) > 0:
             plotting_locomotion = locomotion.rate(bin_size=LOCOMOTION_BIN_SIZE)
+            if baseline_subtraction is not None:
+                plotting_locomotion.v -= np.mean(plotting_locomotion.segment(*baseline_subtraction).v)
             y_height = np.nanmax(plotting_locomotion.v) * ratio
             ax.plot(plotting_locomotion.t, plotting_locomotion.v * ratio + y_offset, **style_dicts.LOCOMOTION_TRACE_STYLE)
         else:
             y_height = 0
     else:
         # plot multiple locomotion rates
-        group_locomotion = grouping_events_rate(locomotion, bin_size=LOCOMOTION_BIN_SIZE)
+        group_locomotion = grouping_events_rate(locomotion, bin_size=LOCOMOTION_BIN_SIZE, baseline_subtraction=baseline_subtraction)
         y_height = np.nanmax(group_locomotion.mean) * ratio
         oreo_plot(ax, group_locomotion, y_offset, ratio, style_dicts.LOCOMOTION_TRACE_STYLE, style_dicts.FILL_BETWEEN_STYLE)
 
     # add y ticks
     if yticks_flag:
-        yticks_combo("locomotion", ax, y_offset, ratio)
+        yticks_combo("locomotion" if baseline_subtraction is None else "delta_locomotion", ax, y_offset, ratio)
     else:
         add_new_yticks(ax, TICK_PAIR(y_offset, "", color_scheme.LOCOMOTION_COLOR))
     return max(y_height, 2*ratio)
@@ -103,31 +105,72 @@ def unit_plot_lick(lick: None | Events | list[Events], ax: plt.Axes, y_offset: f
     return y_height
 
 
-def unit_plot_pupil(pupil: None | TimeSeries | list[TimeSeries], ax: plt.Axes, y_offset: float, ratio: float = 1.0,
-                    yticks_flag: bool = True) -> float:
+def unit_plot_pupil(pupil: None | Pupil | list[Pupil], ax: plt.Axes, y_offset: float, ratio: float = 1.0,
+                    yticks_flag: bool = True, baseline_subtraction: Optional[tuple[float, float]] = None,
+                    plot_is_blink: bool = True) -> float:
     """plot pupil"""    
     if not sanity_check(pupil):
         return 0
     assert pupil is not None, "Sanity check failed"
     
-    if isinstance(pupil, TimeSeries):
+    if isinstance(pupil, Pupil):
         # plot single pupil
-        ax.plot(pupil.t, pupil.v * ratio + y_offset, **style_dicts.PUPIL_TRACE_STYLE)
+        plotting_pupil = pupil.area_ts.copy()
+        # if baseline_subtraction is not None:
+        #     plotting_pupil.v -= np.mean(plotting_pupil.segment(*baseline_subtraction).v)
+        ax.plot(plotting_pupil.t, plotting_pupil.v * ratio + y_offset, **style_dicts.PUPIL_TRACE_STYLE)
+        y_height = np.nanmax(plotting_pupil.v) * ratio
+        if plot_is_blink:
+            plotting_is_blink = pupil.is_blink_ts.copy()
+            ax.plot(plotting_is_blink.t, plotting_is_blink.v * ratio + y_offset, **style_dicts.IS_BLINK_TRACE_STYLE)
     else:
         # plot multiple pupils
-        group_pupil = grouping_timeseries(pupil)
+        group_pupil = grouping_timeseries([single_pupil.area_ts for single_pupil in pupil], 
+                                          baseline_subtraction=baseline_subtraction)
+        y_height = np.nanmax(group_pupil.mean) * ratio
         oreo_plot(ax, group_pupil, y_offset, ratio, style_dicts.PUPIL_TRACE_STYLE, style_dicts.FILL_BETWEEN_STYLE)
 
     # add y ticks
     if yticks_flag:
-        yticks_combo("pupil", ax, y_offset, ratio)
+        yticks_combo("pupil" if baseline_subtraction is None else "delta_pupil", ax, y_offset, ratio)
     else:
         add_new_yticks(ax, TICK_PAIR(y_offset, "", color_scheme.PUPIL_COLOR))
-    return ratio
+    return max(y_height, ratio if baseline_subtraction is None else 0.1*ratio)
+
+
+def unit_plot_pupil_center(pupil: None | Pupil | list[Pupil], ax: plt.Axes, y_offset: float, ratio: float = 1.0,
+                           yticks_flag: bool = True, baseline_subtraction: Optional[tuple[float, float]] = None) -> float:
+    """plot pupil center"""    
+    if not sanity_check(pupil):
+        return 0
+    assert pupil is not None, "Sanity check failed"
+
+    if isinstance(pupil, Pupil):
+        # plot single pupil center
+        plotting_pupil_center_x = pupil.center_x_ts.copy()
+        plotting_pupil_center_y = pupil.center_y_ts.copy()
+        ax.plot(plotting_pupil_center_x.t, plotting_pupil_center_x.v * ratio + y_offset, **style_dicts.PUPIL_CENTER_X_TRACE_STYLE)
+        ax.plot(plotting_pupil_center_y.t, plotting_pupil_center_y.v * ratio + y_offset, **style_dicts.PUPIL_CENTER_Y_TRACE_STYLE)
+        y_height = max(np.nanmax(plotting_pupil_center_x.v), np.nanmax(plotting_pupil_center_y.v)) * ratio
+    else:
+        # plot multiple pupil centers
+        group_pupil_center_x = grouping_timeseries([single_pupil.center_x_ts for single_pupil in pupil], 
+                                                   baseline_subtraction=baseline_subtraction)
+        group_pupil_center_y = grouping_timeseries([single_pupil.center_y_ts for single_pupil in pupil], 
+                                                   baseline_subtraction=baseline_subtraction)
+        oreo_plot(ax, group_pupil_center_x, y_offset, ratio, style_dicts.PUPIL_CENTER_X_TRACE_STYLE, style_dicts.FILL_BETWEEN_STYLE)
+        oreo_plot(ax, group_pupil_center_y, y_offset, ratio, style_dicts.PUPIL_CENTER_Y_TRACE_STYLE, style_dicts.FILL_BETWEEN_STYLE)
+        y_height = max(np.nanmax(group_pupil_center_x.mean), np.nanmax(group_pupil_center_y.mean)) * ratio
+    # add y ticks
+    if yticks_flag:
+        yticks_combo("pupil_center", ax, y_offset, ratio)
+    else:
+        add_new_yticks(ax, TICK_PAIR(y_offset, "", color_scheme.PUPIL_COLOR))
+    return max(y_height, 0.2 * ratio)
 
 
 def unit_plot_whisker(whisker: None | TimeSeries | list[TimeSeries], ax: plt.Axes, y_offset: float, ratio: float = 1.0,
-                      yticks_flag: bool = True) -> float:
+                      yticks_flag: bool = True, baseline_subtraction: Optional[tuple[float, float]] = None) -> float:
     """plot whisker"""    
     if not sanity_check(whisker):    
         return 0    
@@ -135,17 +178,43 @@ def unit_plot_whisker(whisker: None | TimeSeries | list[TimeSeries], ax: plt.Axe
 
     if isinstance(whisker, TimeSeries):
         # plot single whisker
-        ax.plot(whisker.t, whisker.v * ratio + y_offset, **style_dicts.WHISKER_TRACE_STYLE)
+        plotting_whisker = whisker.copy()
+        if baseline_subtraction is not None:
+            plotting_whisker.v -= np.mean(plotting_whisker.segment(*baseline_subtraction).v)
+        ax.plot(plotting_whisker.t, plotting_whisker.v * ratio + y_offset, **style_dicts.WHISKER_TRACE_STYLE)
     else:
         # plot multiple whiskers
-        group_whisker = grouping_timeseries(whisker)
+        group_whisker = grouping_timeseries(whisker, baseline_subtraction=baseline_subtraction)
         oreo_plot(ax, group_whisker, y_offset, ratio, style_dicts.WHISKER_TRACE_STYLE, style_dicts.FILL_BETWEEN_STYLE)
 
     # add y ticks
     if yticks_flag:
-        yticks_combo("whisker", ax, y_offset, ratio)
+        yticks_combo("whisker" if baseline_subtraction is None else "delta_whisker", ax, y_offset, ratio)
     else:
         add_new_yticks(ax, TICK_PAIR(y_offset, "", color_scheme.WHISKER_COLOR))
+    return ratio if baseline_subtraction is None else 0.5 * ratio
+
+
+def unit_plot_nose(nose: None | TimeSeries | list[TimeSeries], ax: plt.Axes, y_offset: float, ratio: float = 1.0,
+                      yticks_flag: bool = True) -> float:
+    """plot nose"""    
+    if not sanity_check(nose):    
+        return 0    
+    assert nose is not None, "Sanity check failed"
+
+    if isinstance(nose, TimeSeries):
+        # plot single nose
+        ax.plot(nose.t, nose.v * ratio + y_offset, **style_dicts.NOSE_TRACE_STYLE)
+    else:
+        # plot multiple noses
+        group_nose = grouping_timeseries(nose)
+        oreo_plot(ax, group_nose, y_offset, ratio, style_dicts.NOSE_TRACE_STYLE, style_dicts.FILL_BETWEEN_STYLE)
+        
+    # add y ticks
+    if yticks_flag:
+        yticks_combo("nose", ax, y_offset, ratio)
+    else:
+        add_new_yticks(ax, TICK_PAIR(y_offset, "", color_scheme.NOSE_COLOR))
     return ratio
 
 
@@ -175,7 +244,8 @@ def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes,
         num_events = len(event_times)
         ax.scatter(event_times, [y_offset + 0.5 * ratio] * num_events,
                 **(style_dicts.TIMELINE_SCATTER_STYLE[event_type] |
-                    {"alpha": ind_alpha(style_dicts.TIMELINE_SCATTER_STYLE[event_type]["alpha"], num_events)}))
+                    {"alpha": ind_alpha(style_dicts.TIMELINE_SCATTER_STYLE[event_type]["alpha"], num_events) 
+                     if len(timeline) > 1 else 1.0}))
     
     # plot vspan or vline
     if not _hide_vline:
@@ -183,19 +253,21 @@ def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes,
             for event_time, event_type in zip(one_timeline.t, one_timeline.v):
                 if event_type not in color_scheme.GRAND_COLOR_SCHEME:
                     continue
-                if ("On" not in event_type) or (event_type.replace("On", "Off") not in one_timeline.v):
+                num_event_calibrate = len(all_event[event_type]) if len(timeline) > 1 else 1
+                if ("On" not in event_type) or (event_type.replace("On", "Off") not in one_timeline.v) or (len(timeline) == 1) or True:
                     ax.axvline(event_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type],
-                                **calibrate_alpha(style_dicts.VLINE_STYLE, len(all_event[event_type])))
+                                **calibrate_alpha(style_dicts.VLINE_STYLE, num_event_calibrate))
                     continue
 
                 end_event = event_type.replace("On", "Off")
-                end_time = one_timeline.filter(end_event).t[0]
+                possible_end_time = one_timeline.filter(end_event).t
+                end_time = possible_end_time[possible_end_time >= event_time][0]
                 if end_time - event_time >= 0.09:
                     ax.axvspan(event_time, end_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type],
-                                **calibrate_alpha(style_dicts.VSPAN_STYLE, len(all_event[event_type])))
+                                **calibrate_alpha(style_dicts.VSPAN_STYLE, num_event_calibrate))
                 else:
                     ax.axvline(event_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type],
-                                **calibrate_alpha(style_dicts.VLINE_STYLE, len(all_event[event_type])))
+                                **calibrate_alpha(style_dicts.VLINE_STYLE, num_event_calibrate))
     return ratio
 
 

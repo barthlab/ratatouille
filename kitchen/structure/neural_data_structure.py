@@ -140,6 +140,12 @@ class TimeSeries:
         """Return a copy of the time series."""
         return self.__class__(v=self.v.copy(), t=self.t.copy())
     
+    def diff(self, _abs: bool = False) -> Self:
+        """Return the gradient of the time series."""
+        difference = self.v[..., 1:] - self.v[..., :-1]
+        return self.__class__(v=np.abs(difference) if _abs else difference,
+                              t=(self.t[1:] + self.t[:-1]) / 2)
+    
 
 @dataclass
 class Events:
@@ -326,10 +332,20 @@ class Timeline(Events):
                 return self.filter(event_types)
         return Timeline(v=np.array([]), t=np.array([]))
 
-    def task_time(self) -> Tuple[float, float]:
+    def task_time(self, _mock_if_not_found: bool = False) -> Tuple[float, float]:
         """Return start and end time of task."""            
-        task_start = self.filter("task start").t[0] if "task start" in self.v else 0
-        task_end = self.filter("task end").t[0] if "task end" in self.v else task_start + DEFAULT_RECORDING_DURATION
+        if "task start" in self.v:
+            task_start = self.filter("task start").t[0]
+        elif _mock_if_not_found:
+            task_start = 0
+        else:
+            raise ValueError("Cannot find task start in timeline")
+        if "task end" in self.v:
+            task_end = self.filter("task end").t[0]
+        elif _mock_if_not_found:
+            task_end = task_start + DEFAULT_RECORDING_DURATION
+        else:
+            raise ValueError("Cannot find task end in timeline")
         return task_start, task_end
 
 
@@ -554,6 +570,86 @@ class Potential:
         )
 
 
+
+@dataclass
+class Pupil:
+    t: np.ndarray
+    area: np.ndarray
+    center: Optional[np.ndarray] = None
+    is_blink: Optional[np.ndarray] = None
+
+    def __post_init__(self):
+        assert self.t.ndim == 1, f"t should be 1-d array, got {self.t.shape}"
+        assert self.area.shape == self.t.shape, f"area, t have different shape: {self.area.shape} vs {self.t.shape}"
+        if self.center is not None:
+            assert self.center.shape == (2, self.num_timepoint), f"center should have shape (2, {self.num_timepoint}), got {self.center.shape}"
+        if self.is_blink is not None:
+            assert self.is_blink.shape == self.t.shape, f"is_blink, t have different shape: {self.is_blink.shape} vs {self.t.shape}"
+    
+    @cached_property
+    def num_timepoint(self):
+        return len(self.t)
+    
+    @property
+    def v(self):
+        return self.area
+
+    @property
+    def area_ts(self) -> TimeSeries:
+        return TimeSeries(v=self.area, t=self.t)
+
+    @property
+    def center_x_ts(self) -> TimeSeries:
+        assert self.center is not None, "center is not available"
+        return TimeSeries(v=self.center[0], t=self.t)
+
+    @property
+    def center_y_ts(self) -> TimeSeries:
+        assert self.center is not None, "center is not available"
+        return TimeSeries(v=self.center[1], t=self.t) 
+    
+    @property
+    def is_blink_ts(self) -> TimeSeries:
+        assert self.is_blink is not None, "is_blink is not available"
+        return TimeSeries(v=self.is_blink, t=self.t) 
+
+    def __repr__(self):
+        """Return string representation."""
+        return self.__str__()
+    
+    def __str__(self) -> str:
+        """Return string representation."""
+        return f"Pupil data with {self.num_timepoint} timepoints, {self.center is not None} center, {self.is_blink is not None} blink"
+
+    def __len__(self) -> int:
+        """Return number of time points."""
+        return self.num_timepoint
+    
+    def __bool__(self) -> bool:
+        """Return True if non-empty."""
+        return len(self) > 0
+    
+    def segment(self, start_t: float, end_t: float) -> "Pupil":
+        """Extract temporal segment between start_t (inclusive) and end_t (exclusive)."""
+        start_idx = np.searchsorted(self.t, start_t)
+        end_idx = np.searchsorted(self.t, end_t)
+        return Pupil(
+            t=self.t[start_idx:end_idx],
+            area=self.area[start_idx:end_idx],
+            center=self.center[:, start_idx:end_idx] if self.center is not None else None,
+            is_blink=self.is_blink[start_idx:end_idx] if self.is_blink is not None else None
+        )
+    
+    def aligned_to(self, align_time: float) -> "Pupil":
+        """Align potential to a specific time point."""
+        return Pupil(
+            t=self.t - align_time,
+            area=self.area,
+            center=self.center,
+            is_blink=self.is_blink
+        )
+    
+
 @dataclass
 class NeuralData:
     """
@@ -564,11 +660,18 @@ class NeuralData:
     Be cautious to modify attribute directly in NeuralData, 
     array data should be immutable and are shared across nodes at different hierarchy levels.
     """
+    """
+    TODO:
+    Enable groups multiple NeuralData into one, e.g.:
+    >>> neural_data = NeuralData()
+    >>> neural_data2 = NeuralData()
+    >>> neural_data3 = group([neural_data, neural_data2])
+    """
     # Behavior modalities
     position: Optional[Events] = None
     locomotion: Optional[Events] = None
     lick: Optional[Events] = None
-    pupil: Optional[TimeSeries] = None
+    pupil: Optional[Pupil] = None
     tongue: Optional[TimeSeries] = None
     nose: Optional[TimeSeries] = None
     whisker: Optional[TimeSeries] = None
@@ -586,8 +689,8 @@ class NeuralData:
         """Validate data types."""
         assert all(isinstance(getattr(self, name), Events | type(None)) for name in ("position", "locomotion", "lick")), \
             f"position, locomotion, lick should be Events or None, got {self.position}, {self.locomotion}, {self.lick}"
-        assert all(isinstance(getattr(self, name), TimeSeries | type(None)) for name in ("pupil", "tongue", "whisker", "nose")), \
-            f"pupil, tongue, whisker, nose should be TimeSeries or None, got {self.pupil}, {self.tongue}, {self.whisker}, {self.nose}"
+        assert all(isinstance(getattr(self, name), TimeSeries | type(None)) for name in ("tongue", "whisker", "nose")), \
+            f"tongue, whisker, nose should be TimeSeries or None, got {self.tongue}, {self.whisker}, {self.nose}"        
     
     def __repr__(self):
         """Return string representation."""
