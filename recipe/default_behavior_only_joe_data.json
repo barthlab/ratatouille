@@ -1,0 +1,12 @@
+{
+    "name": "default behavior only for joe data",
+    "description": "Default template for all behavioral only experiments",
+    "data_type": "two_photon",
+    "loaders": {
+        "timeline": "matt",
+        "behavior": "default"
+    },
+    "trial split": "timeline",
+    "trial range": [-5, 8.5],
+    "trial type annotator": "default"
+}

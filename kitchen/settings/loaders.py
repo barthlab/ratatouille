@@ -21,7 +21,5 @@ logger = logging.getLogger(__name__)
 DATA_HODGEPODGE_MODE = True 
 
 
-MATT_NAME_STYLE_FLAG = False  # Flag for day_id detection from TIMELINE file, at position 2 start with D
-
 
 LOADER_STRICT_MODE = False

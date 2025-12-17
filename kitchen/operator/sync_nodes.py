@@ -42,7 +42,7 @@ def sync_node(node: Node, sync_events: Tuple[str]):
         return node.aligned_to(node.info["raw_ref_t"])
     assert node.data.timeline is not None, f"Cannot find timeline in {node}"
     sync_event_ts = node.data.timeline.filter(sync_events).t
-    assert len(sync_event_ts) > 0, f"Cannot find sync event in {node}"
+    assert len(sync_event_ts) > 0, f"Cannot find sync event in {node}: \n {node.data.timeline}\n {sync_events}"
     if len(sync_event_ts) > 1 and "raw_ref_t" in node.info:
         time2sync = sync_event_ts[np.argmin(np.abs(sync_event_ts - node.info["raw_ref_t"]))]
     else:

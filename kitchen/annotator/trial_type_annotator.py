@@ -40,6 +40,8 @@ def trial_type_annotator(trial_node: Trial | FovTrial, trial_align: float, trial
             stim_mark = 3
         elif core_trial_timeline.includes("PeltierBothOn"):
             stim_mark = 4
+        elif core_trial_timeline.includes("blueLEDOn"):
+            stim_mark = 5
         elif not core_trial_timeline.includes(STIMULUS_EVENTS_DEFAULT):
             stim_mark = 0
         else:
@@ -68,29 +70,55 @@ def trial_type_annotator(trial_node: Trial | FovTrial, trial_align: float, trial
             trial_node.info["trial_type"] = "BlankWater"
         elif core_marks == (0, -1, -1):
             trial_node.info["trial_type"] = "BlankNoWater"
+
+
         elif core_marks == (0, 1, 0):
             trial_node.info["trial_type"] = "PuffOnly"
         elif core_marks == (0, 1.1, 0):
             trial_node.info["trial_type"] = "DoublePuff"
         elif core_marks == (0, -1, 0):
             trial_node.info["trial_type"] = "BlankOnly"
+
+
         elif core_marks == (0, 2, 1):
             trial_node.info["trial_type"] = "PeltierLeftWater"
         elif core_marks == (0, 3, -1):
             trial_node.info["trial_type"] = "PeltierRightNoWater"
         elif core_marks == (0, 4, 1):
             trial_node.info["trial_type"] = "PeltierBothWater"
+
+
         elif core_marks == (1, 1, 0):
             puff_cue_duration = core_trial_timeline.filter("VerticalPuffOn").t[0] - core_trial_timeline.filter("BuzzerOn").t[0]
             trial_node.info["trial_type"] = "CuedPuff" if puff_cue_duration > 0 else "PuffCue"
+        elif core_marks == (1, 5, 0):
+            trial_node.info["trial_type"] = "CuedBlueLED"
         elif core_marks == (1, -1, 0):
             trial_node.info["trial_type"] = "CuedBlank"
         elif core_marks == (0, 1, 0):
             trial_node.info["trial_type"] = "UncuedPuff"
         elif core_marks == (1, 0, 0):
             trial_node.info["trial_type"] = "CueOnly"
+
+
+        elif core_marks == (1, 0, 1):
+            trial_node.info["trial_type"] = "CueWater"
+        elif core_marks == (1, 0, -1):
+            trial_node.info["trial_type"] = "CueNoWater"
+        elif core_marks == (1, 1, 1):
+            trial_node.info["trial_type"] = "CuePuffWater"
+        elif core_marks == (1, 1, -1):
+            trial_node.info["trial_type"] = "CuePuffNoWater"
+        elif core_marks == (1, -1, 1):
+            trial_node.info["trial_type"] = "CueBlankWater"
+        elif core_marks == (1, -1, -1):
+            trial_node.info["trial_type"] = "CueBlankNoWater"
+
+
         else:
             raise ValueError(f"Cannot determine trial type in {trial_node.timeline.v}, got core marks {core_marks}")
+        
+
 
     def io_js_jux(trial_node: Trial | FovTrial, trial_align: float):
         assert trial_node.data.timeline is not None, f"Cannot find timeline in {trial_node}"
@@ -110,6 +138,7 @@ def trial_type_annotator(trial_node: Trial | FovTrial, trial_align: float, trial
             trial_node.info["trial_type"] = "100msPuff"
         else:
             raise ValueError(f"Cannot determine trial type in {trial_node.timeline.v}, got puff duration {puff_duration}")
+        
         
     def io_stationary_vs_mobile(trial_node: Trial | FovTrial, trial_align: float):
         assert trial_node.data.timeline is not None, f"Cannot find timeline in {trial_node}"
@@ -147,6 +176,7 @@ INTRINSIC_TRIAL_TYPE_ORDER = (
     
     "CuedPuff",
     "PuffCue",
+    "CuedBlueLED",
 
     "CuedBlank",
 
@@ -169,4 +199,12 @@ INTRINSIC_TRIAL_TYPE_ORDER = (
     "PeltierRightNoWater",
     "PeltierBothWater",
     "UncuedPuff",
+
+
+    "CueWater",
+    "CueNoWater",
+    "CuePuffWater",
+    "CuePuffNoWater",
+    "CueBlankWater",
+    "CueBlankNoWater",
 )

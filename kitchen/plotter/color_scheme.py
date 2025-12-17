@@ -35,6 +35,7 @@ DETECTED_SPIKE_COLOR = "#c2185b"
 # Timeline color scheme
 STIM_COLOR = "blue"
 PUFF_COLOR = "#9e9e9e"
+BLUELED_COLOR = "blue"
 BLANK_COLOR = "whitesmoke"
 WATER_COLOR = "cornflowerblue"
 NOWATER_COLOR = "orangered"
@@ -42,6 +43,7 @@ BUZZER_COLOR = "darkorange"
 PELTIER_COLOR = "aqua"
 DARK_STIM_COLOR = "darkblue"
 DARK_PUFF_COLOR = "gray"
+DARK_BLUELED_COLOR = "darkblue"
 DARK_BLANK_COLOR = "gray"
 DARK_WATER_COLOR = "blue"
 DARK_NOWATER_COLOR = "red"
@@ -57,6 +59,7 @@ GRAND_COLOR_SCHEME = {
     "StimOn": STIM_COLOR,
     "VerticalPuffOn": PUFF_COLOR,
     "Puff": PUFF_COLOR,
+    "blueLEDOn": BLUELED_COLOR,
     "HorizontalPuffOn": PUFF_COLOR,
     "BlankOn": BLANK_COLOR,
     "Blank": BLANK_COLOR,

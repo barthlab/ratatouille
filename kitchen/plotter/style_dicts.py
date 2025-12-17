@@ -327,6 +327,14 @@ TIMELINE_SCATTER_STYLE = {
         "lw": 0.5,
         "zorder": 10,
     },
+    "blueLEDOn": {
+        "color": color_scheme.DARK_BLUELED_COLOR,
+        "s": 8,
+        "marker": "|",
+        "alpha": 1,
+        "lw": 0.5,
+        "zorder": 10,
+    },
     "PeltierLeftOn": {
         "color": color_scheme.DARK_PELTIER_COLOR,
         "s": 8,

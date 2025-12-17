@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from kitchen.configs import routing
-from kitchen.settings.loaders import DATA_HODGEPODGE_MODE, LOADER_STRICT_MODE, MATT_NAME_STYLE_FLAG
+from kitchen.settings.loaders import DATA_HODGEPODGE_MODE, LOADER_STRICT_MODE
 from kitchen.structure.hierarchical_data_structure import Fov
 from kitchen.structure.neural_data_structure import Timeline
 
@@ -57,12 +57,44 @@ def timeline_loader_from_fov(fov_node: Fov, timeline_loader_name: str = "default
                 session_name = re.search(r"TIMELINE_(.*)\.csv", filename)
                 assert session_name is not None, f"Cannot extract session name from {filename}"
                 session_name = session_name.group(1)
-                if MATT_NAME_STYLE_FLAG:                    
-                    day_name = filename.split("_")[2]
-                    assert day_name.startswith("D"), f"Expected day name to start with 'D' in {filename}"
-                    day_name = day_name[1:].zfill(2)
-                else:
-                    day_name = filename.split("_")[1]
+
+                # extract day name
+                day_name = filename.split("_")[1]
+                
+                extracted_timeline = Timeline(
+                    v=dummy_name_convert(data_array['details'].to_numpy()),
+                    t=data_array['time'].to_numpy(dtype=np.float32) / 1000
+                )
+                """Yield day name, session name, and timeline data."""
+                yield day_name, session_name, extracted_timeline    
+
+
+    def io_matt(dir_path: str) -> Generator[Tuple[str, str, Timeline], None, None]:      
+        """Find all timeline files.""" 
+        if DATA_HODGEPODGE_MODE:
+            timeline_filepaths = routing.search_pattern_file(pattern="TIMELINE_*.csv", search_dir=dir_path)
+        else:
+            timeline_filepaths = routing.search_pattern_file(pattern="TIMELINE_*.csv", search_dir=path.join(dir_path, "timeline"))
+        
+        assert len(timeline_filepaths) > 0, f"Cannot find timeline path: {dir_path}"            
+            
+        for filepath in timeline_filepaths:
+            dirname, filename = path.split(filepath)
+            if filename.startswith("TIMELINE_") and filename.endswith(".csv"):
+                """Extract day name, session name, and timeline data."""
+                data_array = pd.read_csv(path.join(dirname, filename), header=0)
+                assert 'time' in data_array.columns and 'details' in data_array.columns, \
+                      f"Cannot find 'time' and 'details' columns in {filename}"
+                
+                # extract the string between prefix "TIMELINE_" and postfix ".csv"
+                session_name = re.search(r"TIMELINE_(.*)\.csv", filename)
+                assert session_name is not None, f"Cannot extract session name from {filename}"
+                session_name = session_name.group(1)
+
+                # extract day name     
+                day_name = filename.split("_")[2]
+                assert day_name.startswith("D"), f"Expected day name to start with 'D' in {filename}"
+                day_name = day_name[1:].zfill(2)
                 
                 extracted_timeline = Timeline(
                     v=dummy_name_convert(data_array['details'].to_numpy()),
@@ -182,6 +214,7 @@ def timeline_loader_from_fov(fov_node: Fov, timeline_loader_name: str = "default
     """Load timeline from fov node."""
     timeline_loader_options = {
         "default": io_default,
+        "matt": io_matt,
         "old": io_old,
         "classic": io_classic,
     }
