@@ -21,7 +21,7 @@ from kitchen.configs.naming import get_node_name
 from kitchen.operator.split import split_dataset_by_trial_type
 from kitchen.plotter.ax_plotter.advance_plot import subtract_view
 from kitchen.plotter.plotting_manual import CHECK_PLOT_MANUAL, PlotManual
-from kitchen.plotter.plotting_params import FLAT_X_INCHES, FLAT_Y_INCHES, PARALLEL_X_INCHES, PARALLEL_Y_INCHES, STACK_X_INCHES, STACK_Y_INCHES, UNIT_X_INCHES, UNIT_Y_INCHES
+from kitchen.plotter.plotting_params import FLAT_X_INCHES, FLAT_Y_INCHES, HEATMAP_X_INCHES, HEATMAP_Y_INCHES, PARALLEL_X_INCHES, PARALLEL_Y_INCHES, STACK_X_INCHES, STACK_Y_INCHES, UNIT_X_INCHES, UNIT_Y_INCHES
 from kitchen.plotter.unit_plotter.unit_trace_advance import SUBTRACT_MANUAL
 from kitchen.settings.timeline import ALL_ALIGNMENT_STYLE
 from kitchen.structure.hierarchical_data_structure import DataSet
@@ -198,7 +198,7 @@ def heatmap_view_default_macro(
         node_level: str,
         plot_manual: PlotManual,
         prefix_keyword: Optional[str] = None,
-        unit_shape: Tuple[float, float] = (STACK_X_INCHES, STACK_Y_INCHES),
+        unit_shape: Tuple[float, float] = (HEATMAP_X_INCHES, HEATMAP_Y_INCHES),
 
         _element_trial_level: str = "trial",
         _aligment_style: str = "Aligned2Trial",

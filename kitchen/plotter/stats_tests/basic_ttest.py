@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.stats import ttest_ind, ttest_rel, mannwhitneyu, wilcoxon
+from scipy.stats import ttest_ind, ttest_rel, mannwhitneyu, wilcoxon, ks_2samp
 
 SIGNIFICANT_ALPHA = 0.05
 
@@ -26,16 +26,16 @@ def get_annotation_str(p_val: float, verbose: bool = True, double_line: bool = F
 
 
 def stats_ttest_ind(
-        data1: np.ndarray,
-        data2: np.ndarray,
+        data1: np.ndarray | list,
+        data2: np.ndarray | list,
 ):    
     p_val = ttest_ind(data1, data2).pvalue # type: ignore fucking stupid pylance
     return p_val, get_annotation_str(p_val)
 
 
 def stats_ttest_rel(
-        data1: np.ndarray,
-        data2: np.ndarray,
+        data1: np.ndarray | list,
+        data2: np.ndarray | list,
 ):
     assert len(data1) == len(data2), "Cannot compare arrays of different lengths for paired t-test"
     p_val = ttest_rel(data1, data2).pvalue # type: ignore fucking stupid pylance
@@ -43,17 +43,25 @@ def stats_ttest_rel(
 
 
 def stats_mannwhitneyu(
-        data1: np.ndarray,
-        data2: np.ndarray,
+        data1: np.ndarray | list,
+        data2: np.ndarray | list,
 ):
     p_val = mannwhitneyu(data1, data2).pvalue # type: ignore fucking stupid pylance
     return p_val, get_annotation_str(p_val)
 
 
 def stats_wilcoxon(
-        data1: np.ndarray,
-        data2: np.ndarray,
+        data1: np.ndarray | list,
+        data2: np.ndarray | list,
 ):
     assert len(data1) == len(data2), "Cannot compare arrays of different lengths for wilcoxon test"
     p_val = wilcoxon(data1, data2).pvalue # type: ignore fucking stupid pylance
+    return p_val, get_annotation_str(p_val)
+
+
+def stats_ks_2samp(
+        data1: np.ndarray | list,
+        data2: np.ndarray | list,
+):
+    p_val = ks_2samp(data1, data2).pvalue # type: ignore fucking stupid pylance
     return p_val, get_annotation_str(p_val)

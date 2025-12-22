@@ -139,7 +139,7 @@ def unit_plot_pupil(pupil: None | Pupil | list[Pupil], ax: plt.Axes, y_offset: f
 
 
 def unit_plot_pupil_center(pupil: None | Pupil | list[Pupil], ax: plt.Axes, y_offset: float, ratio: float = 1.0,
-                           yticks_flag: bool = True, baseline_subtraction: Optional[tuple[float, float]] = None) -> float:
+                           yticks_flag: bool = True, baseline_subtraction: Optional[tuple[float, float, bool]] = None) -> float:
     """plot pupil center"""    
     if not sanity_check(pupil):
         return 0
@@ -149,8 +149,10 @@ def unit_plot_pupil_center(pupil: None | Pupil | list[Pupil], ax: plt.Axes, y_of
         # plot single pupil center
         plotting_pupil_center_x = pupil.center_x_ts.copy()
         plotting_pupil_center_y = pupil.center_y_ts.copy()
+        plotting_pupil_saccade = pupil.saccade_velocity_ts.copy()
         ax.plot(plotting_pupil_center_x.t, plotting_pupil_center_x.v * ratio + y_offset, **style_dicts.PUPIL_CENTER_X_TRACE_STYLE)
         ax.plot(plotting_pupil_center_y.t, plotting_pupil_center_y.v * ratio + y_offset, **style_dicts.PUPIL_CENTER_Y_TRACE_STYLE)
+        ax.plot(plotting_pupil_saccade.t, plotting_pupil_saccade.v * ratio + y_offset, **style_dicts.PUPIL_SACCADE_TRACE_STYLE)
         y_height = max(np.nanmax(plotting_pupil_center_x.v), np.nanmax(plotting_pupil_center_y.v)) * ratio
     else:
         # plot multiple pupil centers
@@ -158,8 +160,11 @@ def unit_plot_pupil_center(pupil: None | Pupil | list[Pupil], ax: plt.Axes, y_of
                                                    baseline_subtraction=baseline_subtraction)
         group_pupil_center_y = grouping_timeseries([single_pupil.center_y_ts for single_pupil in pupil], 
                                                    baseline_subtraction=baseline_subtraction)
+        group_pupil_saccade = grouping_timeseries([single_pupil.saccade_velocity_ts for single_pupil in pupil], 
+                                                 baseline_subtraction=baseline_subtraction)
         oreo_plot(ax, group_pupil_center_x, y_offset, ratio, style_dicts.PUPIL_CENTER_X_TRACE_STYLE, style_dicts.FILL_BETWEEN_STYLE)
         oreo_plot(ax, group_pupil_center_y, y_offset, ratio, style_dicts.PUPIL_CENTER_Y_TRACE_STYLE, style_dicts.FILL_BETWEEN_STYLE)
+        oreo_plot(ax, group_pupil_saccade, y_offset, ratio, style_dicts.PUPIL_SACCADE_TRACE_STYLE, style_dicts.FILL_BETWEEN_STYLE)
         y_height = max(np.nanmax(group_pupil_center_x.mean), np.nanmax(group_pupil_center_y.mean)) * ratio
     # add y ticks
     if yticks_flag:

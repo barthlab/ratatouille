@@ -64,14 +64,23 @@ def numpy_percentile_filter(input_array: np.ndarray, s: int, q: float) -> np.nda
 
 def smart_interp(x_new, xp, fp, method: str = "linear"):
     if method == "previous":
-        f_new = interp1d(xp, fp, kind='previous', axis=-1, bounds_error=False)
+        f_new = interp1d(xp, fp, kind='previous', axis=-1, bounds_error=False, fill_value='extrapolate')
     elif method == "nearest":
-        f_new = interp1d(xp, fp, kind='nearest', axis=-1, bounds_error=False)
+        f_new = interp1d(xp, fp, kind='nearest', axis=-1, bounds_error=False, fill_value='extrapolate')
     elif method == "linear":
-        f_new = interp1d(xp, fp, kind='linear', axis=-1, bounds_error=False)
+        f_new = interp1d(xp, fp, kind='linear', axis=-1, bounds_error=False, fill_value='extrapolate')
     else:
         raise ValueError(f"Unknown interpolation method: {method}")
     return f_new(x_new)
+
+
+def smart_nan_removal(xp, fp, method: str = "nearest"):
+    mask = np.isnan(fp)
+    if mask.all():
+        return np.zeros_like(fp)
+    fnew = fp.copy()
+    fnew[mask] = smart_interp(xp[mask], xp[~mask], fp[~mask], method=method)
+    return fnew
 
 
 def sliding_std(x: np.ndarray, window_len: int) -> np.ndarray:

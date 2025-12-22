@@ -101,7 +101,7 @@ def zip_dicts(*dcts: Mapping[K, Any]) -> Generator[Tuple[K, Any], None, None]:
 
 def select_truthy_items(datalist: Iterable[Optional[T]]) -> List[T]:
     """Selects items that are 'truthy'."""
-    return [item for item in datalist if item]
+    return [item for item in datalist if item is not None]
 
 
 def indices2offset(indices: list[int]) -> list[int]:

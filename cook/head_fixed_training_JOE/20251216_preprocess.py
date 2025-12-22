@@ -19,29 +19,29 @@ logging.getLogger('matplotlib').setLevel(logging.WARNING)
 logging.getLogger('numba').setLevel(logging.WARNING) 
 
 def preprocessing():
-    hft_data_path = r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\HeadFixedTraining\SensoryPrediction_202512"
+    hft_data_path = r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\HeadFixedTraining_FromJoe\SAT_202512"
     format_converter.video_convert(hft_data_path)
-    dataset = load_dataset(template_id="HeadFixedTraining", cohort_id="SensoryPrediction_202512", 
-                           recipe="default_behavior_only", name="sensory_prediction")
+    dataset = load_dataset(template_id="HeadFixedTraining_FromJoe", cohort_id="SAT_202512", 
+                           recipe="default_behavior_only_joe_data", name="JOE_DATA")
     dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
-    custom_extraction.default_collection(dataset)
-    meye_pupil_extraction.default_collection(dataset)
+    # custom_extraction.default_collection(dataset)
+    # meye_pupil_extraction.default_collection(dataset)
 
 def label_videos():
-    hft_data_path = r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\HeadFixedTraining\SensoryPrediction_202512"
+    hft_data_path = r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\HeadFixedTraining_FromJoe\SAT_202512"
     format_converter.video_convert(hft_data_path)
     video_marker.marker_video_use_timeline(hft_data_path)
 
 def main():
-    dataset = load_dataset(template_id="HeadFixedTraining", cohort_id="SensoryPrediction_202510", 
-                           recipe="default_behavior_only", name="sensory_prediction")
+    dataset = load_dataset(template_id="HeadFixedTraining_FromJoe", cohort_id="SAT_202512", 
+                           recipe="default_behavior_only_joe_data", name="JOE_DATA")
     dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
 
 
 
 if __name__ == "__main__":
     # preprocessing()
-    label_videos()
-    # main()
+    # label_videos()
+    main()
 
 

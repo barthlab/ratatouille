@@ -19,33 +19,33 @@ logging.getLogger('numba').setLevel(logging.WARNING)
 
 
 def main():
-    dataset = load_dataset(template_id="HeadFixedTraining", cohort_id="SensoryPrediction_202512", 
-                           recipe="default_behavior_only", name="sensory_prediction")
+    dataset = load_dataset(template_id="HeadFixedTraining_FromJoe", cohort_id="SAT_202512", 
+                           recipe="default_behavior_only_joe_data", name="JOE_DATA")
     dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
 
-    baseline_setup = (-2, 0, False)
-    amplitude_setup = (2.5, 7.5, "day")
-    # plot_manual = PlotManual(locomotion=True, whisker=True, pupil=True, baseline_subtraction=(-2, 0))  
-    # plot_manual_plain = PlotManual(locomotion=True, whisker=True, baseline_subtraction=(-2, 0, False))  
-    # plot_manual_plain_sortonly = PlotManual(locomotion=True, whisker=True, amplitude_sorting=(2., 6., "day"), baseline_subtraction=(-2, 0, False))  
-    plot_manual_saccade = PlotManual(locomotion=True, whisker=True, pupil=True, saccade=True)  
-    plot_manual_saccade_baseline = PlotManual(locomotion=True, whisker=True, pupil=True, saccade=True, baseline_subtraction=baseline_setup)  
+    plot_manual_saccade = PlotManual(locomotion=True, lick=True, whisker=True, pupil=True, saccade=True)  
+    plot_manual_saccade_baseline = PlotManual(locomotion=True, lick=True, whisker=True, pupil=True, saccade=True, baseline_subtraction=(0, 1.7, False))  
     
-    plot_manual_saccade_bs_sort = PlotManual(locomotion=True, whisker=True, pupil=True, saccade=True, 
-                                                 baseline_subtraction=baseline_setup, amplitude_sorting=amplitude_setup)  
-    plot_manual_saccade_sortonly = PlotManual(locomotion=True, whisker=True, pupil=True, saccade=True, amplitude_sorting=amplitude_setup)  
+    # plot_manual_saccade_presurprise = PlotManual(locomotion=True, whisker=True, pupil=True, saccade=True, 
+    #                                              baseline_subtraction=(0, 1.7, False), amplitude_sorting=(4., 8., "day"))  
+    # plot_manual_saccade_presurprise_session = PlotManual(locomotion=True, whisker=True, pupil=True, saccade=True, 
+    #                                              baseline_subtraction=(0, 1.7, False), amplitude_sorting=(4., 8., "session"))      
+    # plot_manual_saccade_sortonly = PlotManual(locomotion=True, whisker=True, pupil=True, saccade=True, amplitude_sorting=(4., 8., "day"))  
 
     for mice_node in dataset.select("mice"):
-        flat_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual_saccade)
+        # flat_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual_saccade)
 
-        # stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual_saccade,
-        #                          _aligment_style="Aligned2Trial")
+        stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual_saccade_baseline,
+                                 _aligment_style="Aligned2Reward")
         
-        # stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="mice", plot_manual=plot_manual_saccade,
-        #                             _aligment_style="Aligned2Trial")
+        stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="mice", plot_manual=plot_manual_saccade_baseline,
+                                    _aligment_style="Aligned2Reward")
         
-        # stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="day", plot_manual=plot_manual_saccade,
-        #                             _aligment_style="Aligned2Trial")
+        stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="day", plot_manual=plot_manual_saccade_baseline,
+                                    _aligment_style="Aligned2Reward")
+        
+
+
         
         # subtract_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="mice", plot_manual=plot_manual_saccade_baseline,
         #                             _aligment_style="Aligned2Trial", _target_types="CuedPuff")
@@ -53,33 +53,34 @@ def main():
         # subtract_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="day", plot_manual=plot_manual_saccade_baseline,
         #                             _aligment_style="Aligned2Trial", _target_types="CuedPuff")
 
-        continue
+        # heatmap_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="mice", plot_manual=plot_manual_saccade,
+        #                             _aligment_style="Aligned2Trial", _target_modality="locomotion")
 
-        heatmap_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="mice", plot_manual=plot_manual_saccade,
-                                    _aligment_style="Aligned2Trial", _target_modality="locomotion")
 
-        heatmap_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="mice", plot_manual=plot_manual_saccade,
-                                    _aligment_style="Aligned2Trial", _target_modality="whisker")
+
+
+        # heatmap_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="mice", plot_manual=plot_manual_saccade,
+        #                             _aligment_style="Aligned2Trial", _target_modality="whisker")
         # heatmap_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="mice", plot_manual=plot_manual_saccade_sortonly,
         #                             _aligment_style="Aligned2Trial", _target_modality="whisker", _sort_row=True, _add_dummy=True)
         # heatmap_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="day", plot_manual=plot_manual_saccade,
         #                             _aligment_style="Aligned2Trial", _target_modality="whisker")
         # heatmap_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="day", plot_manual=plot_manual_saccade_sortonly,
         #                             _aligment_style="Aligned2Trial", _target_modality="whisker", _sort_row=True, _add_dummy=True)
-        # # exit()
-        heatmap_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="mice", plot_manual=plot_manual_saccade,
-                                    _aligment_style="Aligned2Trial", _target_modality="saccade")
+        # exit()
+        # heatmap_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="day", plot_manual=plot_manual_saccade,
+        #                             _aligment_style="Aligned2Trial", _target_modality="saccade", _sort_row=False)
         
         # heatmap_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="day", plot_manual=plot_manual_saccade_presurprise_session,
         #                             _aligment_style="Aligned2Trial", _target_modality="pupil", _sort_row=True, _add_dummy=True)
-        # heatmap_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="day", plot_manual=plot_manual_saccade_bs_sort,
+        # heatmap_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="day", plot_manual=plot_manual_saccade_presurprise,
         #                             _aligment_style="Aligned2Trial", _target_modality="pupil", _sort_row=True, _add_dummy=True)
-        # heatmap_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="mice", plot_manual=plot_manual_saccade_bs_sort,
+        # heatmap_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="mice", plot_manual=plot_manual_saccade_presurprise,
         #                             _aligment_style="Aligned2Trial", _target_modality="pupil", _sort_row=True, _add_dummy=True)
         # heatmap_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="day", plot_manual=plot_manual_saccade_baseline,
         #                             _aligment_style="Aligned2Trial", _target_modality="pupil", _sort_row=False)
-        heatmap_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="mice", plot_manual=plot_manual_saccade_baseline,
-                                    _aligment_style="Aligned2Trial", _target_modality="pupil", _sort_row=False)
+        # heatmap_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="mice", plot_manual=plot_manual_saccade_baseline,
+        #                             _aligment_style="Aligned2Trial", _target_modality="pupil", _sort_row=False)
         
         
         # half_stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="day", plot_manual=plot_manual,

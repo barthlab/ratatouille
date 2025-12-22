@@ -11,7 +11,7 @@ from kitchen.plotter.utils.fill_plot import oreo_plot, sushi_plot
 from kitchen.settings.fluorescence import DF_F0_SIGN, Z_SCORE_SIGN
 from kitchen.plotter.color_scheme import FLUORESCENCE_COLOR, LOCOMOTION_COLOR, LICK_COLOR, PUPIL_COLOR, WHISKER_COLOR
 from kitchen.plotter.plotting_params import LICK_BIN_SIZE, LOCOMOTION_BIN_SIZE, RAW_FLUORESCENCE_RATIO
-from kitchen.plotter.style_dicts import FILL_BETWEEN_STYLE, FLUORESCENCE_TRACE_STYLE, LICK_TRACE_STYLE, LOCOMOTION_TRACE_STYLE, PUPIL_CENTER_X_TRACE_STYLE, PUPIL_CENTER_Y_TRACE_STYLE, PUPIL_TRACE_STYLE, SUBTRACT_STYLE, WHISKER_TRACE_STYLE
+from kitchen.plotter.style_dicts import FILL_BETWEEN_STYLE, FLUORESCENCE_TRACE_STYLE, LICK_TRACE_STYLE, LOCOMOTION_TRACE_STYLE, PUPIL_CENTER_X_TRACE_STYLE, PUPIL_CENTER_Y_TRACE_STYLE, PUPIL_SACCADE_TRACE_STYLE, PUPIL_TRACE_STYLE, SUBTRACT_STYLE, WHISKER_TRACE_STYLE
 from kitchen.plotter.utils.tick_labels import TICK_PAIR, add_new_yticks
 from kitchen.structure.neural_data_structure import Events, Fluorescence, Pupil, TimeSeries
 
@@ -135,7 +135,7 @@ def unit_subtract_pupil_center(
         subtract_manual: SUBTRACT_MANUAL,
         ax: plt.Axes, y_offset: float, ratio: float = 1.0,
         yticks_flag: bool = True,
-        baseline_subtraction: Optional[tuple[float, float]] = None) -> float:
+        baseline_subtraction: Optional[tuple[float, float, bool]] = None) -> float:
     """plot pupil"""    
     if not sanity_check(pupil1) or not sanity_check(pupil2):
         return 0
@@ -144,44 +144,25 @@ def unit_subtract_pupil_center(
     if isinstance(pupil1, Pupil):
         # plot single pupil
         assert isinstance(pupil2, Pupil), "Sanity check failed"
-        plotting_pupil_center_x1 = pupil1.center_x_ts.copy()
-        plotting_pupil_center_x2 = pupil2.center_x_ts.copy()
-        if baseline_subtraction is not None:
-            plotting_pupil_center_x1.v -= np.mean(plotting_pupil_center_x1.segment(*baseline_subtraction).v)
-            plotting_pupil_center_x2.v -= np.mean(plotting_pupil_center_x2.segment(*baseline_subtraction).v)
-        ax.plot(plotting_pupil_center_x1.t, plotting_pupil_center_x1.v * ratio + y_offset, **PUPIL_CENTER_X_TRACE_STYLE | {"color": subtract_manual.color1})
-        ax.plot(plotting_pupil_center_x2.t, plotting_pupil_center_x2.v * ratio + y_offset, **PUPIL_CENTER_X_TRACE_STYLE | {"color": subtract_manual.color2})
-
-        plotting_pupil_center_y1 = pupil1.center_y_ts.copy()
-        plotting_pupil_center_y2 = pupil2.center_y_ts.copy()
-        if baseline_subtraction is not None:
-            plotting_pupil_center_y1.v -= np.mean(plotting_pupil_center_y1.segment(*baseline_subtraction).v)
-            plotting_pupil_center_y2.v -= np.mean(plotting_pupil_center_y2.segment(*baseline_subtraction).v)
-        ax.plot(plotting_pupil_center_y1.t, plotting_pupil_center_y1.v * ratio + y_offset, **PUPIL_CENTER_Y_TRACE_STYLE | {"color": subtract_manual.color1})
-        ax.plot(plotting_pupil_center_y2.t, plotting_pupil_center_y2.v * ratio + y_offset, **PUPIL_CENTER_Y_TRACE_STYLE | {"color": subtract_manual.color2})
-        y_height = max(np.nanmax(plotting_pupil_center_x1.v), np.nanmax(plotting_pupil_center_x2.v), 
-                       np.nanmax(plotting_pupil_center_y1.v), np.nanmax(plotting_pupil_center_y2.v)) * ratio
+        plotting_pupil_saccade1 = pupil1.saccade_velocity_ts.copy()
+        plotting_pupil_saccade2 = pupil2.saccade_velocity_ts.copy()
+        ax.plot(plotting_pupil_saccade1.t, plotting_pupil_saccade1.v * ratio + y_offset, **PUPIL_SACCADE_TRACE_STYLE | {"color": subtract_manual.color1})
+        ax.plot(plotting_pupil_saccade2.t, plotting_pupil_saccade2.v * ratio + y_offset, **PUPIL_SACCADE_TRACE_STYLE | {"color": subtract_manual.color2})
+        y_height = max(np.nanmax(plotting_pupil_saccade1.v), np.nanmax(plotting_pupil_saccade2.v),) * ratio
     else:
         # plot multiple pupils
         assert isinstance(pupil2, list), "Sanity check failed"
-        group_pupil_center_x1 = grouping_timeseries([single_pupil.center_x_ts for single_pupil in pupil1], 
+        group_pupil_saccade1 = grouping_timeseries([single_pupil.saccade_velocity_ts for single_pupil in pupil1], 
                                                     baseline_subtraction=baseline_subtraction)
-        group_pupil_center_x2 = grouping_timeseries([single_pupil.center_x_ts for single_pupil in pupil2], 
+        group_pupil_saccade2 = grouping_timeseries([single_pupil.saccade_velocity_ts for single_pupil in pupil2], 
                                                     baseline_subtraction=baseline_subtraction)
-        oreo_plot(ax, group_pupil_center_x1, y_offset, ratio, PUPIL_CENTER_X_TRACE_STYLE | {"color": subtract_manual.color1}, FILL_BETWEEN_STYLE)
-        oreo_plot(ax, group_pupil_center_x2, y_offset, ratio, PUPIL_CENTER_X_TRACE_STYLE | {"color": subtract_manual.color2}, FILL_BETWEEN_STYLE)
+        oreo_plot(ax, group_pupil_saccade1, y_offset, ratio, PUPIL_SACCADE_TRACE_STYLE | {"color": subtract_manual.color1}, FILL_BETWEEN_STYLE)
+        oreo_plot(ax, group_pupil_saccade2, y_offset, ratio, PUPIL_SACCADE_TRACE_STYLE | {"color": subtract_manual.color2}, FILL_BETWEEN_STYLE)
 
-        group_pupil_center_y1 = grouping_timeseries([single_pupil.center_y_ts for single_pupil in pupil1], 
-                                                    baseline_subtraction=baseline_subtraction)
-        group_pupil_center_y2 = grouping_timeseries([single_pupil.center_y_ts for single_pupil in pupil2], 
-                                                    baseline_subtraction=baseline_subtraction)
-        oreo_plot(ax, group_pupil_center_y1, y_offset, ratio, PUPIL_CENTER_Y_TRACE_STYLE | {"color": subtract_manual.color1}, FILL_BETWEEN_STYLE)
-        oreo_plot(ax, group_pupil_center_y2, y_offset, ratio, PUPIL_CENTER_Y_TRACE_STYLE | {"color": subtract_manual.color2}, FILL_BETWEEN_STYLE)
-        y_height = max(np.nanmax(group_pupil_center_x1.mean), np.nanmax(group_pupil_center_x2.mean), 
-                       np.nanmax(group_pupil_center_y1.mean), np.nanmax(group_pupil_center_y2.mean)) * ratio
+        y_height = max(np.nanmax(group_pupil_saccade1.mean), np.nanmax(group_pupil_saccade2.mean)) * ratio
     # add y ticks
     if yticks_flag:
-        yticks_combo("pupil_center", ax, y_offset, ratio)
+        yticks_combo("saccade", ax, y_offset, ratio)
     else:
         add_new_yticks(ax, TICK_PAIR(y_offset, "", color_scheme.PUPIL_CENTER_COLOR))
     return y_height

@@ -105,7 +105,7 @@ def default_style(
                 text = f"n = {len(datasets)}"
             else:
                 text = f"n = {', '.join(str(len(dataset)) for dataset in datasets)}"
-            ax.text(1, 1, text, transform=ax.transAxes, va='top', ha='right')
+            ax.text(0.99, 0.99, text, transform=ax.transAxes, va='top', ha='right')
 
     # Adjust figsize
     if auto_yscale:

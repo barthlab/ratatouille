@@ -61,6 +61,12 @@ PUPIL_CENTER_Y_TRACE_STYLE = {
     "alpha": 0.9,
 }
 
+PUPIL_SACCADE_TRACE_STYLE = {
+    "color": color_scheme.PUPIL_CENTER_COLOR,
+    "linewidth": 0.5,
+    "alpha": 0.9,
+}
+
 IS_BLINK_TRACE_STYLE = {
     "color": color_scheme.IS_BLINK_COLOR,
     "linewidth": 0.5,
@@ -238,6 +244,7 @@ HEATMAP_SEP_LINE_MINOR_STYLE = {
 LEGEND_STYLE = {
     "frameon": False,
     "loc": "lower right",
+    "fontsize": "small",
 }
 
 VSPAN_STYLE = {

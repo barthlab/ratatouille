@@ -1,8 +1,8 @@
 # Ratio
 POSITION_RATIO = 0.6
-LOCOMOTION_RATIO = 0.05
+LOCOMOTION_RATIO = 0.15
 LICK_RATIO = 0.1
-PUPIL_RATIO = 2.5
+PUPIL_RATIO = 4
 SACCADE_RATIO = 2
 WHISKER_RATIO = 1
 NOSE_RATIO = 1
@@ -13,7 +13,7 @@ FLUORESCENCE_RATIO = 1
 POTENTIAL_RATIO = 1
 WC_POTENTIAL_RATIO = 1/15
 
-TIMELINE_RATIO = 1
+TIMELINE_RATIO = 0.5
 
 RATIO_DICT = {
     "position": POSITION_RATIO,
@@ -58,6 +58,8 @@ PARALLEL_X_INCHES = 2.4 # inches
 PARALLEL_Y_INCHES = 4.  # inches
 ZOOMED_Y_INCHES = 8     # inches
 
+HEATMAP_X_INCHES = 2   # inches
+HEATMAP_Y_INCHES = 3   # inches
 
 # Heamap params
 HEATMAP_OFFSET_RANGE = (1., 10.)
@@ -75,6 +77,6 @@ PUPIL_VMIN_VMAX = {
     True: {"vmin": 0, "vmax": 0.5},
 }
 PUPIL_CENTER_VMIN_VMAX = {
-    False: {"vmin": -0.1, "vmax": +0.1},
-    True: {"vmin": 0, "vmax": 0.2},
+    False: {"vmin": -0.5, "vmax": +0.5},
+    True: {"vmin": 0, "vmax": 0.5},
 }

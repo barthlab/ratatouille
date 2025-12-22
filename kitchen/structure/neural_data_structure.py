@@ -10,7 +10,7 @@ from kitchen.settings.potential import COMPONENTS_BANDWIDTH, MAXIMAL_BANDWIDTH, 
 from kitchen.settings.timeline import SUPPORTED_TIMELINE_EVENT, TRIAL_ALIGN_EVENT_DEFAULT
 from kitchen.settings.fluorescence import DEFAULT_RECORDING_DURATION, DF_F0_RANGE, TRIAL_DF_F0_WINDOW
 from kitchen.settings.trials import BOUT_FILTER_PARAMETERS
-from kitchen.utils.numpy_kit import sliding_std, smart_interp, zscore
+from kitchen.utils.numpy_kit import sliding_std, smart_interp, smart_nan_removal, zscore
 from kitchen.utils.pass_filter import high_pass, low_pass
 
 logger = logging.getLogger(__name__)
@@ -577,6 +577,7 @@ class Pupil:
     area: np.ndarray
     center: Optional[np.ndarray] = None
     is_blink: Optional[np.ndarray] = None
+    saccade_velocity: Optional[np.ndarray] = None
 
     def __post_init__(self):
         assert self.t.ndim == 1, f"t should be 1-d array, got {self.t.shape}"
@@ -585,7 +586,11 @@ class Pupil:
             assert self.center.shape == (2, self.num_timepoint), f"center should have shape (2, {self.num_timepoint}), got {self.center.shape}"
         if self.is_blink is not None:
             assert self.is_blink.shape == self.t.shape, f"is_blink, t have different shape: {self.is_blink.shape} vs {self.t.shape}"
-    
+        if self.saccade_velocity is not None:
+            assert self.saccade_velocity.shape == (self.num_timepoint,), f"saccade_velocity should have shape ({self.num_timepoint},), got {self.saccade_velocity.shape}"
+        elif self.center is not None:
+            self.saccade_velocity = self.calculate_saccade_velocity()
+
     @cached_property
     def num_timepoint(self):
         return len(self.t)
@@ -613,6 +618,27 @@ class Pupil:
         assert self.is_blink is not None, "is_blink is not available"
         return TimeSeries(v=self.is_blink, t=self.t) 
 
+    @property
+    def saccade_velocity_ts(self) -> TimeSeries:
+        if self.saccade_velocity is None:
+            self.saccade_velocity = self.calculate_saccade_velocity()
+        return TimeSeries(v=self.saccade_velocity, t=self.t)
+    
+    def calculate_saccade_velocity(self) -> np.ndarray:
+        assert self.center is not None, "center is not available"
+        cleaned_center_x = smart_nan_removal(self.t, self.center[0])
+        cleaned_center_y = smart_nan_removal(self.t, self.center[1])
+        x_smooth = signal.savgol_filter(cleaned_center_x, window_length=9, polyorder=2)
+        y_smooth = signal.savgol_filter(cleaned_center_y, window_length=9, polyorder=2)
+        kernel = np.array([-1, -1, 0, 1, 1])
+        dx = np.convolve(x_smooth, kernel, mode='same') 
+        dy = np.convolve(y_smooth, kernel, mode='same')
+        dt = 1/self.area_ts.fs
+        dx_sec = dx / (6 * dt)
+        dy_sec = dy / (6 * dt)
+        velocity = np.sqrt(dx_sec**2 + dy_sec**2)
+        return velocity
+    
     def __repr__(self):
         """Return string representation."""
         return self.__str__()
@@ -637,7 +663,8 @@ class Pupil:
             t=self.t[start_idx:end_idx],
             area=self.area[start_idx:end_idx],
             center=self.center[:, start_idx:end_idx] if self.center is not None else None,
-            is_blink=self.is_blink[start_idx:end_idx] if self.is_blink is not None else None
+            is_blink=self.is_blink[start_idx:end_idx] if self.is_blink is not None else None,
+            saccade_velocity=self.saccade_velocity[start_idx:end_idx] if self.saccade_velocity is not None else None
         )
     
     def aligned_to(self, align_time: float) -> "Pupil":
@@ -646,7 +673,8 @@ class Pupil:
             t=self.t - align_time,
             area=self.area,
             center=self.center,
-            is_blink=self.is_blink
+            is_blink=self.is_blink,
+            saccade_velocity=self.saccade_velocity
         )
     
 
@@ -707,6 +735,10 @@ class NeuralData:
         if empty_flag:
             summary_str += "  EMPTY\n"
         return summary_str
+    
+    @property
+    def saccade(self) -> Optional[TimeSeries]:
+        return self.pupil.saccade_velocity_ts if self.pupil is not None else None
     
     def shadow_clone(self, **kwargs) -> "NeuralData":
         """Create a shadow clone with new data."""

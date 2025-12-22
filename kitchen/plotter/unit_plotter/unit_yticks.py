@@ -45,6 +45,12 @@ def _yticks_combo_pupil(command: str, ax: plt.Axes, y_offset: float, ratio: floa
 def _yticks_combo_pupil_center(command: str, ax: plt.Axes, y_offset: float, ratio: float = 1.0, **kwargs):
     add_new_yticks(ax, [TICK_PAIR(y_offset, "saccade", PUPIL_CENTER_COLOR),
                         TICK_PAIR(y_offset + 0.2*ratio, "20 px", PUPIL_CENTER_COLOR)])
+
+
+@yticks_combo.register("saccade")
+def _yticks_combo_saccade(command: str, ax: plt.Axes, y_offset: float, ratio: float = 1.0, **kwargs):
+    add_new_yticks(ax, [TICK_PAIR(y_offset, "saccade", PUPIL_CENTER_COLOR),
+                        TICK_PAIR(y_offset + 0.2*ratio, "20 px/s", PUPIL_CENTER_COLOR)])
                         
 
 @yticks_combo.register("delta_pupil")

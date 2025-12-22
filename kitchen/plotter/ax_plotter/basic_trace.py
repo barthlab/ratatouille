@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
+from kitchen.plotter import style_dicts
 from kitchen.plotter.color_scheme import num_to_color
 from kitchen.structure.hierarchical_data_structure import DataSet, Node
 
@@ -34,6 +35,7 @@ def trace_view(
         plotting_settings = {}
 
     if _yerr_bar:
+        # err_kw = {"errorbar": "se", "err_style": "bars", }
         err_kw = {"errorbar": "se", "err_style": "band", "err_kws": {"lw": 0,}}
     else:
         err_kw = {"errorbar": None,}
@@ -57,5 +59,5 @@ def trace_view(
                         **err_kw, **group_settings, )
 
     if _legend:
-        ax.legend(frameon=False, loc='upper left', ncol=2)
+        ax.legend(frameon=False, loc='best', ncol=2, fontsize="xx-small",)
     

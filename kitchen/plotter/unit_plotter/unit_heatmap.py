@@ -12,7 +12,7 @@ from kitchen.structure.neural_data_structure import Events, Pupil, TimeSeries
 def label_heatmap_y_ticklabels(ax: plt.Axes, row_num: int, extent_range: tuple[float, float]) -> None:
     """label the y axis of the heatmap"""
     row_height = (extent_range[1] - extent_range[0]) / row_num
-    ax.set_yticks([extent_range[0]+row_height/2, extent_range[1]-row_height/2], ["1", f"{row_num}"], rotation=0)
+    ax.set_yticks([extent_range[0], extent_range[1]], ["1", f"{row_num}"], rotation=0)
 
 
 def default_ax_realign(ax: plt.Axes) -> None:
@@ -132,14 +132,11 @@ def unit_heatmap_saccade(saccade: None | list[Pupil], ax: plt.Axes,
     assert saccade is not None, "Sanity check failed"   
     
     # plot multiple saccades
-    group_pupil_center = grouping_timeseries([single_pupil.center_x_ts.diff(_abs=True) for single_pupil in saccade] + 
-                                              [single_pupil.center_y_ts.diff(_abs=True) for single_pupil in saccade], 
+    group_saccade = grouping_timeseries([single_pupil.saccade_velocity_ts for single_pupil in saccade], 
                                               baseline_subtraction=baseline_subtraction)
-    group_center_x_array = group_pupil_center.raw_array[:len(saccade)]
-    group_center_y_array = group_pupil_center.raw_array[len(saccade):]
-    heatmap_array = np.sqrt(group_center_x_array**2 + group_center_y_array**2)
-    heatmap_extent = (group_pupil_center.t[0], group_pupil_center.t[-1], HEATMAP_OFFSET_RANGE[1], HEATMAP_OFFSET_RANGE[0])
-    heatmap_array = sort_heatmap_array(calculate_group_tuple([arr for arr in heatmap_array], group_pupil_center.t), 
+    heatmap_array = group_saccade.raw_array
+    heatmap_extent = (group_saccade.t[0], group_saccade.t[-1], HEATMAP_OFFSET_RANGE[1], HEATMAP_OFFSET_RANGE[0])
+    heatmap_array = sort_heatmap_array(calculate_group_tuple([arr for arr in heatmap_array], group_saccade.t), 
                                         sorting_level_refs, amplitude_sorting)
     
     ax.imshow(heatmap_array, extent=heatmap_extent, 

@@ -5,6 +5,7 @@ import os.path as path
 from tqdm import tqdm
 import logging
 
+from kitchen.annotator.trial_type_history_annotator import trial_type_history_annotator
 from kitchen.loader.fluorescence_loader import fluorescence_loader_from_node
 from kitchen.annotator.trial_type_annotator import trial_type_annotator
 from kitchen.settings.trials import DEFAULT_TRIAL_RANGE_RELATIVE_TO_ALIGNMENT
@@ -152,16 +153,19 @@ def _SplitSession2CellSession(session_node: Session, **kwargs: Any) -> List[Cell
 @overload
 def _trial_splitter(session_level_node: Session, split_by: str | list[str], 
                     trial_range: Optional[tuple[float, float]] = None,
-                    trial_type_annotator_name: Optional[str] = None) -> List[FovTrial]: ...
+                    trial_type_annotator_name: Optional[str] = None,
+                    trial_type_history_annotator_name: Optional[str] = None) -> List[FovTrial]: ...
 
 @overload
 def _trial_splitter(session_level_node: CellSession, split_by: str | list[str],
                     trial_range: Optional[tuple[float, float]] = None,
-                    trial_type_annotator_name: Optional[str] = None) -> List[Trial]: ...
+                    trial_type_annotator_name: Optional[str] = None,
+                    trial_type_history_annotator_name: Optional[str] = None) -> List[Trial]: ...
 
 def _trial_splitter(session_level_node: CellSession | Session, split_by: str | list[str],
                     trial_range: Optional[tuple[float, float]] = None,
-                    trial_type_annotator_name: Optional[str] = None) -> List[Trial] | List[FovTrial]:
+                    trial_type_annotator_name: Optional[str] = None,
+                    trial_type_history_annotator_name: Optional[str] = None) -> List[Trial] | List[FovTrial]:
     assert session_level_node.data.timeline is not None, f"Cannot find timeline in {session_level_node}"
     target_node_type = Trial if isinstance(session_level_node, CellSession) else FovTrial
 
@@ -187,6 +191,7 @@ def _trial_splitter(session_level_node: CellSession | Session, split_by: str | l
         trial_type_annotator(new_trial_node, trial_align=trial_t, trial_type_annotator_name=trial_type_annotator_name)
         
         trial_nodes.append(new_trial_node)
+    trial_type_history_annotator(trial_nodes, trial_type_history_annotator_name=trial_type_history_annotator_name)
     return trial_nodes
 
 def _SplitCellSession2Trial(cell_session_node: CellSession, **kwargs: Any) -> List[Trial]: 
@@ -261,7 +266,8 @@ def cohort_loader(template_id: str, cohort_id: str, recipe: dict, name: Optional
         assert isinstance(cell_session_node, CellSession)
         loaded_data.add_node(_SplitCellSession2Trial(cell_session_node, split_by=recipe['trial split'],
                                                     trial_range=recipe.get("trial range"),
-                                                    trial_type_annotator_name=recipe.get("trial type annotator")))
+                                                    trial_type_annotator_name=recipe.get("trial type annotator"),
+                                                    trial_type_history_annotator_name=recipe.get("trial type history annotator")))
         
     # Session to FovTrial
     for session_node in tqdm(loaded_data.select("session"), 
@@ -269,7 +275,8 @@ def cohort_loader(template_id: str, cohort_id: str, recipe: dict, name: Optional
         assert isinstance(session_node, Session)
         loaded_data.add_node(_SplitSession2FovTrial(session_node, split_by=recipe['trial split'],
                                                     trial_range=recipe.get("trial range"),
-                                                    trial_type_annotator_name=recipe.get("trial type annotator")))
+                                                    trial_type_annotator_name=recipe.get("trial type annotator"),
+                                                    trial_type_history_annotator_name=recipe.get("trial type history annotator")))
 
     return loaded_data
 

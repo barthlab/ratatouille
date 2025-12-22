@@ -7,7 +7,7 @@ from kitchen.plotter.plotting_manual import PlotManual
 from kitchen.plotter.plotting_params import FLUORESCENCE_RATIO, SACCADE_RATIO, TIMELINE_RATIO, LICK_RATIO, LOCOMOTION_RATIO, PUPIL_RATIO, WHISKER_RATIO
 from kitchen.plotter.unit_plotter.unit_trace import unit_plot_timeline
 from kitchen.plotter.unit_plotter.unit_trace_advance import SUBTRACT_MANUAL, unit_subtract_lick, unit_subtract_locomotion, unit_subtract_pupil, unit_subtract_pupil_center, unit_subtract_single_cell_fluorescence, unit_subtract_whisker
-from kitchen.plotter.utils.tick_labels import add_line_legend
+from kitchen.plotter.utils.tick_labels import add_line_legend, add_textonly_legend
 from kitchen.structure.hierarchical_data_structure import DataSet
 from kitchen.utils.sequence_kit import select_truthy_items
 
@@ -95,5 +95,6 @@ def subtract_view(
         
     # 7. add legend
     if subtract_manual.name1 is not None and subtract_manual.name2 is not None:
-        add_line_legend(ax, {subtract_manual.name1: {"color": subtract_manual.color1, "lw": 0.5}, 
-                             subtract_manual.name2: {"color": subtract_manual.color2, "lw": 0.5}})
+        add_textonly_legend(ax, {subtract_manual.name1: {"color": subtract_manual.color1}, 
+                                subtract_manual.name2: {"color": subtract_manual.color2}})
+

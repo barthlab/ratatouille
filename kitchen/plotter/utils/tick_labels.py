@@ -39,6 +39,18 @@ def add_line_legend(ax: plt.Axes, lines: Dict[str, dict], **kwargs):
     ax.legend(handles=legend_handles, **(LEGEND_STYLE | kwargs))
 
 
+def add_textonly_legend(ax: plt.Axes, texts: Dict[str, dict], **kwargs):
+    labels = list(texts.keys())
+    handles = [Line2D([0], [0], visible=False) for _ in labels]
+
+    leg = ax.legend(handles=handles, labels=labels, 
+        handlelength=0, handletextpad=0, **(LEGEND_STYLE | kwargs))
+
+    for text_obj, label_text in zip(leg.get_texts(), labels):
+        properties = texts[label_text]
+        text_obj.update(properties)
+
+
 def emphasize_yticks(ax: plt.Axes,):
     ax.tick_params(axis='y', which='major', length=10, width=1.5)
     ax.tick_params(axis='y', which='minor', length=5, width=1,)
