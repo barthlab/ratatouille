@@ -147,6 +147,12 @@ class HierarchicalUID:
         """Create new UID at higher hierarchy level by removing the most specific field."""
         return self.transit(self._HIERARCHY_FIELDS[self.level_index - 1])
     
+    def shadow_clone(self, **kwargs) -> Self:
+        """Create a shadow clone with new data."""
+        new_uid_dict = {name + "_id": self.get_hier_value(name) for name in self._HIERARCHY_FIELDS}
+        new_uid_dict.update(kwargs)
+        return self.__class__(**new_uid_dict)
+    
 
 @dataclass(frozen=True)
 class ObjectUID(HierarchicalUID):
@@ -254,3 +260,9 @@ class TemporalObjectCoordinate:
     def edge(self) -> Tuple[Any, Any]:
         """Get value for the most specific field."""
         return self.object_uid.edge, self.temporal_uid.edge
+
+    def shadow_clone(self, **kwargs) -> "TemporalObjectCoordinate":
+        """Create a shadow clone with new data."""
+        return TemporalObjectCoordinate(
+            object_uid=self.object_uid.shadow_clone(**kwargs),
+            temporal_uid=self.temporal_uid.shadow_clone(**kwargs))

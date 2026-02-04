@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, ClassVar, Generator, List, Optional, Dict, Self, Sequence, Type, TypeVar, Union
 import logging
 import pandas as pd
+import json
 
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate
 from kitchen.structure.neural_data_structure import NeuralData
@@ -102,7 +103,7 @@ class Node:
 
     def __hash__(self) -> int:
         """Return hash based on coordinate."""
-        return hash(self.coordinate)
+        return hash((self.coordinate, self.hash_key, json.dumps(self.info, sort_keys=True, default=str)))
 
     def __str__(self) -> str:
         """Return readable string representation."""
@@ -115,6 +116,10 @@ class Node:
     def aligned_to(self, align_time: float) -> Self:
         """Align all data to a specific time point."""
         return self.__class__(coordinate=self.coordinate, data=self.data.aligned_to(align_time), info=self.info.copy())
+    
+    def shadow_clone(self) -> Self:
+        """Create a shadow clone with new data."""
+        return self.__class__(coordinate=self.coordinate.shadow_clone(), data=self.data.shadow_clone(), info=self.info.copy())
     
         
 
@@ -328,6 +333,12 @@ class DataSet:
         """Return root coordinate of the dataset."""
         assert isinstance(self._root_coordinate, TemporalObjectCoordinate), f"Dataset is empty, with root: {self._root_coordinate}"
         return self._root_coordinate
+    
+    def shadow_clone(self, specified_name: Optional[str] = None) -> "DataSet":
+        """Create a shadow clone with new data."""
+        if specified_name is None:
+            specified_name = self.name + "_shadow_clone"
+        return DataSet(name=specified_name, nodes=[node.shadow_clone() for node in self.nodes])
 
 
 

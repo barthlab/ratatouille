@@ -19,5 +19,7 @@ def apply_plot_settings(ax: plt.Axes, settings_dict: dict):
                 getattr(ax, key)(**value)
             else:
                 getattr(ax, key)(value)
+        elif key == "_self" and callable(value):
+            value(ax)
         else:
             raise AttributeError(f"Invalid attribute or method for Axes: {key}. Cannot apply setting.")
