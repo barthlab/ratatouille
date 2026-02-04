@@ -27,3 +27,12 @@ def write_boolean_dataframe(df: pd.DataFrame, sheet_name: str, save_path: str, c
         worksheet.set_column('F:Z', 10)
 
     logger.info(f"Dataframe saved to {save_path}")
+
+
+def write_normal_dataframe(df: pd.DataFrame, sheet_name: str, save_path: str):
+    with pd.ExcelWriter(save_path, engine='xlsxwriter') as writer:
+        df.to_excel(writer, sheet_name=sheet_name, index=False)
+        worksheet = writer.sheets[sheet_name]
+        worksheet.set_column('A:Z', 20)
+        worksheet.set_row(0, 20)
+    logger.info(f"Dataframe saved to {save_path}")
