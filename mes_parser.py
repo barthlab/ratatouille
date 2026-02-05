@@ -24,7 +24,7 @@ def write_normal_dataframe(df: pd.DataFrame, sheet_name: str, save_path: str):
 
 
 
-def save_multipage_tiff(arr: np.ndarray, path: str, compression="zlib"):
+def save_multipage_tiff(arr: np.ndarray, path: str, compression=None):
     if arr.dtype != np.uint16:
         raise TypeError(f"Expected uint16, got {arr.dtype}")
     if arr.ndim != 3:
@@ -135,4 +135,4 @@ def parse_all_mes_under_dir(dir_path: str):
 
 
 if __name__ == "__main__":
-    parse_all_mes_under_dir(r"Enter\your\path\here")
+    parse_all_mes_under_dir(r"Enter/your/data/path/here")
