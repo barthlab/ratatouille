@@ -1,0 +1,14 @@
+{
+    "name": "default two-photon .MES parsed",
+    "description": "Default template for two photon experiments with mes parsed data",
+    "data_type": "two_photon",
+    "loaders": {
+        "timeline": "default",
+        "fluorescence": "mes_parsed",
+        "behavior": "default"
+    },
+    "trial split": "timeline",
+    "trial range": [-5, 5],
+    "trial type annotator": "default",
+    "trial type history annotator": "default"
+}

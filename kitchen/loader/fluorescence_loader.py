@@ -1,5 +1,5 @@
 import os.path as path
-from typing import Dict, Generator, Optional
+from typing import Any, Dict, Generator, Optional, Tuple
 import numpy as np
 import pandas as pd
 from scipy.io import loadmat
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 def fluorescence_loader_from_node(
         node: Node, timeline_dict: Dict[TemporalObjectCoordinate, Timeline], fluorescence_loader_name: Optional[str] = None) \
-            -> Generator[Optional[Fluorescence], None, None]:
+            -> Generator[Optional[Fluorescence], None, None] | Generator[Tuple[Optional[Fluorescence], Dict[str, Any]], None, None]:
 
     def load_fall_mat(data_dir: str, session_duration: float,
                       n_session: Optional[int] = None, num_frames_per_session: Optional[int] = None,
@@ -56,7 +56,7 @@ def fluorescence_loader_from_node(
             assert num_total_frames % n_session == 0, f"Cannot split {num_total_frames} frames into {n_session} sessions"
             num_frames_per_session = int(num_total_frames // n_session)
 
-        logger.debug(f"Found {num_cells} cells in {mat_path}. \nSplitting {num_total_frames} frames into {n_session} sessions with {num_frames_per_session} frames per session")
+        logger.info(f"Found {num_cells} cells in {mat_path}. \nSplitting {num_total_frames} frames into {n_session} sessions with {num_frames_per_session} frames per session")
 
         raw_f = np.reshape(raw_f, (num_cells, num_frames_per_session, n_session), order='F')
         fov_motion = np.reshape(fov_motion, (2, num_frames_per_session, n_session), order='F')
@@ -188,7 +188,69 @@ def fluorescence_loader_from_node(
                 yield fluorescence
         else:
             raise ValueError(f"Cannot match fluorescence and timeline in {dir_path}")
+    
+    def io_mes_parsed(dir_path: str) -> Generator[Tuple[Optional[Fluorescence], Dict[str, Any]], None, None]:
+        def squash_info_col(vs: list):
+            vs = [x for x in vs if pd.notna(x)]
+            if len(vs) == 0:
+                return None
+            def num(x):
+                x = float(x)
+                return int(x) if x.is_integer() else x
+            vs = [num(x) for x in vs]
+            return vs[0] if len(vs) == 1 else np.array(vs)
+        
+        if DATA_HODGEPODGE_MODE:
+            info_filepaths = routing.search_pattern_file(pattern="INFO_*.xlsx", search_dir=dir_path)
+        else:
+            info_filepaths = routing.search_pattern_file(pattern="INFO_*.xlsx", search_dir=path.join(dir_path, "info"))
+        
+        if len(info_filepaths) == 0:
+            return
+        assert len(info_filepaths) > 0, f"Cannot find info path: {dir_path}"
+        info_filepaths = sorted(info_filepaths)
+        n_session = len(timeline_dict)
+        assert len(info_filepaths) == n_session, (f"Cannot match info and timeline in {dir_path}, got {len(info_filepaths)} info sessions but {n_session} timeline sessions" 
+                                                  f"\n got {info_filepaths} \n vs {timeline_dict.keys()}")
+        for filepath, (session_coordinate, timeline), fluorescence in zip(
+            info_filepaths, 
+            sorted(timeline_dict.items()), 
+            load_fall_mat(dir_path, DEFAULT_RECORDING_DURATION, n_session)
+        ): 
+            dirname, filename = path.split(filepath)
+            assert filename.startswith("INFO_") and filename.endswith(".xlsx"), f"Expected info file to start with 'INFO_' and end with '.xlsx', but got {filename}"
+            
+            """Extract info data."""
+            info_data = pd.ExcelFile(path.join(dirname, filename))
+            assert len(info_data.sheet_names) == 1, f"Expected 1 sheet in {filename}, got {info_data.sheet_names}"
+            info_sheet_data = info_data.parse(info_data.sheet_names[0], header=0)
+            raw_extracted = info_sheet_data.apply(lambda s: pd.to_numeric(s)).to_dict("list")
+            extracted_info: Dict[Any, Any] = {k: squash_info_col(v) for k, v in raw_extracted.items()}
+                
+            # sanity check
+            assert extracted_info["Frame #"] == fluorescence.num_timepoint, \
+                f"Cannot match frame # and fluorescence length in {filename} and {session_coordinate}, got {extracted_info['Frame #']} vs {fluorescence.num_timepoint}"    
+
+            # alignment happens here
+            ttl_aligns = timeline.advanced_filter(TTL_EVENT_DEFAULT)
+            ttl_t = extracted_info["Event t (ms)"][extracted_info["Event Tag"] == 2]/1000  # type: ignore
+            assert len(ttl_t) == len(ttl_aligns.t), f"Cannot match ttl and timeline in {filename} and {session_coordinate}"
       
+            """match ttl and timeline"""
+            if FAST_MATCHING_MODE:
+                ttl_to_timeline_offset = ttl_t[0] - ttl_aligns.t[0]
+            else:
+                ttl_to_timeline_offsets = ttl_t - ttl_aligns.t
+                assert np.allclose(ttl_to_timeline_offsets, ttl_to_timeline_offsets[0]), \
+                    f"Cannot match ttl and timeline in {filename} and {session_coordinate}"
+                ttl_to_timeline_offset = ttl_to_timeline_offsets[0]
+            
+            """align fluorescence to timeline"""
+            frame_t = np.linspace(extracted_info["First Frame t (ms)"]/1000, extracted_info["Last Frame t (ms)"]/1000, extracted_info["Frame #"])
+            fluorescence.raw_f.t = frame_t - ttl_to_timeline_offset
+            fluorescence.fov_motion.t = frame_t - ttl_to_timeline_offset
+            yield fluorescence, extracted_info  
+                
 
     """Load fluorescence from node."""
     fluorescence_loader_options = {
@@ -196,6 +258,7 @@ def fluorescence_loader_from_node(
         "lost_ttl": io_lost_ttl,
         "split_fall": io_split_fall,
         "classic": io_classic,
+        "mes_parsed": io_mes_parsed,
     }
     default_data_path = routing.default_data_path(node)
     

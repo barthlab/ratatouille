@@ -1,6 +1,6 @@
 CROP_BEGGINNG = 0.3  # s - crop the first 300ms of the recording (See MES software manual)
 DEFAULT_RECORDING_DURATION = 600  # s - the default recording duration for each session
-FAST_MATCHING_MODE = True  # only match the first event
+FAST_MATCHING_MODE = False  # only match the first event
 
 NULL_TTL_OFFSET = 0.5  # s - if no ttl is found, align the fluorescence to the timeline by this offset
 

@@ -39,7 +39,7 @@ def find_only_one(datalist: Iterable[T], **criteria: Any) -> T:
     """Find exactly one item matching criteria, or raise an error."""
     matches = [item for item in datalist if _matches_criteria(item, **criteria)]
     if len(matches) != 1:
-        raise ValueError(f"Expected 1 match, but found {len(matches)}")
+        raise ValueError(f"Expected 1 match, but found {len(matches)}: {matches}")
     return matches[0]
 
 def filter_by(datalist: Iterable[T], **criteria: Any) -> list[T]:

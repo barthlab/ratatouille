@@ -13,7 +13,7 @@ from kitchen.loader.timeline_loader import timeline_loader_from_fov
 from kitchen.loader.behavior_loader import behavior_loader_from_node
 from kitchen.structure.hierarchical_data_structure import DataSet, Cohort, FovTrial, MergeFovDay2Day, MergeSession2FovDay, Mice, Fov, Session, CellSession, Trial
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate, TemporalUID, ObjectUID
-from kitchen.structure.neural_data_structure import NeuralData
+from kitchen.structure.neural_data_structure import Fluorescence, NeuralData
 import kitchen.configs.routing as routing
 
 logger = logging.getLogger(__name__)
@@ -105,12 +105,25 @@ def _SplitFov2Session(fov_node: Fov, loaders: Dict[str, str], **kwargs: Any) -> 
 
     """Load fluorescence and behavior from fov node."""
     session_nodes = []
-    for fluorescence, behavior_dict, (session_coordinate, timeline) in zip_longest(
+    for fluorescence_tuple, behavior_dict, (session_coordinate, timeline) in zip_longest(
         fluorescence_loader_from_node(fov_node, timeline_dict, loaders.get('fluorescence', None)),
         behavior_loader_from_node(fov_node, timeline_dict, loaders.get('behavior', None)),
         timeline_dict.items()
     ):  
+        # unpack fluorescence and info dict
+        if fluorescence_tuple is None:
+            fluorescence, info_dict = None, {}
+        elif loaders.get('fluorescence') == 'mes_parsed':
+            assert isinstance(fluorescence_tuple, tuple), f"Expected tuple for mes_parsed fluorescence, got {type(fluorescence_tuple)}"
+            fluorescence, info_dict = fluorescence_tuple
+        else:
+            assert isinstance(fluorescence_tuple, Fluorescence), f"Expected Fluorescence for loader {loaders.get('fluorescence')} fluorescence, got {type(fluorescence_tuple)}"
+            fluorescence, info_dict = fluorescence_tuple, {}
+        
+        # unpack behavior dict
         behavior_dict = behavior_dict or {}
+        
+        # create session node
         session_nodes.append(
             Session(
                 coordinate=session_coordinate,
@@ -118,7 +131,9 @@ def _SplitFov2Session(fov_node: Fov, loaders: Dict[str, str], **kwargs: Any) -> 
                     fluorescence=fluorescence,
                     timeline=timeline,
                     **behavior_dict,
-                ))
+                ),
+                info=info_dict,
+            )
         )
     return session_nodes
 
