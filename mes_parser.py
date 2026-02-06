@@ -43,6 +43,7 @@ def save_multipage_tiff(arr: np.ndarray, path: str, compression=None):
 
 def parse_mes(p: Path):
     print(f"Parsing {p}...")
+    dir_name, file_name = os.path.split(p)
     variable_list = whosmat(p)
     shapes = {var_name: var_shape for var_name, var_shape, var_type in variable_list}
     for var_name, var_shape, var_type in variable_list:
@@ -59,6 +60,7 @@ def parse_mes(p: Path):
             # recording index
             recording_idx = int(var_name[2:])
             print(f"Found recording {recording_idx} with shape {shapes[image_var_name]}, start parsing...")
+            recording_file_name = file_name.replace(".mes", f"_Recording{recording_idx:03d}")
             Df = loadmat(p, variable_names=[var_name], squeeze_me=True, 
                             struct_as_record=False)[var_name][0]
             # events time
@@ -93,7 +95,8 @@ def parse_mes(p: Path):
             reshaped_image_data = image_data[:, start_offset:end_offset].reshape(width_num, transverse_pixel_num, n_frame, order='F').transpose(1, 0, 2)
             
             # save image data
-            save_multipage_tiff(reshaped_image_data, str(p).replace(".mes", f"_Recording_{recording_idx:03d}.tif"))
+            save_path = os.path.join(dir_name, "TIFF_" + recording_file_name + ".tif")
+            save_multipage_tiff(reshaped_image_data, save_path)
 
             # save recording info
             half_frame_pixel_num = int(transverse_pixel_num // 2)
@@ -124,15 +127,18 @@ def parse_mes(p: Path):
             }
             for k, v in recording_info.items():
                 recording_info[k] = pd.Series(v)
-            write_normal_dataframe(pd.DataFrame(recording_info), f"Recording{recording_idx:03d}", 
-                                str(p).replace(".mes", f"_Recording{recording_idx:03d}.xlsx"))
+            save_path = os.path.join(dir_name, "INFO_" + recording_file_name + ".xlsx")
+            write_normal_dataframe(pd.DataFrame(recording_info), f"Recording{recording_idx:03d}", save_path)
 
 
 
 def parse_all_mes_under_dir(dir_path: str):
+    all_mes_files = search_pattern_file("*.mes", dir_path)
+    print(f"Found {len(all_mes_files)} .mes files under {dir_path}, start parsing...")
     for p in Path(dir_path).rglob("*.mes"):
         parse_mes(p)
-
+    print("Parsing complete!")
+    
 
 if __name__ == "__main__":
-    parse_all_mes_under_dir(r"Enter/your/data/path/here")
+    parse_all_mes_under_dir(r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\PassivePuff_HighFreqImaging\HighFreqImaging_202602")
