@@ -21,6 +21,7 @@ PlotManual = namedtuple(
         "whisker", 
 
         "fluorescence",
+        "deconv_fluorescence",
 
         "potential",
         "potential_conv",
@@ -29,7 +30,7 @@ PlotManual = namedtuple(
         "amplitude_sorting",
 
     ], 
-    defaults=[True, False, False, False, False, False, False, False, False, False, False, False,
+    defaults=[True, False, False, False, False, False, False, False, False, False, False, False, False,
               
               None, None]
 )

@@ -19,12 +19,12 @@ logging.getLogger('matplotlib').setLevel(logging.WARNING)
 logging.getLogger('numba').setLevel(logging.WARNING) 
 
 def preprocessing():
-    hft_data_path = r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\HeadFixedTraining\Test_HeadFixedTraining_FromMattVideo"
-    format_converter.video_convert(hft_data_path, src_format=".avi")
-    # dataset = load_dataset(template_id="HeadFixedTraining", cohort_id="HeadFixedTraining_SurpriseSignal", 
-    #                        recipe="default_behavior_only", name="sensory_prediction")
-    # dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
-    # custom_extraction.default_collection(dataset)
+    hfi_data_path = r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\PassivePuff_HighFreqImaging\HighFreqImaging_202602"
+    format_converter.video_convert(hfi_data_path, src_format=".h264")
+    dataset = load_dataset(template_id="PassivePuff_HighFreqImaging", cohort_id="HighFreqImaging_202602", 
+                           recipe="default_two_photon_mes_parser", name="HFI_SST")
+    dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
+    custom_extraction.default_collection(dataset)
     # meye_pupil_extraction.default_collection(dataset)
 
 def label_videos():
@@ -33,15 +33,15 @@ def label_videos():
     video_marker.marker_video_use_timeline(hft_data_path)
 
 def main():
-    dataset = load_dataset(template_id="HeadFixedTraining", cohort_id="SensoryPrediction_202510", 
-                           recipe="default_behavior_only", name="sensory_prediction")
+    dataset = load_dataset(template_id="PassivePuff_HighFreqImaging", cohort_id="HighFreqImaging_202602", 
+                           recipe="default_two_photon_mes_parser", name="HFI_SST")
     dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
 
 
 
 if __name__ == "__main__":
-    preprocessing()
+    # preprocessing()
     # label_videos()
-    # main()
+    main()
 
 

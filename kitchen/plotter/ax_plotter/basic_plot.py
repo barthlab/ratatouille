@@ -1,5 +1,5 @@
 
-from typing import Generator, Optional, Tuple
+from typing import Any, Generator, Iterable, Optional, Tuple
 import matplotlib.pyplot as plt
 import logging
 
@@ -9,8 +9,8 @@ from kitchen.operator.sync_nodes import left_align_nodes, sync_nodes
 from kitchen.plotter import style_dicts
 from kitchen.plotter.plotting_manual import PlotManual
 from kitchen.plotter.plotting_params import FLUORESCENCE_RATIO, HEATMAP_OFFSET_RANGE, LICK_RATIO, LOCOMOTION_RATIO, NOSE_RATIO, POSITION_RATIO, POTENTIAL_RATIO, PUPIL_RATIO, SACCADE_RATIO, TIMELINE_RATIO, WHISKER_RATIO
-from kitchen.plotter.unit_plotter.unit_heatmap import unit_heatmap_locomotion, unit_heatmap_pupil, unit_heatmap_saccade, unit_heatmap_whisker
-from kitchen.plotter.unit_plotter.unit_trace import unit_plot_lick, unit_plot_locomotion, unit_plot_nose, unit_plot_position, unit_plot_potential_conv, unit_plot_pupil, unit_plot_pupil_center, unit_plot_single_cell_fluorescence, unit_plot_timeline, unit_plot_whisker, unit_plot_potential
+from kitchen.plotter.unit_plotter.unit_heatmap import unit_heatmap_deconv_fluorescence, unit_heatmap_fluorescence, unit_heatmap_locomotion, unit_heatmap_pupil, unit_heatmap_saccade, unit_heatmap_whisker
+from kitchen.plotter.unit_plotter.unit_trace import unit_plot_lick, unit_plot_locomotion, unit_plot_nose, unit_plot_position, unit_plot_potential_conv, unit_plot_pupil, unit_plot_pupil_center, unit_plot_single_cell_deconv_fluorescence, unit_plot_single_cell_fluorescence, unit_plot_timeline, unit_plot_whisker, unit_plot_potential
 from kitchen.plotter.utils.tick_labels import add_labeless_yticks, emphasize_yticks
 from kitchen.settings.potential import WC_CONVERT_FLAG
 from kitchen.structure.hierarchical_data_structure import DataSet
@@ -122,6 +122,15 @@ def stack_view(
             y_offset = yield unit_plot_single_cell_fluorescence(
                 fluorescence=[fluorescence.extract_cell(cell_id) for fluorescence in valid_fluorescence], 
                 ax=ax, y_offset=y_offset, ratio=FLUORESCENCE_RATIO, cell_id_flag=cell_id_flag)
+            
+    elif plot_manual.deconv_fluorescence:
+        valid_fluorescence = select_truthy_items([node.data.fluorescence for node in dataset_synced])    
+        cell_id_flag = valid_fluorescence[0].num_cell > 1
+        for cell_id in range(valid_fluorescence[0].num_cell):
+            y_offset = yield unit_plot_single_cell_deconv_fluorescence(
+                fluorescence=[fluorescence.extract_cell(cell_id) for fluorescence in valid_fluorescence], 
+                ax=ax, y_offset=y_offset, ratio=FLUORESCENCE_RATIO, cell_id_flag=cell_id_flag)
+
     elif plot_manual.potential:    
         valid_potential = select_truthy_items([node.data.potential for node in dataset_synced])    
         y_offset = yield unit_plot_potential(
@@ -169,7 +178,7 @@ def heatmap_view(
 
         plot_manual: PlotManual = PlotManual(),
         modality_name: str = "whisker",
-        _sort_rows: bool = False,
+        specified_order: Optional[Iterable] = None
 ) -> Generator[float, float, None]:
     """Stack view of all nodes in the dataset"""
     try:
@@ -177,8 +186,24 @@ def heatmap_view(
     except Exception as e:
         raise ValueError(f"Cannot sync nodes: {e}")
     
-    sorting_level_refs = [node.coordinate.temporal_uid.get_hier_value(plot_manual.amplitude_sorting[2]) for node in dataset_synced] if _sort_rows else None
-    amplitude_sorting = plot_manual.amplitude_sorting[:2] if _sort_rows else None
+    # sorting profiles
+    sorting_profiles: dict[str, Any] = {}
+    if specified_order is not None:
+        sorting_profiles = {
+            "sorting_key": "none",
+            "specified_order": specified_order,
+        }
+    elif plot_manual.amplitude_sorting is not None:
+        sorting_profiles = {
+            "sorting_key": "amplitude",
+            "amplitude_range": plot_manual.amplitude_sorting[:2],
+            "_additional_level_refs": dataset_synced.get_temporal_hiers(plot_manual.amplitude_sorting[2]) if plot_manual.amplitude_sorting[2] is not None else None,
+        }
+    else:
+        sorting_profiles = {
+            "sorting_key": "none",
+        }
+
     """main logic"""
     y_offset = 0
     
@@ -189,40 +214,30 @@ def heatmap_view(
             ax=ax, y_offset=y_offset, ratio=TIMELINE_RATIO)    
 
     # # 2. plot fluorescence / potential
-    # if plot_manual.fluorescence:    
-    #     valid_fluorescence = select_truthy_items([node.data.fluorescence for node in dataset_synced])    
-    #     cell_id_flag = valid_fluorescence[0].num_cell > 1
-    #     for cell_id in range(valid_fluorescence[0].num_cell):
-    #         y_offset = yield unit_plot_single_cell_fluorescence(
-    #             fluorescence=[fluorescence.extract_cell(cell_id) for fluorescence in valid_fluorescence], 
-    #             ax=ax, y_offset=y_offset, ratio=FLUORESCENCE_RATIO, cell_id_flag=cell_id_flag)
-    # elif plot_manual.potential:    
-    #     valid_potential = select_truthy_items([node.data.potential for node in dataset_synced])    
-    #     y_offset = yield unit_plot_potential(
-    #         potential=valid_potential, ax=ax, y_offset=y_offset, ratio=POTENTIAL_RATIO, 
-    #         aspect=plot_manual.potential, wc_flag=WC_CONVERT_FLAG(dataset_synced.nodes[0]))
-
-    # # 3. plot behavior  
-    # if plot_manual.lick:    
-    #     y_offset = yield unit_plot_lick(
-    #         lick=select_truthy_items([node.data.lick for node in dataset_synced]), 
-    #         ax=ax, y_offset=y_offset, ratio=LICK_RATIO)
+    if modality_name == "fluorescence":    
+        y_offset = yield unit_heatmap_fluorescence(
+            fluorescence=select_truthy_items([node.data.fluorescence for node in dataset_synced]), 
+            ax=ax, baseline_subtraction=plot_manual.baseline_subtraction,
+            **sorting_profiles)
+    elif modality_name == "deconv_fluorescence":    
+        y_offset = yield unit_heatmap_deconv_fluorescence(
+            fluorescence=select_truthy_items([node.data.fluorescence for node in dataset_synced]), 
+            ax=ax, baseline_subtraction=plot_manual.baseline_subtraction,
+            **sorting_profiles)
         
     # 4. plot locomotion
     if modality_name == "locomotion":    
         y_offset = yield unit_heatmap_locomotion(
             locomotion=select_truthy_items([node.data.locomotion for node in dataset_synced]), 
             ax=ax, baseline_subtraction=plot_manual.baseline_subtraction,
-            sorting_level_refs=sorting_level_refs,
-            amplitude_sorting=amplitude_sorting)
+            **sorting_profiles)
 
     # 5. plot whisker
     if modality_name == "whisker":    
         y_offset = yield unit_heatmap_whisker(
             whisker=select_truthy_items([node.data.whisker for node in dataset_synced]), 
             ax=ax, baseline_subtraction=plot_manual.baseline_subtraction,
-            sorting_level_refs=sorting_level_refs,
-            amplitude_sorting=amplitude_sorting)
+            **sorting_profiles)
     
     # if plot_manual.nose:    
     #     y_offset = yield unit_plot_nose(
@@ -234,32 +249,33 @@ def heatmap_view(
         y_offset = yield unit_heatmap_pupil(
             pupil=select_truthy_items([node.data.pupil for node in dataset_synced]),
             ax=ax, baseline_subtraction=plot_manual.baseline_subtraction,
-            sorting_level_refs=sorting_level_refs,
-            amplitude_sorting=amplitude_sorting)
+            **sorting_profiles)
     if modality_name == "saccade":    
         y_offset = yield unit_heatmap_saccade(
             saccade=select_truthy_items([node.data.pupil for node in dataset_synced]),
             ax=ax, baseline_subtraction=plot_manual.baseline_subtraction,
-            sorting_level_refs=sorting_level_refs,
-            amplitude_sorting=amplitude_sorting)
+            **sorting_profiles)
     
 
     # fancy horizontal line    
     row_height = (HEATMAP_OFFSET_RANGE[1] - HEATMAP_OFFSET_RANGE[0]) / len(dataset_synced)
     session_row_count = count_by(dataset_synced.nodes, lambda node: node.coordinate.temporal_uid.session_id, _sort_key=True)
     day_row_count = count_by(dataset_synced.nodes, lambda node: node.coordinate.temporal_uid.day_id, _sort_key=True)
-    session_minor_ticks = [HEATMAP_OFFSET_RANGE[0] + row_height * row_num for row_num in np.cumsum(list(session_row_count.values()))]
-    day_major_ticks = [HEATMAP_OFFSET_RANGE[0] + row_height * row_num for row_num in np.cumsum(list(day_row_count.values()))]
+    session_minor_ticks = [HEATMAP_OFFSET_RANGE[0] + row_height * row_num + row_height / 2 
+                           for row_num in np.cumsum(list(session_row_count.values())[:-1])]
+    day_major_ticks = [HEATMAP_OFFSET_RANGE[0] + row_height * row_num + row_height / 2 
+                       for row_num in np.cumsum(list(day_row_count.values())[:-1])]
     if plot_manual.amplitude_sorting is None:
-        emphasize_yticks(ax)
-        add_labeless_yticks(ax, day_major_ticks, session_minor_ticks)
+        pass
+        # emphasize_yticks(ax)
+        # add_labeless_yticks(ax, day_major_ticks, session_minor_ticks)
     elif plot_manual.amplitude_sorting[2] == "day":
         add_labeless_yticks(ax, day_major_ticks, [])
     elif plot_manual.amplitude_sorting[2] == "session":
         add_labeless_yticks(ax, day_major_ticks, session_minor_ticks)
     elif plot_manual.amplitude_sorting[2] == "mice":
         pass
-   
+
   
 def beam_view(
         ax: plt.Axes,

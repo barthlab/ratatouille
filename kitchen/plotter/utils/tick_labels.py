@@ -59,6 +59,7 @@ def emphasize_yticks(ax: plt.Axes,):
 def add_labeless_yticks(ax: plt.Axes, MajorTicks: list[float] | np.ndarray, MinorTicks: list[float] | np.ndarray=[], _hlines: bool = False):
     current_ticks = ax.get_yticks()    
     current_labels = [label.get_text() for label in ax.get_yticklabels()]
+    
     tick_dict = dict(zip(current_ticks, current_labels))
     for tick in MajorTicks:
         if tick not in tick_dict:
@@ -74,3 +75,4 @@ def add_labeless_yticks(ax: plt.Axes, MajorTicks: list[float] | np.ndarray, Mino
     if _hlines:
         for tick in MajorTicks:
             ax.axhline(tick, **style_dicts.TICK_LINE_STYLE)
+    

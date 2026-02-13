@@ -62,6 +62,7 @@ def stats_wilcoxon(
 def stats_ks_2samp(
         data1: np.ndarray | list,
         data2: np.ndarray | list,
+        **kwargs,
 ):
-    p_val = ks_2samp(data1, data2).pvalue # type: ignore fucking stupid pylance
+    p_val = ks_2samp(data1, data2, **kwargs).pvalue # type: ignore fucking stupid pylance
     return p_val, get_annotation_str(p_val)

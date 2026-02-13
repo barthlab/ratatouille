@@ -92,6 +92,7 @@ def stack_view_default_macro(
     try:
         n_col = 0
         mosaic_style, content_dict = [], {}
+        node_names = {}
         for node in nodes2plot:            
             type2dataset = split_dataset_by_trial_type(dataset.subtree(node), 
                                                        plot_manual=plot_manual,
@@ -108,7 +109,10 @@ def stack_view_default_macro(
                     type2dataset[selected_type])
                 for selected_type in type2dataset.keys()
                 })
+            node_names.update({f"{get_node_name(node)}\n{selected_type}": {"set_title": (f" \n{selected_type}",)} 
+                                for selected_type in type2dataset.keys()})
             
+            # append subtract view
             if _append_subtract_view and len(type2dataset) == 2:
                 selected_type1, selected_type2 = type2dataset.keys()
                 mosaic_style[-1].append(f"{get_node_name(node)}\nSubtraction")
@@ -117,8 +121,14 @@ def stack_view_default_macro(
                             subtract_manual=SUBTRACT_MANUAL(name1=selected_type1, name2=selected_type2)),
                     list(type2dataset.values())
                 )
-            
+                node_names[f"{get_node_name(node)}\nSubtraction"] = {"set_title": (" \nSubtraction",)}
+
+            mid_subplot_name = mosaic_style[-1][int(len(mosaic_style[-1]) / 2)]
+            node_names[mid_subplot_name] = {"set_title": (f"{get_node_name(node)}" + node_names[mid_subplot_name]["set_title"][0],)}
+
+            # update n_col
             n_col = max(n_col, len(mosaic_style[-1]))
+
         for i in range(len(mosaic_style)):
             mosaic_style[i] += ["."] * (n_col - len(mosaic_style[i]))
 
@@ -127,6 +137,8 @@ def stack_view_default_macro(
             content_dict=content_dict,
             figsize=(unit_shape[0] * n_col, unit_shape[1] * len(mosaic_style)),
             save_path=routing.default_fig_path(dataset, prefix_str + f"_{{}}_{_aligment_style}.png"),
+            auto_title=False,
+            plot_settings=node_names,
             **kwargs,
         )
     except Exception as e:

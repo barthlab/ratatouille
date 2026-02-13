@@ -59,13 +59,13 @@ def default_intermediate_result_path(root: Node | DataSet, result_name: str) -> 
     return node_data_path
 
 
-def default_fig_path(root: DataSet | Node, fig_name: Optional[str] = None) -> str:
+def default_fig_path(root: DataSet | Node, fig_name: Optional[str] = None, fov_skip: bool = False) -> str:
     """Generate the default file system path for a dataset's figures."""
     root_coordinate = root.root_coordinate if isinstance(root, DataSet) else root.coordinate
     obj_uid = root_coordinate.object_uid
     tmp_uid = root_coordinate.temporal_uid
     # substitute fov_id if it is "only"
-    fov_substitute = obj_uid.fov_id if obj_uid.fov_id != "only" else None
+    fov_substitute = obj_uid.fov_id if obj_uid.fov_id != "only" and not fov_skip else None
     # substitute day_id if it is in session_id
     if tmp_uid.session_id is not None and tmp_uid.day_id is not None:
         day_substitute = tmp_uid.day_id if tmp_uid.day_id not in tmp_uid.session_id else None
@@ -79,6 +79,7 @@ def default_fig_path(root: DataSet | Node, fig_name: Optional[str] = None) -> st
         fov_substitute,
         day_substitute,
         root_coordinate.temporal_uid.session_id,
+        root_coordinate.object_uid.cell_id,
     ]
     fig_path = robust_path_join(FIGURE_PATH, *fig_path_values) 
     if fig_name is not None:

@@ -46,7 +46,8 @@ def unit_plot_locomotion(locomotion: None | Events | list[Events], ax: plt.Axes,
             y_height = np.nanmax(plotting_locomotion.v) * ratio
             ax.plot(plotting_locomotion.t, plotting_locomotion.v * ratio + y_offset, **style_dicts.LOCOMOTION_TRACE_STYLE)
         else:
-            y_height = 0
+            ax.axhline(0 * ratio + y_offset, **style_dicts.LOCOMOTION_TRACE_STYLE)
+            y_height = 8*ratio
     else:
         # plot multiple locomotion rates
         group_locomotion = grouping_events_rate(locomotion, bin_size=LOCOMOTION_BIN_SIZE, baseline_subtraction=baseline_subtraction)
@@ -107,7 +108,7 @@ def unit_plot_lick(lick: None | Events | list[Events], ax: plt.Axes, y_offset: f
 
 def unit_plot_pupil(pupil: None | Pupil | list[Pupil], ax: plt.Axes, y_offset: float, ratio: float = 1.0,
                     yticks_flag: bool = True, baseline_subtraction: Optional[tuple[float, float]] = None,
-                    plot_is_blink: bool = True) -> float:
+                    plot_is_blink: bool = False) -> float:
     """plot pupil"""    
     if not sanity_check(pupil):
         return 0
@@ -135,7 +136,7 @@ def unit_plot_pupil(pupil: None | Pupil | list[Pupil], ax: plt.Axes, y_offset: f
         yticks_combo("pupil" if baseline_subtraction is None else "delta_pupil", ax, y_offset, ratio)
     else:
         add_new_yticks(ax, TICK_PAIR(y_offset, "", color_scheme.PUPIL_COLOR))
-    return max(y_height, ratio if baseline_subtraction is None else 0.1*ratio)
+    return max(y_height, 0.5*ratio if baseline_subtraction is None else 0.1*ratio)
 
 
 def unit_plot_pupil_center(pupil: None | Pupil | list[Pupil], ax: plt.Axes, y_offset: float, ratio: float = 1.0,
@@ -152,7 +153,7 @@ def unit_plot_pupil_center(pupil: None | Pupil | list[Pupil], ax: plt.Axes, y_of
         plotting_pupil_saccade = pupil.saccade_velocity_ts.copy()
         ax.plot(plotting_pupil_center_x.t, plotting_pupil_center_x.v * ratio + y_offset, **style_dicts.PUPIL_CENTER_X_TRACE_STYLE)
         ax.plot(plotting_pupil_center_y.t, plotting_pupil_center_y.v * ratio + y_offset, **style_dicts.PUPIL_CENTER_Y_TRACE_STYLE)
-        ax.plot(plotting_pupil_saccade.t, plotting_pupil_saccade.v * ratio + y_offset, **style_dicts.PUPIL_SACCADE_TRACE_STYLE)
+        # ax.plot(plotting_pupil_saccade.t, plotting_pupil_saccade.v * ratio + y_offset, **style_dicts.PUPIL_SACCADE_TRACE_STYLE)
         y_height = max(np.nanmax(plotting_pupil_center_x.v), np.nanmax(plotting_pupil_center_y.v)) * ratio
     else:
         # plot multiple pupil centers
@@ -259,7 +260,7 @@ def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes,
                 if event_type not in color_scheme.GRAND_COLOR_SCHEME:
                     continue
                 num_event_calibrate = len(all_event[event_type]) if len(timeline) > 1 else 1
-                if ("On" not in event_type) or (event_type.replace("On", "Off") not in one_timeline.v) or (len(timeline) == 1) or True:
+                if ("On" not in event_type) or (event_type.replace("On", "Off") not in one_timeline.v) or (len(timeline) == 1):
                     ax.axvline(event_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type],
                                 **calibrate_alpha(style_dicts.VLINE_STYLE, num_event_calibrate))
                     continue
@@ -309,7 +310,6 @@ def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[
         for individual_fluorescence in group_fluorescence.raw:
             ax.plot(group_fluorescence.t, individual_fluorescence * ratio + y_offset,
                     **calibrate_alpha(style_dicts.INDIVIDUAL_FLUORESCENCE_TRACE_STYLE, group_fluorescence.data_num))
-
     # add y ticks
     example_fluorescence = fluorescence[0]
     add_new_yticks(ax, TICK_PAIR(
@@ -318,6 +318,50 @@ def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[
     add_new_yticks(ax, TICK_PAIR(
         y_offset + 1 * ratio,
         f"1 {DF_F0_SIGN}" if (np.all(example_fluorescence.cell_order == 0) or (not cell_id_flag)) else "", color_scheme.FLUORESCENCE_COLOR))
+    return max(np.nanmax(group_fluorescence.mean) * ratio, 1*ratio)
+        
+
+def unit_plot_single_cell_deconv_fluorescence(fluorescence: None | Fluorescence | list[Fluorescence], 
+                                       ax: plt.Axes, y_offset: float, ratio: float = 1.0,
+                                       cell_id_flag: bool = True, individual_trace_flag: bool = False) -> float:
+    """plot a single cell deconvolved fluorescence"""
+    if not sanity_check(fluorescence):
+        return 0
+    assert fluorescence is not None, "Sanity check failed"
+
+    if isinstance(fluorescence, Fluorescence):
+        ratio *= RAW_FLUORESCENCE_RATIO
+        
+        # plot single cell fluorescence
+        assert fluorescence.num_cell == 1, f"Expected 1 cell, but got {fluorescence.num_cell}"
+        cell_trace = fluorescence.deconv_f.v[0]
+        ax.plot(fluorescence.deconv_f.t, cell_trace * ratio + y_offset, **style_dicts.FLUORESCENCE_TRACE_STYLE)
+
+        # add y ticks
+        add_new_yticks(ax, TICK_PAIR(
+            y_offset, f"Cell {fluorescence.cell_idx[0]}" if cell_id_flag else "Cell", color_scheme.FLUORESCENCE_COLOR))
+        add_new_yticks(ax, TICK_PAIR(
+            y_offset + 1 * ratio,
+            f"1 A.U." if (np.all(fluorescence.cell_order == 0) or (not cell_id_flag)) else "", color_scheme.FLUORESCENCE_COLOR))
+        return max(np.nanmax(cell_trace) * ratio, 1*ratio)
+
+    # plot multiple cell fluorescence
+    group_fluorescence = grouping_timeseries([fluorescence.deconv_f for fluorescence in fluorescence]).squeeze(0)
+    if len(group_fluorescence) == 0:
+        return 0
+    oreo_plot(ax, group_fluorescence, y_offset, ratio, style_dicts.FLUORESCENCE_TRACE_STYLE, style_dicts.FILL_BETWEEN_STYLE)
+    if individual_trace_flag:
+        for individual_fluorescence in group_fluorescence.raw:
+            ax.plot(group_fluorescence.t, individual_fluorescence * ratio + y_offset,
+                    **calibrate_alpha(style_dicts.INDIVIDUAL_FLUORESCENCE_TRACE_STYLE, group_fluorescence.data_num))
+    # add y ticks
+    example_fluorescence = fluorescence[0]
+    add_new_yticks(ax, TICK_PAIR(
+        y_offset,
+        f"Cell {example_fluorescence.cell_idx[0]}" if cell_id_flag else "Cell", color_scheme.FLUORESCENCE_COLOR))
+    add_new_yticks(ax, TICK_PAIR(
+        y_offset + 1 * ratio,
+        f"1 A.U." if (np.all(example_fluorescence.cell_order == 0) or (not cell_id_flag)) else "", color_scheme.FLUORESCENCE_COLOR))
     return max(np.nanmax(group_fluorescence.mean) * ratio, 1*ratio)
         
 

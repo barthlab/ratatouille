@@ -38,7 +38,8 @@ def _yticks_combo_lick(command: str, ax: plt.Axes, y_offset: float, ratio: float
 @yticks_combo.register("pupil")
 def _yticks_combo_pupil(command: str, ax: plt.Axes, y_offset: float, ratio: float = 1.0, **kwargs):
     add_new_yticks(ax, [TICK_PAIR(y_offset, "pupil area", PUPIL_COLOR),
-                        TICK_PAIR(y_offset + ratio, "1e4 px^2", PUPIL_COLOR)])
+                        TICK_PAIR(y_offset + 0.5*ratio, "5e3 px^2", PUPIL_COLOR)])
+                        # TICK_PAIR(y_offset + ratio, "1e4 px^2", PUPIL_COLOR)])
 
 
 @yticks_combo.register("pupil_center")

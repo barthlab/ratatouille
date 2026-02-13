@@ -32,7 +32,7 @@ def _(node: Trial) -> str:
 def _(node: CellSession) -> str:
     session_id = node.coordinate.temporal_uid.session_id
     cell_id = node.coordinate.object_uid.cell_id
-    return f"{session_id}_Cell_{cell_id}"
+    return f"{session_id}_Cell_{cell_id}" if node.fluorescence is None else f"Cell {node.fluorescence.cell_order[0]} in {session_id}"
 
 
 @get_node_name.register

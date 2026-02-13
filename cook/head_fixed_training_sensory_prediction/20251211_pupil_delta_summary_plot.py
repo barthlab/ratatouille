@@ -27,7 +27,7 @@ pupil_setting = {
     "amplitude_setup": (2.5, 7.5, "day"),
     "yaxis_formattor": lambda x, _: f'{x * 1000:.0f}',
     "yaxis_label": r"$\Delta$ Pupil Area [$px^2$]",
-    "yaxis_lim": (-0.15, 0.3),
+    "yaxis_lim": (-0.02, 0.08, -0.03, 0.14),
 }
 
 whisker_setting = {
@@ -67,7 +67,7 @@ strong_puff_query = {
     "left_day_trial_types": {"CuedPuff"}, 
     "right_day_trial_types": {"CuedPuff", "CueOnly"},
     "_additional_trial_types": {
-        "CuedPuff After CueOnly": meta_annotator_A_after_B("CuedPuff", "CueOnly"),
+        "CuedPuff Subseq.": meta_annotator_A_after_B("CuedPuff", "CueOnly"),
     },
     "prefix_keyword": "StrongPuff",
     "_right_day_cover": "olive",
@@ -77,7 +77,7 @@ BlueLED_query = {
     "left_day_trial_types": {"CuedBlueLED"}, 
     "right_day_trial_types": {"CuedBlueLED", "CueOnly"},
     "_additional_trial_types": {
-        "CuedBlueLED After CueOnly": meta_annotator_A_after_B("CuedBlueLED", "CueOnly"),
+        "CuedBlueLED Subseq.": meta_annotator_A_after_B("CuedBlueLED", "CueOnly"),
     },
     "prefix_keyword": "BlueLED",
     "_right_day_cover": "cyan",
@@ -87,7 +87,7 @@ pure_omission_query = {
     "left_day_trial_types": {"CuedPuff"}, 
     "right_day_trial_types": {"CuedPuff", "CueOnly"},
     "_additional_trial_types": {
-        "CuedPuff After CueOnly": meta_annotator_A_after_B("CuedPuff", "CueOnly"),
+        "CuedPuff Subseq.": meta_annotator_A_after_B("CuedPuff", "CueOnly"),
     },
     "prefix_keyword": "PureOmission",
     "_right_day_cover": "green",
@@ -97,7 +97,7 @@ BlankStim_query = {
     "left_day_trial_types": {"CuedPuff"}, 
     "right_day_trial_types": {"CuedPuff", "CuedBlank"},
     "_additional_trial_types": {
-        "CuedPuff After CuedBlank": meta_annotator_A_after_B("CuedPuff", "CuedBlank"),
+        "CuedPuff Subseq.": meta_annotator_A_after_B("CuedPuff", "CuedBlank"),
     },
     "prefix_keyword": "BlankStim",
     "_right_day_cover": "blue",
@@ -107,7 +107,7 @@ UnpredStim_query = {
     "left_day_trial_types": {"CuedPuff"}, 
     "right_day_trial_types": {"CuedPuff", "PuffOnly"},
     "_additional_trial_types": {
-        "CuedPuff After PuffOnly": meta_annotator_A_after_B("CuedPuff", "PuffOnly"),
+        "CuedPuff Subseq.": meta_annotator_A_after_B("CuedPuff", "PuffOnly"),
     },
     "prefix_keyword": "UnpredStim",
     "_right_day_cover": "orange",
@@ -117,7 +117,7 @@ DoublePuff_query = {
     "left_day_trial_types": {"DoublePuff"}, 
     "right_day_trial_types": {"DoublePuff", "PuffOnly"},
     "_additional_trial_types": {
-        "DoublePuff After PuffOnly": meta_annotator_A_after_B("DoublePuff", "PuffOnly"),
+        "DoublePuff Subseq.": meta_annotator_A_after_B("DoublePuff", "PuffOnly"),
     },
     "prefix_keyword": "DoublePuff",
     "_right_day_cover": "red",
@@ -127,7 +127,7 @@ PuffCue_query = {
     "left_day_trial_types": {"PuffCue"}, 
     "right_day_trial_types": {"PuffCue", "PuffOnly"},
     "_additional_trial_types": {
-        "PuffCue After PuffOnly": meta_annotator_A_after_B("PuffCue", "PuffOnly"),
+        "PuffCue Subseq.": meta_annotator_A_after_B("PuffCue", "PuffOnly"),
     },
     "prefix_keyword": "PuffCue",
     "_right_day_cover": "purple",
@@ -141,9 +141,9 @@ def main1():
     
     for modality_name, setting in {
         "pupil": pupil_setting,
-        "whisker": whisker_setting,
-        "locomotion": locomotion_setting,
-        "saccade": saccade_setting,
+        # "whisker": whisker_setting,
+        # "locomotion": locomotion_setting,
+        # "saccade": saccade_setting,
     }.items():
         sensory_prediction_summary_behavior_macro(
             dataset, modality_name, 
@@ -164,9 +164,9 @@ def main2():
     
     for modality_name, setting in {
         "pupil": pupil_setting,
-        "whisker": whisker_setting,
-        "locomotion": locomotion_setting,
-        "saccade": saccade_setting,
+        # "whisker": whisker_setting,
+        # "locomotion": locomotion_setting,
+        # "saccade": saccade_setting,
     }.items():
         for query in [
             pure_omission_query,
@@ -176,11 +176,34 @@ def main2():
             PuffCue_query,
         ]:
             sensory_prediction_summary_behavior_macro(
-                dataset, modality_name, 
+                dataset.subset(mice_id=lambda mice_id: mice_id not in ("QYV5M", "SCE6F")), modality_name, 
                 **query,
                 **setting,
             )
 
+
+def main3():
+    dataset = load_dataset(template_id="HeadFixedTraining", cohort_id="SensoryPrediction_202513", 
+                           recipe="default_behavior_only", name="sensory_prediction")
+    dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
+    
+    for modality_name, setting in {
+        "pupil": pupil_setting,
+        # "whisker": whisker_setting,
+        # "locomotion": locomotion_setting,
+        # "saccade": saccade_setting,
+    }.items():
+        # sensory_prediction_summary_behavior_macro(
+        #     dataset, modality_name, 
+        #     **strong_puff_query,
+        #     **setting,
+        # )
+        sensory_prediction_summary_behavior_macro(
+            dataset.subset(session_id=lambda session_id: (session_id is None) or ("WRCL" not in session_id)), modality_name, 
+            **BlueLED_query,
+            **setting,
+        )
 if __name__ == "__main__":
     main1()
     main2()
+    main3()

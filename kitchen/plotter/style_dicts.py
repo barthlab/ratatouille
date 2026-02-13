@@ -91,6 +91,13 @@ FLUORESCENCE_TRACE_STYLE = {
     "alpha": 0.9,
 }
 
+DECONV_FLUORESCENCE_TRACE_STYLE = {
+    "color": color_scheme.DECONV_FLUORESCENCE_COLOR,
+    "lw": 0.1,
+    "alpha": 0.3,
+    "zorder": 10,
+}
+
 POTENTIAL_TRACE_STYLE = {
     "color": color_scheme.POTENTIAL_COLOR,
     "lw": 0.1,
@@ -430,3 +437,15 @@ TIMELINE_SCATTER_STYLE = {
 
 for event_type in TIMELINE_SCATTER_STYLE:
     assert event_type in SUPPORTED_TIMELINE_EVENT, f"Unsupported event {event_type} in TIMELINE_SCATTER_STYLE: {SUPPORTED_TIMELINE_EVENT}"
+
+
+import matplotlib.lines as mlines
+
+
+def num_to_marker(n: int) -> str:
+    # valid_markers = [
+    #     m for m in mlines.Line2D.markers.keys() 
+    #     if isinstance(m, str) and m != 'none' and m != ' ' and m != ''
+    # ]
+    valid_markers = ["o", "v", "^", "s", "D", "p", "*", "h", "H", "d", "P", "X"]
+    return valid_markers[n % len(valid_markers)]

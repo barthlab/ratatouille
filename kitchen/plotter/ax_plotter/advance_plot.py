@@ -93,8 +93,8 @@ def subtract_view(
             ax=ax, y_offset=y_offset, ratio=SACCADE_RATIO,
             baseline_subtraction=plot_manual.baseline_subtraction)
         
-    # 7. add legend
-    if subtract_manual.name1 is not None and subtract_manual.name2 is not None:
-        add_textonly_legend(ax, {subtract_manual.name1: {"color": subtract_manual.color1}, 
-                                subtract_manual.name2: {"color": subtract_manual.color2}})
+    # # 7. add legend
+    # if subtract_manual.name1 is not None and subtract_manual.name2 is not None:
+    #     add_textonly_legend(ax, {subtract_manual.name1: {"color": subtract_manual.color1}, 
+    #                             subtract_manual.name2: {"color": subtract_manual.color2}})
 

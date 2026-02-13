@@ -3,7 +3,8 @@ POSITION_RATIO = 0.6
 LOCOMOTION_RATIO = 0.15
 LICK_RATIO = 0.1
 PUPIL_RATIO = 4
-SACCADE_RATIO = 2
+# PUPIL_RATIO = 2
+SACCADE_RATIO = 6
 WHISKER_RATIO = 1
 NOSE_RATIO = 1
 
@@ -79,4 +80,12 @@ PUPIL_VMIN_VMAX = {
 PUPIL_CENTER_VMIN_VMAX = {
     False: {"vmin": -0.5, "vmax": +0.5},
     True: {"vmin": 0, "vmax": 0.5},
+}
+FLUORESCENCE_VMIN_VMAX = {
+    False: {"vmin": -2, "vmax": +2},
+    True: {"vmin": -2, "vmax": 2},
+}
+FLUORESCENCE_DECONV_VMIN_VMAX = {
+    False: {"vmin": -1, "vmax": +1},
+    True: {"vmin": 0, "vmax": 5},
 }

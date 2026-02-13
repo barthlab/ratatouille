@@ -19,7 +19,7 @@ logging.getLogger('numba').setLevel(logging.WARNING)
 
 
 def main():
-    dataset = load_dataset(template_id="HeadFixedTraining", cohort_id="SensoryPrediction_202512", 
+    dataset = load_dataset(template_id="HeadFixedTraining", cohort_id="SensoryPrediction_202513", 
                            recipe="default_behavior_only", name="sensory_prediction")
     dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
 
@@ -38,11 +38,11 @@ def main():
     for mice_node in dataset.select("mice"):
         flat_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual_saccade)
 
-        # stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual_saccade,
-        #                          _aligment_style="Aligned2Trial")
+        stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual_saccade,
+                                 _aligment_style="Aligned2Trial")
         
-        # stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="mice", plot_manual=plot_manual_saccade,
-        #                             _aligment_style="Aligned2Trial")
+        stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="mice", plot_manual=plot_manual_saccade,
+                                    _aligment_style="Aligned2Trial")
         
         # stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="day", plot_manual=plot_manual_saccade,
         #                             _aligment_style="Aligned2Trial")

@@ -9,7 +9,7 @@ import traceback
 
 from kitchen.configs import routing
 from kitchen.configs.naming import get_node_name
-from kitchen.operator.split import split_dataset_by_trial_type
+from kitchen.operator.split import get_dummy_trials, split_dataset_by_trial_type
 from kitchen.operator.sync_nodes import sync_nodes
 from kitchen.plotter.ax_plotter.advance_plot import subtract_view
 from kitchen.plotter.ax_plotter.basic_plot import heatmap_view, stack_view
@@ -19,9 +19,12 @@ from kitchen.plotter.decorators.default_decorators import default_exit_save, def
 from kitchen.plotter.plotting_manual import CHECK_PLOT_MANUAL, PlotManual
 from kitchen.plotter.plotting_params import HEATMAP_X_INCHES, HEATMAP_Y_INCHES, STACK_X_INCHES, STACK_Y_INCHES
 from kitchen.plotter.stats_tests.basic_ttest import stats_ks_2samp
+from kitchen.plotter.style_dicts import num_to_marker
 from kitchen.plotter.unit_plotter.unit_trace_advance import SUBTRACT_MANUAL
 from kitchen.settings.timeline import ALL_ALIGNMENT_STYLE
 from kitchen.structure.hierarchical_data_structure import DataSet, Mice, Node, NodeTypeVar, Session, Trial
+from kitchen.utils import sequence_kit
+from kitchen.utils.numpy_kit import smart_interp
 from kitchen.utils.sequence_kit import find_only_one, select_from_value
 
 logger = logging.getLogger(__name__)
@@ -64,8 +67,8 @@ def sensory_prediction_summary_behavior_macro(
     prefix_str = f"{prefix_keyword}_{save_name}" if prefix_keyword is not None else save_name
 
     all_y_group_nodes = dataset.select("mice", _empty_warning=False)
-    group_of_dataset = {}
-    plotting_settings = {}
+    group_of_dataset1, group_of_dataset2 = {}, {}
+    plotting_settings1, plotting_settings2 = {}, {}
 
 
     def y_axis_func(node: Node) -> float:
@@ -75,7 +78,7 @@ def sensory_prediction_summary_behavior_macro(
         baseline_array = behavior_data.segment(*range_baseline).v
         compare_value = 0 if len(compare_array) == 0 else np.nanmean(compare_array)
         baseline_value = 0 if len(baseline_array) == 0 else np.nanmean(baseline_array)
-        return compare_value - baseline_value
+        return compare_value - baseline_value #/ (baseline_value + compare_value)
     
 
 
@@ -116,18 +119,21 @@ def sensory_prediction_summary_behavior_macro(
                 session_id2x_coord_dict[session_node.session_id] = (major_x_coord + _day_offset * (session_idx / len(all_session_nodes)), 
                                                                     major_x_coord, day_idx, len(right_day2_plot), session_idx, len(all_session_nodes), "right")
 
-        for trial_type in left_day_trial_types | right_day_trial_types:
-            certain_type_dataset = y_group_subtree.select(
-                "trial", _self=lambda x: x.info.get("trial_type") == trial_type)
-            group_of_dataset[f"{y_group_node.mice_id}_{trial_type}"] = sync_nodes(certain_type_dataset, alignment_events, plot_manual)
-            plotting_settings[f"{y_group_node.mice_id}_{trial_type}"] = {
-                "color": num_to_color(y_group_idx),
-                "marker": "o" if trial_type not in left_day_trial_types else ".",
-                "ls": "-" if trial_type not in left_day_trial_types else "--",
-                "alpha": 1 if trial_type not in left_day_trial_types else 0.5,
-                "lw": 1.5 if trial_type not in left_day_trial_types else 0.8,
-                "zorder": 10/len(certain_type_dataset),
-                }
+        # for trial_type in left_day_trial_types | right_day_trial_types:
+        #     certain_type_dataset = y_group_subtree.select(
+        #         "trial", _self=lambda x: x.info.get("trial_type") == trial_type)
+        #     group_of_dataset[f"{y_group_node.mice_id}_{trial_type}"] = sync_nodes(certain_type_dataset, alignment_events, plot_manual)
+        #     plotting_settings[f"{y_group_node.mice_id}_{trial_type}"] = {
+        #         "color": num_to_color(y_group_idx),
+        #         "marker": "o" if trial_type not in left_day_trial_types else ".",
+        #         "ls": "-" if trial_type not in left_day_trial_types else "--",
+        #         "alpha": 1 if trial_type not in left_day_trial_types else 0.5,
+        #         "lw": 1.5 if trial_type not in left_day_trial_types else 0.8,
+        #         "zorder": 10/len(certain_type_dataset),
+        # #         }
+        # right_day_trials_dataset = y_group_subtree.select(
+        #     "trial", _self=lambda x: x.day_id in [day_node.day_id for day_node in right_day2_plot])
+        
 
         # plot mice summary
         all_right_days_subtree = sum([y_group_subtree.subtree(day_node) for day_node in right_day2_plot], 
@@ -136,15 +142,40 @@ def sensory_prediction_summary_behavior_macro(
             all_right_days_subtree, 
             plot_manual=plot_manual,
             _element_trial_level = "trial",
-            _add_dummy=True,
         )
         if _additional_trial_types is not None:
             for trial_type, func in _additional_trial_types.items():
-                all_right_days_trial_types[trial_type] = all_right_days_subtree.select("trial", _self=func)
+                all_right_days_trial_types[trial_type] = all_right_days_subtree.select("trial", _self=func).shadow_clone()
+                for node in all_right_days_trial_types[trial_type].nodes:
+                    node.info["trial_type"] = trial_type
+        all_right_days_trial_types["Dummy"] = get_dummy_trials(all_right_days_subtree, _element_trial_level="trial")
         for key, value in all_right_days_trial_types.items():
             print(key, len(value))
 
+        general_all_trials_dataset = sum(all_right_days_trial_types.values(), DataSet(name="general_all_trials_dataset", nodes=[]))
         
+        group_of_dataset1[f"{y_group_node.mice_id}"] = sync_nodes(general_all_trials_dataset, alignment_events, plot_manual)
+        plotting_settings1[f"{y_group_node.mice_id}"] = {
+            "color": 'black',
+            "marker": num_to_marker(y_group_idx),
+            "markersize": 5,
+            "ls": "-",
+            "alpha": 0.7,
+            "lw": 1.5,
+            "zorder": -10/(y_group_idx + 1),
+        }
+        for day_idx, day_node in enumerate(right_day2_plot):
+            day_trials_dataset = general_all_trials_dataset.subtree(day_node).select("trial")
+            group_of_dataset2[f"{y_group_node.mice_id}_{day_idx}"] = sync_nodes(day_trials_dataset, alignment_events, plot_manual)
+            plotting_settings2[f"{y_group_node.mice_id}_{day_idx}"] = {
+                "color": 'black',
+                "marker": num_to_marker(y_group_idx),
+                "markersize": 5,
+                "ls": "-",
+                "alpha": 0.7,
+                "lw": 1.5,
+                "zorder": -10/(y_group_idx + 1),
+            }
 
         # heatmap summary
         mosaic_style = [
@@ -177,27 +208,42 @@ def sensory_prediction_summary_behavior_macro(
 
 
         # effective curve summary
-        fig, axs = plt.subplots(len(right_day2_plot), len(all_right_days_trial_types), 
-                                figsize=(9, 3.5), sharey='all', constrained_layout=True)
+        fig, axs = plt.subplots(len(right_day2_plot), len(all_right_days_trial_types) - 1, 
+                                figsize=(4, 3.5), constrained_layout=True)
         for row_idx, day_node in enumerate(right_day2_plot):
             dummay_trials = all_right_days_trial_types["Dummy"].select("trial", day_id=day_node.day_id)
             dummay_ec_values = sorted([y_axis_func(trial) for trial in sync_nodes(dummay_trials, alignment_events, plot_manual)])
             for col_idx, trial_type in enumerate(all_right_days_trial_types.keys()):
+                if trial_type == "Dummy":
+                    continue
                 ax = axs[row_idx, col_idx]
                 specific_trials = all_right_days_trial_types[trial_type].select("trial", day_id=day_node.day_id)
                 ec_values = sorted([y_axis_func(trial) for trial in sync_nodes(specific_trials, alignment_events, plot_manual)])
               
-                ax.plot(np.linspace(0, 1, len(ec_values)), ec_values, color="black")
-                ax.plot(np.linspace(0, 1, len(dummay_ec_values)), dummay_ec_values, color="gray", alpha=0.5, ls='--')
+                ax.plot(ec_values, np.linspace(0, 1, len(ec_values)), color="black")
+                ax.plot(dummay_ec_values, np.linspace(0, 1, len(dummay_ec_values)), color="gray", alpha=0.5, ls='--')
 
-                axs[0, col_idx].set_title(f"{y_group_node.mice_id}\n{trial_type}")
-                axs[row_idx, 0].set_ylabel(f"day{row_idx+1}")
-                ax.spines[['right', 'top',]].set_visible(False)
-                ax.axhline(0, color='gray', lw=0.5, alpha=0.5, zorder=-10)
-                ax.set_xticks([0, 1], ["min", "max"])
+                axs[0, col_idx].set_title(f"{trial_type}", color=f"C{col_idx}", fontsize="small")
+                # axs[row_idx, 0].set_ylabel(f"day{row_idx+1}")
+                ax.spines[['right', 'top']].set_visible(False)
+                if col_idx > 0:
+                    ax.spines[['left']].set_visible(False)
+                    ax.tick_params(axis='y', labelleft=False) 
+                ax.axvline(0, color='gray', lw=0.5, alpha=0.5, zorder=-10)
 
-                ks_pvalue, annot_text = stats_ks_2samp(ec_values, dummay_ec_values)
-                ax.text(0.5, 0.9, "K-S\n"+annot_text, alpha=0.7 if ks_pvalue < 0.05 else 0.2,
+                ax.fill_betweenx(np.linspace(0, 1, len(dummay_ec_values)), dummay_ec_values, 
+                                 smart_interp(np.linspace(0, 1, len(dummay_ec_values)), np.linspace(0, 1, len(ec_values)), ec_values), 
+                                 alpha=0.5, lw=0, color='lightgray', zorder=-10)
+
+                ax.set_yticks([0, 1], ["0%", "100%"])
+                ax.set_xticks([-0.2, 0, 0.2,])
+                ax.set_ylim(-0.1, 1.1)
+                ax.set_xlim(-0.3, 0.3)
+
+                ks_pvalue, annot_text = stats_ks_2samp(ec_values, dummay_ec_values, alternative='two-sided')
+                ax.text(0.5, 0.9, "K-S\n"+annot_text, 
+                        alpha=0.7 if ks_pvalue < 0.05 else 0.2,
+                        color="red" if ks_pvalue < 0.05 else "black",
                         fontsize="x-small",
                         transform=ax.transAxes, ha='center', va='top')
                 
@@ -206,97 +252,135 @@ def sensory_prediction_summary_behavior_macro(
 
         # trial average summary
         mosaic_style, content_dict = [], {}
-        special_cols = ["Dummy",] + list(_additional_trial_types.keys() if _additional_trial_types is not None else [])
-        first2trial_types = list(all_right_days_trial_types.keys())[:2]
-        for col_idx, trial_type in enumerate(all_right_days_trial_types.keys()):
-            if trial_type not in special_cols:
-                day1_trials = all_right_days_trial_types[trial_type].select("trial", day_id=right_day2_plot[0].day_id)
-                day2_trials = all_right_days_trial_types[trial_type].select("trial", day_id=right_day2_plot[1].day_id)
+        first1_trial_type = list(all_right_days_trial_types.keys())[0]
+        for row_idx, day_node in enumerate(right_day2_plot):
+            mosaic_style.append([])
+            first1_trials = all_right_days_trial_types[first1_trial_type].select("trial", day_id=day_node.day_id)
+            for col_idx, trial_type in enumerate(list(all_right_days_trial_types.keys())[1:]):
+                specific_trials = all_right_days_trial_types[trial_type].select("trial", day_id=day_node.day_id)
 
-                mosaic_style.append(f"{y_group_node.mice_id}\n{trial_type}")
+                mosaic_style[-1].append(f"day{row_idx+1} {first1_trial_type} vs\n{trial_type}")
+                subtract_manual = SUBTRACT_MANUAL(color1="C0", color2=f"C{col_idx+1}", name1=first1_trial_type, name2=trial_type)
+                content_dict[f"day{row_idx+1} {first1_trial_type} vs\n{trial_type}"] = (
+                    partial(subtract_view, subtract_manual=subtract_manual, plot_manual=plot_manual, sync_events=alignment_events),
+                    [first1_trials, specific_trials]
+                )
+        mosaic_style.append([])
+        first1_trials = all_right_days_trial_types[first1_trial_type].select("trial")
+        for col_idx, trial_type in enumerate(list(all_right_days_trial_types.keys())[1:]):
+            specific_trials = all_right_days_trial_types[trial_type].select("trial")
 
-                subtract_manual = SUBTRACT_MANUAL(color1="C0", color2="C1", name1="day1", name2="day2")
+            mosaic_style[-1].append(f"all {first1_trial_type} vs\n{trial_type}")
+            subtract_manual = SUBTRACT_MANUAL(color1="C0", color2=f"C{col_idx+1}", name1=first1_trial_type, name2=trial_type)
+            content_dict[f"all {first1_trial_type} vs\n{trial_type}"] = (
+                partial(subtract_view, subtract_manual=subtract_manual, plot_manual=plot_manual, sync_events=alignment_events),
+                [first1_trials, specific_trials]
+            )
 
-                content_dict[f"{y_group_node.mice_id}\n{trial_type}"] = (
-                    partial(subtract_view, subtract_manual=subtract_manual, plot_manual=plot_manual, sync_events=alignment_events),
-                    [day1_trials, day2_trials]
-                )
-            elif trial_type == "Dummy":
-                mosaic_style.append(f"{y_group_node.mice_id}\n{first2trial_types[0]} vs {first2trial_types[1]}")
-                subtract_manual = SUBTRACT_MANUAL(color1="C2", color2="C3", name1=first2trial_types[0], name2=first2trial_types[1])
-                content_dict[f"{y_group_node.mice_id}\n{first2trial_types[0]} vs {first2trial_types[1]}"] = (
-                    partial(subtract_view, subtract_manual=subtract_manual, plot_manual=plot_manual, sync_events=alignment_events),
-                    [all_right_days_trial_types[first2trial_types[0]], all_right_days_trial_types[first2trial_types[1]]]
-                )
-            else:
-                mosaic_style.append(f"{first2trial_types[0]} vs\n{trial_type}")
-                subtract_manual = SUBTRACT_MANUAL(color1="C2", color2=f"C{special_cols.index(trial_type) + 3}", 
-                                                  name1=first2trial_types[0], name2=trial_type)
-                content_dict[f"{first2trial_types[0]} vs\n{trial_type}"] = (
-                    partial(subtract_view, subtract_manual=subtract_manual, plot_manual=plot_manual, sync_events=alignment_events),
-                    [all_right_days_trial_types[first2trial_types[0]], all_right_days_trial_types[trial_type]]
-                )
+
+
+        def trial_avg_func(ax):
+            ax.set_xticks([0, 5])
+            spec = ax.get_subplotspec()
+            col_id = spec.colspan.start
+            if col_id > 0:
+                ax.spines[['left']].set_visible(False)
+                ax.tick_params(axis='y', labelleft=False) 
         default_style(
-            mosaic_style=[mosaic_style],
+            mosaic_style=mosaic_style,
             content_dict=content_dict,
-            figsize=(10, 2.2),
+            figsize=(5.5, 5.5),
             save_path=routing.default_fig_path(y_group_subtree, prefix_str + f"_trial_average_{_aligment_style}.png"),
-            sharey=True,
-            # sharex=False,
+            plot_settings={
+                ax_name: {"_self": trial_avg_func}
+                for ax_name in content_dict.keys()
+            },
+            auto_title=False,
+            node_num_flag=False,
+            
         )
 
 
 
-
-    if len(group_of_dataset) == 0:
+    if len(group_of_dataset1) == 0:
         return
 
 
     def x_axis_func(node: Node) -> float:
-        return session_id2x_coord_dict.get(node.session_id, [np.nan, np.nan])[0]
+        # return session_id2x_coord_dict.get(node.session_id, [np.nan, np.nan])[0]
+        
+        trial_type_offset = day_trial_types.index(node.info.get("trial_type")) * 0.2
+        return trial_type_offset
     
     def x_axis_func_mini(node: Node) -> float:
-        trial_type_offset = 0. if node.info.get("trial_type") in left_day_trial_types else 0.2
-        return session_id2x_coord_dict.get(node.session_id, [np.nan, np.nan])[1] + trial_type_offset
+        trial_type_offset = day_trial_types.index(node.info.get("trial_type")) * 0.2
+        return session_id2x_coord_dict.get(node.session_id, [np.nan, np.nan])[2] + trial_type_offset
     
-    fig, ax = plt.subplots(1, 1, figsize=(6, 3), constrained_layout=True)
-    group_of_dataset = {k: v for k, v in sorted(group_of_dataset.items(), key=lambda x: x[0])}
-    trace_view(
-        ax=ax, group_of_datasets=group_of_dataset, y_axis_func=y_axis_func, x_axis_func=x_axis_func,
-        plotting_settings=plotting_settings,
-        _yerr_bar=False,
-        _break_at_int=True,
-    )
-    ax.set_xticks([-1.6, -0.6, 0.4, 1.4,], ["day1", "day2", "day1", "day2"])
-    ax.axvspan(-0.2, 1.8, alpha=0.1, color=_right_day_cover, lw=0, zorder=-10)
-    ax.axhline(0, color='gray', lw=0.2, alpha=0.5, zorder=-10)
-    ax.set_xlabel("")
-    ax.set_ylabel(yaxis_label)
-    ax.set_ylim(*yaxis_lim)
-    ax.yaxis.set_major_locator(plt.MaxNLocator(3))
-    # ax.yaxis.set_major_formatter(FuncFormatter(yaxis_formattor))
-
-    save_path = routing.default_fig_path(dataset, prefix_str + f"_{_aligment_style}.png")
-    default_exit_save(fig, save_path)
-
+    color_map_days = {
+        0: 2, 
+        1: 0, 
+        2: 1, 
+        3: 3,
+    }
+    def box_color_func(x_coord):
+        return f"C{color_map_days[int((round((x_coord % 1) / 0.2)))]}"
     
-    fig, ax = plt.subplots(1, 1, figsize=(5, 3), constrained_layout=True)
-    group_of_dataset = {k: v for k, v in sorted(group_of_dataset.items(), key=lambda x: x[0])}
+    day_trial_types = list(_additional_trial_types.keys()) + [list(left_day_trial_types)[0], list(right_day_trial_types - left_day_trial_types)[0]] + ["Dummy",]
+    fig, ax = plt.subplots(1, 1, figsize=(3.2, 4), constrained_layout=True)
+    group_of_dataset1 = {k: v for k, v in sorted(group_of_dataset1.items(), key=lambda x: x[0])}
     trace_view(
-        ax=ax, group_of_datasets=group_of_dataset, y_axis_func=y_axis_func, x_axis_func=x_axis_func_mini,
-        plotting_settings=plotting_settings,
+        ax=ax, group_of_datasets=group_of_dataset1, y_axis_func=y_axis_func, x_axis_func=x_axis_func,
+        plotting_settings=plotting_settings1,
         _yerr_bar=False,
         _break_at_int=False,
+        _box=0.15,
+        _box_color=box_color_func,
     )
-    ax.set_xticks([-2, -1, 0.1, 1.1,], ["day1", "day2", "day1", "day2"])
-    ax.axvspan(-0.5, 1.5, alpha=0.1, color=_right_day_cover, lw=0, zorder=-10)
+    ax.spines[['bottom',]].set_visible(False)
+    ax.set_xticks([0, 0.2, 0.4, 0.6], day_trial_types, rotation=25, ha='center', va='center')
+    # ax.axvspan(-0.2, 1.8, alpha=0.1, color=_right_day_cover, lw=0, zorder=-10)
     ax.axhline(0, color='gray', lw=0.2, alpha=0.5, zorder=-10)
     ax.set_xlabel("")
     ax.set_ylabel(yaxis_label)
-    ax.set_ylim(*yaxis_lim)
+    ax.set_ylim(*yaxis_lim[:2])
+    ax.set_xlim(-0.15, 0.75)
     ax.yaxis.set_major_locator(plt.MaxNLocator(3))
-    # ax.yaxis.set_major_formatter(FuncFormatter(yaxis_formattor))
+    ax.yaxis.set_major_formatter(FuncFormatter(yaxis_formattor))
+    labels = ax.get_xticklabels()
+    for label in labels:
+        text = label.get_text()
+        label.set_color(f"C{color_map_days[day_trial_types.index(text)]}")
+
+    save_path = routing.default_fig_path(dataset, prefix_str + f"_{_aligment_style}.png")
+    default_exit_save(fig, save_path, _transparent=True)
+
+    
+    fig, ax = plt.subplots(1, 1, figsize=(6, 4), constrained_layout=True)
+    group_of_dataset2 = {k: v for k, v in sorted(group_of_dataset2.items(), key=lambda x: x[0])}
+    trace_view(
+        ax=ax, group_of_datasets=group_of_dataset2, y_axis_func=y_axis_func, x_axis_func=x_axis_func_mini,
+        plotting_settings=plotting_settings2,
+        _yerr_bar=False,
+        _break_at_int=False,
+        _legend=False,
+        _box=0.15,
+        _box_color=box_color_func,
+    )
+    ax.spines[['bottom',]].set_visible(False)
+    ax.set_xticks([0, 0.2, 0.4, 0.6, 1, 1.2, 1.4, 1.6], list(day_trial_types) + list(day_trial_types), rotation=25, ha='center', va='center')
+    # ax.axvspan(-0.5, 1.5, alpha=0.1, color=_right_day_cover, lw=0, zorder=-10)
+    ax.axhline(0, color='gray', lw=0.2, alpha=0.5, zorder=-10)
+    ax.set_xlabel("")
+    ax.set_ylabel(yaxis_label)
+    ax.set_ylim(*yaxis_lim[2:])
+    ax.set_xlim(-0.15, 1.75)
+    ax.yaxis.set_major_locator(plt.MaxNLocator(3))
+    ax.yaxis.set_major_formatter(FuncFormatter(yaxis_formattor))
+    labels = ax.get_xticklabels()
+    for label in labels:
+        text = label.get_text()
+        label.set_color(f"C{color_map_days[day_trial_types.index(text)]}")
 
     save_path = routing.default_fig_path(dataset, prefix_str + f"_{_aligment_style}_mini.png")
-    default_exit_save(fig, save_path)
+    default_exit_save(fig, save_path, _transparent=True)
 
