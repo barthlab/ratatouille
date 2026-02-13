@@ -339,6 +339,14 @@ class DataSet:
         if specified_name is None:
             specified_name = self.name + "_shadow_clone"
         return DataSet(name=specified_name, nodes=[node.shadow_clone() for node in self.nodes])
+    
+    def get_temporal_hiers(self, temporal_level: str) -> List[str]:
+        """Return all unique temporal hierarchies at a specific level."""
+        return [node.coordinate.temporal_uid.get_hier_value(temporal_level) for node in self]
+    
+    def get_object_hiers(self, object_level: str) -> List[str]:
+        """Return all unique object hierarchies at a specific level."""
+        return [node.coordinate.object_uid.get_hier_value(object_level) for node in self]
 
 
 

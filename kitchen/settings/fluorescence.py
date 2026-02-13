@@ -1,3 +1,8 @@
+import numpy as np
+
+from kitchen.utils.numpy_kit import numpy_percentile_filter
+
+
 CROP_BEGGINNG = 0.3  # s - crop the first 300ms of the recording (See MES software manual)
 DEFAULT_RECORDING_DURATION = 600  # s - the default recording duration for each session
 FAST_MATCHING_MODE = False  # only match the first event
@@ -18,3 +23,18 @@ FLUORESCENCE_MIN_MAX_PERCENTILE = (10, 90)  # % - percentile for min and max val
 # baseline for df/f0
 TRIAL_DF_F0_WINDOW = (-1, 0)  # s
 DF_F0_RANGE = (-3, 10)  # dF/F0 range for clipping
+
+
+
+
+# GCaMP6f Deconvolution
+DO_DECONV = False
+DECONV_TAU = 0.58  # s
+DECONV_PERCENTILE = 20 # %
+DECONV_WINDOW_BASELINE = 60.0 # in seconds, window in which to compute max/min filters
+def GCaMP_deconvolve(raw_f: np.ndarray, fs: float) -> np.ndarray:
+    from suite2p.extraction import dcnv
+    window_size = int(DECONV_WINDOW_BASELINE * fs)
+    normed_f = raw_f / numpy_percentile_filter(raw_f, window_size, DECONV_PERCENTILE)
+    deconv_f = dcnv.oasis(F=normed_f, tau=DECONV_TAU, fs=fs, batch_size=1000) * 10
+    return deconv_f

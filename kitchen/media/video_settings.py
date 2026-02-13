@@ -1,7 +1,7 @@
 # CONVERSION
 SUPPORT_VIDEO_FORMAT = (
     ".h264",
-    # ".avi",
+    ".avi",
     ".mp4",
 )
 INPUT_VIDEO_FPS = 30

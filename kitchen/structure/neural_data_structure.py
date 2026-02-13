@@ -146,6 +146,11 @@ class TimeSeries:
         return self.__class__(v=np.abs(difference) if _abs else difference,
                               t=(self.t[1:] + self.t[:-1]) / 2)
     
+    def squeeze(self, axis: int) -> Self:
+        """Squeeze the time series."""
+        assert self.v.shape[axis] == 1, f"Cannot squeeze axis {axis} with shape {self.v.shape}"
+        return self.__class__(v=np.squeeze(self.v, axis=axis), t=self.t)
+    
 
 @dataclass
 class Events:
@@ -356,6 +361,7 @@ class Fluorescence:
     fov_motion: TimeSeries
     cell_position: np.ndarray
     cell_idx: np.ndarray
+    deconv_f: Optional[TimeSeries] = field(default=None)
     cell_order: Optional[np.ndarray] = field(default=None)
 
     def __post_init__(self):
@@ -367,6 +373,8 @@ class Fluorescence:
             f"cell_position: Expected shape {(self.num_cell, 2)}, but got {self.cell_position.shape}"
         assert len(self.cell_idx) == self.num_cell, \
             f"cell_idx: Expected length {self.num_cell}, but got {len(self.cell_idx)}"
+        assert self.deconv_f is None or self.deconv_f.v.shape == (self.num_cell, self.num_timepoint), \
+            f"deconv_f: Expected shape {(self.num_cell, self.num_timepoint)}, but got {self.deconv_f.v.shape}"
         
         if self.cell_order is not None:
             assert len(self.cell_order) == self.num_cell, \
@@ -406,6 +414,7 @@ class Fluorescence:
             fov_motion=self.fov_motion.segment(start_t, end_t),
             cell_position=self.cell_position,
             cell_idx=self.cell_idx,
+            deconv_f=self.deconv_f.segment(start_t, end_t) if self.deconv_f is not None else None,
             cell_order=self.cell_order
         )
     
@@ -417,6 +426,7 @@ class Fluorescence:
             fov_motion=self.fov_motion,
             cell_position=self.cell_position[cell_idx:cell_idx+1],
             cell_idx=np.array([cell_idx]),
+            deconv_f=TimeSeries(v=self.deconv_f.v[cell_idx:cell_idx+1], t=self.deconv_f.t) if self.deconv_f is not None else None,
             cell_order=np.array([self.cell_order[cell_idx]])
         )
     
@@ -441,6 +451,7 @@ class Fluorescence:
             fov_motion=self.fov_motion.aligned_to(align_time),
             cell_position=self.cell_position,
             cell_idx=self.cell_idx,
+            deconv_f=self.deconv_f.aligned_to(align_time) if self.deconv_f is not None else None,
             cell_order=self.cell_order
         )
 

@@ -6,7 +6,7 @@ from scipy.io import loadmat
 import logging
 
 from kitchen.configs import routing
-from kitchen.settings.fluorescence import CROP_BEGGINNG, DEFAULT_RECORDING_DURATION, FAST_MATCHING_MODE, NULL_TTL_OFFSET, NEUROPIL_SUBTRACTION_COEFFICIENT, DEFAULT_FRAMES_PER_SESSION
+from kitchen.settings.fluorescence import CROP_BEGGINNG, DEFAULT_RECORDING_DURATION, DO_DECONV, FAST_MATCHING_MODE, NULL_TTL_OFFSET, NEUROPIL_SUBTRACTION_COEFFICIENT, DEFAULT_FRAMES_PER_SESSION, GCaMP_deconvolve
 from kitchen.settings.loaders import DATA_HODGEPODGE_MODE, LOADER_STRICT_MODE
 from kitchen.settings.timeline import TTL_EVENT_DEFAULT
 from kitchen.structure.hierarchical_data_structure import Node
@@ -249,6 +249,9 @@ def fluorescence_loader_from_node(
             frame_t = np.linspace(extracted_info["First Frame t (ms)"]/1000, extracted_info["Last Frame t (ms)"]/1000, extracted_info["Frame #"])
             fluorescence.raw_f.t = frame_t - ttl_to_timeline_offset
             fluorescence.fov_motion.t = frame_t - ttl_to_timeline_offset
+            if DO_DECONV:
+                fluorescence.deconv_f = TimeSeries(v=GCaMP_deconvolve(fluorescence.raw_f.v, extracted_info["Frame Rate (Hz)"]), 
+                                                t=fluorescence.raw_f.t)
             yield fluorescence, extracted_info  
                 
 
