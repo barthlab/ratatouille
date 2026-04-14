@@ -2,7 +2,8 @@ import os.path as path
 import logging
 
 from kitchen.loader.general_loader_interface import load_dataset
-from kitchen.plotter.macros.HighFreqImaging_macros.cellular_overview import visualize_celluar_activity_with_behavior, visualize_celluar_activity_with_deconv
+from kitchen.plotter.macros.HighFreqImaging_macros.cellular_overview import visualize_behavior_correlation_distribution, visualize_celluar_activity_with_behavior, visualize_celluar_activity_with_deconv
+from kitchen.plotter.macros.HighFreqImaging_macros.variability_measurement import variability_visualization_of_fluo_and_deconv
 from kitchen.plotter.macros.basic_macros import flat_view_default_macro, heatmap_view_default_macro, stack_view_default_macro
 from kitchen.plotter.plotting_manual import PlotManual
 
@@ -27,10 +28,16 @@ def main():
 
     # visualize_celluar_activity_with_deconv(dataset)
     # visualize_celluar_activity_with_behavior(dataset)
-    for mice_node in dataset.select("mice"):
-        for session_node in dataset.subtree(mice_node).select("session"):
-            flat_view_default_macro(dataset.subtree(session_node, "SessionSubtree"), node_level="session", plot_manual=plot_manual, 
-                                    sharey=False, default_padding=0.5) 
+
+
+    # visualize_behavior_correlation_distribution(dataset)
+    variability_visualization_of_fluo_and_deconv(dataset)
+
+    
+    # for mice_node in dataset.select("mice"):
+    #     for session_node in dataset.subtree(mice_node).select("session"):
+            # flat_view_default_macro(dataset.subtree(session_node, "SessionSubtree"), node_level="session", plot_manual=plot_manual, 
+                                    # sharey=False, default_padding=0.5) 
             # stack_view_default_macro(dataset.subtree(session_node, "SessionSubtree"), node_level="cellsession", plot_manual=plot_manual,
             #                          _aligment_style="Aligned2Trial", unit_shape=(2, 2))
         # flat_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual, 

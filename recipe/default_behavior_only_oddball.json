@@ -1,5 +1,5 @@
 {
-    "name": "default behavior only for long trial",
+    "name": "default behavior only",
     "description": "Default template for all behavioral only experiments",
     "data_type": "two_photon",
     "loaders": {
@@ -7,7 +7,7 @@
         "behavior": "default"
     },
     "trial split": "timeline",
-    "trial range": [-10, 10],
-    "trial type annotator": "default",
+    "trial range": [-20, 40],
+    "trial type annotator": "oddball",
     "trial type history annotator": "default"
 }

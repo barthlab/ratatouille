@@ -19,16 +19,16 @@ logging.getLogger('matplotlib').setLevel(logging.WARNING)
 logging.getLogger('numba').setLevel(logging.WARNING) 
 
 def preprocessing():
-    hft_data_path = r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\HeadFixedTraining\Test_HeadFixedTraining_FromMattVideo"
-    format_converter.video_convert(hft_data_path, src_format=".avi")
-    # dataset = load_dataset(template_id="HeadFixedTraining", cohort_id="HeadFixedTraining_SurpriseSignal", 
-    #                        recipe="default_behavior_only", name="sensory_prediction")
-    # dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
+    hft_data_path = r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\HeadFixedTraining_Behavior\2026_04"
+    format_converter.video_convert(hft_data_path)
+    dataset = load_dataset(template_id="HeadFixedTraining_Behavior", cohort_id="2026_04", 
+                           recipe="default_behavior_only_oddball", name="sensory_prediction")
+    dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
     # custom_extraction.default_collection(dataset)
-    # meye_pupil_extraction.default_collection(dataset)
+    meye_pupil_extraction.default_collection(dataset)
 
 def label_videos():
-    hft_data_path = r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\HeadFixedTraining\SensoryPrediction_202513"
+    hft_data_path = r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\HeadFixedTraining_Behavior\2026_04"
     format_converter.video_convert(hft_data_path)
     video_marker.marker_video_use_timeline(hft_data_path)
 

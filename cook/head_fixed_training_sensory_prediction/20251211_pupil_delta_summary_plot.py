@@ -203,7 +203,28 @@ def main3():
             **BlueLED_query,
             **setting,
         )
+
+
+def main4():
+    dataset = load_dataset(template_id="HeadFixedTraining_Behavior", cohort_id="2026_03", 
+                           recipe="default_behavior_only", name="sensory_prediction")
+    dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
+
+    for modality_name, setting in {
+        "pupil": pupil_setting,
+        # "whisker": whisker_setting,
+        # "locomotion": locomotion_setting,
+        # "saccade": saccade_setting,
+    }.items():
+        sensory_prediction_summary_behavior_macro(
+            dataset, modality_name, 
+            **BlueLED_query,
+            **setting,
+        )
+
+
 if __name__ == "__main__":
-    main1()
-    main2()
-    main3()
+    # main1()
+    # main2()
+    # main3()
+    main4()

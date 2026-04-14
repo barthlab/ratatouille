@@ -19,30 +19,30 @@ logging.getLogger('numba').setLevel(logging.WARNING)
 
 
 def main():
-    dataset = load_dataset(template_id="HeadFixedTraining", cohort_id="SensoryPrediction_202513", 
-                           recipe="default_behavior_only", name="sensory_prediction")
+    dataset = load_dataset(template_id="HeadFixedTraining_Behavior", cohort_id="2026_04", 
+                           recipe="default_behavior_only_oddball", name="sensory_prediction")
     dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
-
-    baseline_setup = (-2, 0, False)
+  
+    # baseline_setup = (-2, 0, False)
     amplitude_setup = (2.5, 7.5, "day")
     # plot_manual = PlotManual(locomotion=True, whisker=True, pupil=True, baseline_subtraction=(-2, 0))  
     # plot_manual_plain = PlotManual(locomotion=True, whisker=True, baseline_subtraction=(-2, 0, False))  
     # plot_manual_plain_sortonly = PlotManual(locomotion=True, whisker=True, amplitude_sorting=(2., 6., "day"), baseline_subtraction=(-2, 0, False))  
     plot_manual_saccade = PlotManual(locomotion=True, whisker=True, pupil=True, saccade=True)  
-    plot_manual_saccade_baseline = PlotManual(locomotion=True, whisker=True, pupil=True, saccade=True, baseline_subtraction=baseline_setup)  
+    # plot_manual_saccade_baseline = PlotManual(locomotion=True, whisker=True, pupil=True, saccade=True, baseline_subtraction=baseline_setup)  
     
-    plot_manual_saccade_bs_sort = PlotManual(locomotion=True, whisker=True, pupil=True, saccade=True, 
-                                                 baseline_subtraction=baseline_setup, amplitude_sorting=amplitude_setup)  
+    # plot_manual_saccade_bs_sort = PlotManual(locomotion=True, whisker=True, pupil=True, saccade=True, 
+                                                #  baseline_subtraction=baseline_setup, amplitude_sorting=amplitude_setup)  
     plot_manual_saccade_sortonly = PlotManual(locomotion=True, whisker=True, pupil=True, saccade=True, amplitude_sorting=amplitude_setup)  
 
     for mice_node in dataset.select("mice"):
-        flat_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual_saccade)
+        # flat_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual_saccade)
 
         stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual_saccade,
-                                 _aligment_style="Aligned2Trial")
+                                 _aligment_style="Aligned2Stim")
         
         stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="mice", plot_manual=plot_manual_saccade,
-                                    _aligment_style="Aligned2Trial")
+                                    _aligment_style="Aligned2Stim")
         
         # stack_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="day", plot_manual=plot_manual_saccade,
         #                             _aligment_style="Aligned2Trial")

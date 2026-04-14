@@ -14,7 +14,7 @@ from kitchen.operator.sync_nodes import sync_nodes
 from kitchen.plotter.ax_plotter.advance_plot import subtract_view
 from kitchen.plotter.ax_plotter.basic_plot import heatmap_view, stack_view
 from kitchen.plotter.ax_plotter.basic_trace import trace_view
-from kitchen.plotter.color_scheme import num_to_color, string_to_hex_color
+from kitchen.plotter.color_scheme import num_to_hex_color, string_to_hex_color
 from kitchen.plotter.decorators.default_decorators import default_exit_save, default_plt_param, default_style
 from kitchen.plotter.plotting_manual import CHECK_PLOT_MANUAL, PlotManual
 from kitchen.plotter.plotting_params import HEATMAP_X_INCHES, HEATMAP_Y_INCHES, STACK_X_INCHES, STACK_Y_INCHES
@@ -62,7 +62,8 @@ def sensory_prediction_summary_behavior_macro(
 
 ):
     alignment_events = ALL_ALIGNMENT_STYLE[_aligment_style]
-    plot_manual = PlotManual(**{behavior_name: True}, baseline_subtraction=baseline_setup, amplitude_sorting=amplitude_setup)
+    plot_manual_amplitude_sort = PlotManual(**{behavior_name: True}, baseline_subtraction=baseline_setup, amplitude_sorting=amplitude_setup)
+    plot_manual_no_sort = PlotManual(**{behavior_name: True}, baseline_subtraction=baseline_setup)
     save_name = f"{dataset.name}_{behavior_name}_delta"
     prefix_str = f"{prefix_keyword}_{save_name}" if prefix_keyword is not None else save_name
 
@@ -94,7 +95,7 @@ def sensory_prediction_summary_behavior_macro(
         for day_node in y_group_subtree.select("day"):
             type2dataset = split_dataset_by_trial_type(
                 y_group_subtree.subtree(day_node), 
-                plot_manual=plot_manual,
+                plot_manual=plot_manual_no_sort,
                 _element_trial_level = "trial",)
             if set(type2dataset.keys()) == left_day_trial_types:
                 left_day2_plot.append(day_node)
@@ -140,7 +141,7 @@ def sensory_prediction_summary_behavior_macro(
                                      DataSet(name="all_right_days", nodes=[]))
         all_right_days_trial_types = split_dataset_by_trial_type(
             all_right_days_subtree, 
-            plot_manual=plot_manual,
+            plot_manual=plot_manual_no_sort,
             _element_trial_level = "trial",
         )
         if _additional_trial_types is not None:
@@ -154,7 +155,7 @@ def sensory_prediction_summary_behavior_macro(
 
         general_all_trials_dataset = sum(all_right_days_trial_types.values(), DataSet(name="general_all_trials_dataset", nodes=[]))
         
-        group_of_dataset1[f"{y_group_node.mice_id}"] = sync_nodes(general_all_trials_dataset, alignment_events, plot_manual)
+        group_of_dataset1[f"{y_group_node.mice_id}"] = sync_nodes(general_all_trials_dataset, alignment_events, plot_manual_no_sort)
         plotting_settings1[f"{y_group_node.mice_id}"] = {
             "color": 'black',
             "marker": num_to_marker(y_group_idx),
@@ -166,7 +167,7 @@ def sensory_prediction_summary_behavior_macro(
         }
         for day_idx, day_node in enumerate(right_day2_plot):
             day_trials_dataset = general_all_trials_dataset.subtree(day_node).select("trial")
-            group_of_dataset2[f"{y_group_node.mice_id}_{day_idx}"] = sync_nodes(day_trials_dataset, alignment_events, plot_manual)
+            group_of_dataset2[f"{y_group_node.mice_id}_{day_idx}"] = sync_nodes(day_trials_dataset, alignment_events, plot_manual_no_sort)
             plotting_settings2[f"{y_group_node.mice_id}_{day_idx}"] = {
                 "color": 'black',
                 "marker": num_to_marker(y_group_idx),
@@ -186,14 +187,14 @@ def sensory_prediction_summary_behavior_macro(
         for trial_type, trial_dataset in all_right_days_trial_types.items():
             if trial_type in left_day_trial_types or trial_type == "Dummy":
                 content_dict[f"{y_group_node.mice_id}\n{trial_type}"] = (
-                    partial(heatmap_view, plot_manual=plot_manual, sync_events=alignment_events, 
-                            modality_name=behavior_name, _sort_rows=True),
+                    partial(heatmap_view, plot_manual=plot_manual_amplitude_sort, sync_events=alignment_events, 
+                            modality_name=behavior_name),
                     trial_dataset,
                 )
             else:
                 content_dict[f"{y_group_node.mice_id}\n{trial_type}"] = (
-                    partial(heatmap_view, plot_manual=plot_manual, sync_events=alignment_events, 
-                            modality_name=behavior_name, _sort_rows=False),
+                    partial(heatmap_view, plot_manual=plot_manual_no_sort, sync_events=alignment_events, 
+                            modality_name=behavior_name),
                     trial_dataset,
                 )
         
@@ -212,13 +213,13 @@ def sensory_prediction_summary_behavior_macro(
                                 figsize=(4, 3.5), constrained_layout=True)
         for row_idx, day_node in enumerate(right_day2_plot):
             dummay_trials = all_right_days_trial_types["Dummy"].select("trial", day_id=day_node.day_id)
-            dummay_ec_values = sorted([y_axis_func(trial) for trial in sync_nodes(dummay_trials, alignment_events, plot_manual)])
+            dummay_ec_values = sorted([y_axis_func(trial) for trial in sync_nodes(dummay_trials, alignment_events, plot_manual_no_sort)])
             for col_idx, trial_type in enumerate(all_right_days_trial_types.keys()):
                 if trial_type == "Dummy":
                     continue
                 ax = axs[row_idx, col_idx]
                 specific_trials = all_right_days_trial_types[trial_type].select("trial", day_id=day_node.day_id)
-                ec_values = sorted([y_axis_func(trial) for trial in sync_nodes(specific_trials, alignment_events, plot_manual)])
+                ec_values = sorted([y_axis_func(trial) for trial in sync_nodes(specific_trials, alignment_events, plot_manual_no_sort)])
               
                 ax.plot(ec_values, np.linspace(0, 1, len(ec_values)), color="black")
                 ax.plot(dummay_ec_values, np.linspace(0, 1, len(dummay_ec_values)), color="gray", alpha=0.5, ls='--')
@@ -262,7 +263,7 @@ def sensory_prediction_summary_behavior_macro(
                 mosaic_style[-1].append(f"day{row_idx+1} {first1_trial_type} vs\n{trial_type}")
                 subtract_manual = SUBTRACT_MANUAL(color1="C0", color2=f"C{col_idx+1}", name1=first1_trial_type, name2=trial_type)
                 content_dict[f"day{row_idx+1} {first1_trial_type} vs\n{trial_type}"] = (
-                    partial(subtract_view, subtract_manual=subtract_manual, plot_manual=plot_manual, sync_events=alignment_events),
+                    partial(subtract_view, subtract_manual=subtract_manual, plot_manual=plot_manual_no_sort, sync_events=alignment_events),
                     [first1_trials, specific_trials]
                 )
         mosaic_style.append([])
@@ -273,7 +274,7 @@ def sensory_prediction_summary_behavior_macro(
             mosaic_style[-1].append(f"all {first1_trial_type} vs\n{trial_type}")
             subtract_manual = SUBTRACT_MANUAL(color1="C0", color2=f"C{col_idx+1}", name1=first1_trial_type, name2=trial_type)
             content_dict[f"all {first1_trial_type} vs\n{trial_type}"] = (
-                partial(subtract_view, subtract_manual=subtract_manual, plot_manual=plot_manual, sync_events=alignment_events),
+                partial(subtract_view, subtract_manual=subtract_manual, plot_manual=plot_manual_no_sort, sync_events=alignment_events),
                 [first1_trials, specific_trials]
             )
 
