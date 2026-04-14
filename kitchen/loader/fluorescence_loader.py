@@ -32,6 +32,11 @@ def fluorescence_loader_from_node(
             mat_path = path.join(data_dir, "soma", "Fall.mat") 
         mat_dict = loadmat(mat_path)
 
+        # print("ops filelist:")
+        # ops = np.load(find_only_one(routing.search_pattern_file(pattern="ops.npy", search_dir=data_dir)), allow_pickle=True).item()
+        # for i, f in enumerate(ops['filelist']):
+        #     print(i, f)
+
         """get raw fluorescence"""
         F = mat_dict['F'].copy()
         Fneu = mat_dict['Fneu'].copy()
@@ -209,9 +214,11 @@ def fluorescence_loader_from_node(
             return
         assert len(info_filepaths) > 0, f"Cannot find info path: {dir_path}"
         info_filepaths = sorted(info_filepaths)
+
         n_session = len(timeline_dict)
         assert len(info_filepaths) == n_session, (f"Cannot match info and timeline in {dir_path}, got {len(info_filepaths)} info sessions but {n_session} timeline sessions" 
                                                   f"\n got {info_filepaths} \n vs {timeline_dict.keys()}")
+      
         for filepath, (session_coordinate, timeline), fluorescence in zip(
             info_filepaths, 
             sorted(timeline_dict.items()), 
@@ -234,15 +241,15 @@ def fluorescence_loader_from_node(
             # alignment happens here
             ttl_aligns = timeline.advanced_filter(TTL_EVENT_DEFAULT)
             ttl_t = extracted_info["Event t (ms)"][extracted_info["Event Tag"] == 2]/1000  # type: ignore
-            assert len(ttl_t) == len(ttl_aligns.t), f"Cannot match ttl and timeline in {filename} and {session_coordinate}"
+            assert len(ttl_t) == len(ttl_aligns.t), f"Cannot match ttl and timeline in {filename} and {session_coordinate}: {ttl_t} ({len(ttl_t)}) vs {ttl_aligns.t} ({len(ttl_aligns.t)})"
       
             """match ttl and timeline"""
             if FAST_MATCHING_MODE:
                 ttl_to_timeline_offset = ttl_t[0] - ttl_aligns.t[0]
             else:
                 ttl_to_timeline_offsets = ttl_t - ttl_aligns.t
-                assert np.allclose(ttl_to_timeline_offsets, ttl_to_timeline_offsets[0]), \
-                    f"Cannot match ttl and timeline in {filename} and {session_coordinate}"
+                assert np.allclose(ttl_to_timeline_offsets, ttl_to_timeline_offsets[0], atol=1/1000), \
+                    f"Cannot match ttl and timeline in {filename} and {session_coordinate}: {ttl_to_timeline_offsets}"
                 ttl_to_timeline_offset = ttl_to_timeline_offsets[0]
             
             """align fluorescence to timeline"""

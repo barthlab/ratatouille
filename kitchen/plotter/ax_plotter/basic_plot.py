@@ -8,9 +8,9 @@ import numpy as np
 from kitchen.operator.sync_nodes import left_align_nodes, sync_nodes
 from kitchen.plotter import style_dicts
 from kitchen.plotter.plotting_manual import PlotManual
-from kitchen.plotter.plotting_params import FLUORESCENCE_RATIO, HEATMAP_OFFSET_RANGE, LICK_RATIO, LOCOMOTION_RATIO, NOSE_RATIO, POSITION_RATIO, POTENTIAL_RATIO, PUPIL_RATIO, SACCADE_RATIO, TIMELINE_RATIO, WHISKER_RATIO
-from kitchen.plotter.unit_plotter.unit_heatmap import unit_heatmap_deconv_fluorescence, unit_heatmap_fluorescence, unit_heatmap_locomotion, unit_heatmap_pupil, unit_heatmap_saccade, unit_heatmap_whisker
-from kitchen.plotter.unit_plotter.unit_trace import unit_plot_lick, unit_plot_locomotion, unit_plot_nose, unit_plot_position, unit_plot_potential_conv, unit_plot_pupil, unit_plot_pupil_center, unit_plot_single_cell_deconv_fluorescence, unit_plot_single_cell_fluorescence, unit_plot_timeline, unit_plot_whisker, unit_plot_potential
+from kitchen.plotter.plotting_params import FLUORESCENCE_RATIO, HEATMAP_OFFSET_RANGE, LICK_RATIO, LOCOMOTION_RATIO, NOSE_RATIO, POSITION_RATIO, POTENTIAL_RATIO, PUPIL_RATIO, SACCADE_RATIO, SACCADE_VEL_RATIO, TIMELINE_RATIO, WHISKER_RATIO
+from kitchen.plotter.unit_plotter.unit_heatmap import unit_heatmap_deconv_fluorescence, unit_heatmap_fluorescence, unit_heatmap_lick, unit_heatmap_locomotion, unit_heatmap_pupil, unit_heatmap_saccade, unit_heatmap_whisker
+from kitchen.plotter.unit_plotter.unit_trace import unit_plot_lick, unit_plot_locomotion, unit_plot_nose, unit_plot_position, unit_plot_potential_conv, unit_plot_pupil, unit_plot_pupil_center, unit_plot_saccade_velocity, unit_plot_single_cell_deconv_fluorescence, unit_plot_single_cell_fluorescence, unit_plot_timeline, unit_plot_whisker, unit_plot_potential
 from kitchen.plotter.utils.tick_labels import add_labeless_yticks, emphasize_yticks
 from kitchen.settings.potential import WC_CONVERT_FLAG
 from kitchen.structure.hierarchical_data_structure import DataSet
@@ -89,6 +89,7 @@ def flat_view(
         y_offset = yield unit_plot_pupil(pupil=node.data.pupil, ax=ax, y_offset=y_offset, ratio=PUPIL_RATIO)
     if plot_manual.saccade:             
         y_offset = yield unit_plot_pupil_center(pupil=node.data.pupil, ax=ax, y_offset=y_offset, ratio=SACCADE_RATIO)
+        y_offset = yield unit_plot_saccade_velocity(pupil=node.data.pupil, ax=ax, y_offset=y_offset, ratio=SACCADE_VEL_RATIO)
 
 
 
@@ -169,6 +170,9 @@ def stack_view(
         y_offset = yield unit_plot_pupil_center(
             pupil=select_truthy_items([node.data.pupil for node in dataset_synced]),
             ax=ax, y_offset=y_offset, ratio=SACCADE_RATIO, baseline_subtraction=plot_manual.baseline_subtraction)
+        y_offset = yield unit_plot_saccade_velocity(
+            pupil=select_truthy_items([node.data.pupil for node in dataset_synced]),
+            ax=ax, y_offset=y_offset, ratio=SACCADE_VEL_RATIO, baseline_subtraction=plot_manual.baseline_subtraction)
 
 
 def heatmap_view(
@@ -236,6 +240,12 @@ def heatmap_view(
     if modality_name == "whisker":    
         y_offset = yield unit_heatmap_whisker(
             whisker=select_truthy_items([node.data.whisker for node in dataset_synced]), 
+            ax=ax, baseline_subtraction=plot_manual.baseline_subtraction,
+            **sorting_profiles)
+        
+    if modality_name == "lick":    
+        y_offset = yield unit_heatmap_lick(
+            lick=select_truthy_items([node.data.lick for node in dataset_synced]), 
             ax=ax, baseline_subtraction=plot_manual.baseline_subtraction,
             **sorting_profiles)
     

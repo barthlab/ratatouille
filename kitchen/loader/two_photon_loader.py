@@ -11,7 +11,7 @@ from kitchen.annotator.trial_type_annotator import trial_type_annotator
 from kitchen.settings.trials import DEFAULT_TRIAL_RANGE_RELATIVE_TO_ALIGNMENT
 from kitchen.loader.timeline_loader import timeline_loader_from_fov
 from kitchen.loader.behavior_loader import behavior_loader_from_node
-from kitchen.structure.hierarchical_data_structure import DataSet, Cohort, FovTrial, MergeFovDay2Day, MergeSession2FovDay, Mice, Fov, Session, CellSession, Trial
+from kitchen.structure.hierarchical_data_structure import DataSet, Cohort, FovTrial, MergeCellDay2Cell, MergeCellSession2CellDay, MergeFovDay2Day, MergeSession2FovDay, Mice, Fov, Session, CellSession, Trial
 from kitchen.structure.meta_data_structure import TemporalObjectCoordinate, TemporalUID, ObjectUID
 from kitchen.structure.neural_data_structure import Fluorescence, NeuralData
 import kitchen.configs.routing as routing
@@ -27,8 +27,8 @@ Supports the complete experimental hierarchy:
                     ________________________________________
           template  | Cohort -> Mice -> Fov           Cell
  temporal           |                    |              ^
-               day  |            Day <---|-- FovDay     |
-                    |                    V    ^         |
+               day  |            Day <---|-- FovDay  CellDay
+                    |                    V    ^         ^
            session  |                   Session -> CellSession
                     |                      V           V
              chunk  |                   FovTrial     Trial
@@ -274,6 +274,12 @@ def cohort_loader(template_id: str, cohort_id: str, recipe: dict, name: Optional
     for session_node in loaded_data.select("session"):
         assert isinstance(session_node, Session)
         loaded_data.add_node(_SplitSession2CellSession(session_node)) 
+
+    # CellSession to CellDay
+    loaded_data.add_node(MergeCellSession2CellDay(loaded_data))
+
+    # CellDay to Cell
+    loaded_data.add_node(MergeCellDay2Cell(loaded_data))
 
     # CellSession to Trial
     for cell_session_node in tqdm(loaded_data.select("cellsession"), 

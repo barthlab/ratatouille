@@ -101,7 +101,7 @@ def default_style(
         if invisible_spines:
             ax.spines[['top', 'right']].set_visible(False)
         if auto_title:
-            ax.set_title(str(label), fontsize=40)
+            ax.set_title(str(label))
     
     # Main plotting
     plot_coroutines = {plot_func(ax=axs[label], datasets=datasets): label 

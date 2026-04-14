@@ -30,7 +30,7 @@ import logging
 import pandas as pd
 import json
 
-from kitchen.structure.meta_data_structure import TemporalObjectCoordinate
+from kitchen.structure.meta_data_structure import ObjectUID, TemporalObjectCoordinate, TemporalUID
 from kitchen.structure.neural_data_structure import NeuralData
 from kitchen.utils.sequence_kit import filter_by, group_by, split_by
 from kitchen.writer.excel_writer import write_boolean_dataframe
@@ -115,7 +115,10 @@ class Node:
     
     def aligned_to(self, align_time: float) -> Self:
         """Align all data to a specific time point."""
-        return self.__class__(coordinate=self.coordinate, data=self.data.aligned_to(align_time), info=self.info.copy())
+        aligned_info = self.info.copy()
+        if "raw_ref_t" in aligned_info:
+            aligned_info["raw_ref_t"] = self.info["raw_ref_t"] - align_time
+        return self.__class__(coordinate=self.coordinate, data=self.data.aligned_to(align_time), info=aligned_info)
     
     def shadow_clone(self) -> Self:
         """Create a shadow clone with new data."""
@@ -149,6 +152,11 @@ class Session(Node):
     """Session-level data for entire FOVs. Temporal: session, Spatial: fov."""
     _expected_temporal_uid_level = 'session'
     _expected_object_uid_level = 'fov'
+
+class CellDay(Node):
+    """Cell data aggregated at day level. Temporal: day, Spatial: cell."""
+    _expected_temporal_uid_level = 'day'
+    _expected_object_uid_level = 'cell'
 
 class Cell(Node):
     """Individual cell data across experimental template. Temporal: template, Spatial: cell."""
@@ -340,13 +348,23 @@ class DataSet:
             specified_name = self.name + "_shadow_clone"
         return DataSet(name=specified_name, nodes=[node.shadow_clone() for node in self.nodes])
     
-    def get_temporal_hiers(self, temporal_level: str) -> List[str]:
+    def get_temporal_hiers(self, temporal_level: str, unique: bool = False, remove_none: bool = True) -> List[str]:
         """Return all unique temporal hierarchies at a specific level."""
-        return [node.coordinate.temporal_uid.get_hier_value(temporal_level) for node in self]
+        all_hiers = [node.coordinate.temporal_uid.get_hier_value(temporal_level) for node in self]
+        if remove_none:
+            all_hiers = [hier for hier in all_hiers if hier is not None]
+        if unique:
+            return list(set(all_hiers))
+        return all_hiers
     
-    def get_object_hiers(self, object_level: str) -> List[str]:
+    def get_object_hiers(self, object_level: str, unique: bool = False, remove_none: bool = True) -> List[str]:
         """Return all unique object hierarchies at a specific level."""
-        return [node.coordinate.object_uid.get_hier_value(object_level) for node in self]
+        all_hiers = [node.coordinate.object_uid.get_hier_value(object_level) for node in self]
+        if remove_none:
+            all_hiers = [hier for hier in all_hiers if hier is not None]
+        if unique:
+            return list(set(all_hiers))
+        return all_hiers
 
 
 
@@ -397,6 +415,14 @@ def _generalized_temporal_merger(
 def MergeSession2FovDay(dataset: DataSet, **kwargs: Any) -> List[FovDay]:
     """Merge session nodes into fov day nodes."""
     return _generalized_temporal_merger(dataset, source_node_type="session", TargetNodeClass=FovDay, **kwargs)
+
+def MergeCellSession2CellDay(dataset: DataSet, **kwargs: Any) -> List[CellDay]:
+    """Merge cell session nodes into cell day nodes."""
+    return _generalized_temporal_merger(dataset, source_node_type="cellsession", TargetNodeClass=CellDay, **kwargs)
+
+def MergeCellDay2Cell(dataset: DataSet, **kwargs: Any) -> List[Cell]:
+    """Merge cell day nodes into day nodes."""
+    return _generalized_temporal_merger(dataset, source_node_type="cellday", TargetNodeClass=Cell, **kwargs)
 
 
 def _generalized_object_merger(

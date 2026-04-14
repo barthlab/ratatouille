@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 from kitchen.operator.grouping import AdvancedTimeSeries, calculate_group_tuple, grouping_events_rate, grouping_timeseries
 from kitchen.plotter import color_scheme, style_dicts, plotting_params
-from kitchen.plotter.plotting_params import HEATMAP_OFFSET_RANGE, LOCOMOTION_BIN_SIZE
+from kitchen.plotter.plotting_params import HEATMAP_OFFSET_RANGE, LICK_BIN_SIZE, LOCOMOTION_BIN_SIZE
 from kitchen.plotter.unit_plotter.unit_trace import sanity_check
 from kitchen.structure.neural_data_structure import Events, Fluorescence, Pupil, TimeSeries
 from kitchen.calculator.sorting_data import get_amplitude_sorted_idxs
@@ -18,7 +18,7 @@ def label_heatmap_y_ticklabels(ax: plt.Axes, row_num: int, extent_range: tuple[f
 
 def default_ax_realign(ax: plt.Axes) -> None:
     """realign the ax to the default heatmap style"""
-    ax.set_ylim(0, None)
+    ax.set_ylim(0, HEATMAP_OFFSET_RANGE[1])
     ax.tick_params(top=True, labeltop=True, bottom=False, labelbottom=False)
     ax.spines['top'].set_visible(True)
     ax.invert_yaxis()
@@ -89,6 +89,34 @@ def unit_heatmap_whisker(whisker: None | list[TimeSeries], ax: plt.Axes,
     # add y ticks
     if yticks_flag:
         label_heatmap_y_ticklabels(ax, len(whisker), HEATMAP_OFFSET_RANGE)
+    else:
+        ax.set_yticks([])
+    return HEATMAP_OFFSET_RANGE[1]
+
+
+def unit_heatmap_lick(lick: None | list[Events], ax: plt.Axes,
+                      yticks_flag: bool = True, baseline_subtraction: Optional[tuple[float, float, bool]] = None,
+                      **sorting_kwargs
+                      ) -> float:
+    """plot lick"""
+    if not sanity_check(lick):
+        return 0
+    assert lick is not None, "Sanity check failed"
+
+    # plot multiple licks
+    group_lick = grouping_events_rate(lick, bin_size=LICK_BIN_SIZE, baseline_subtraction=baseline_subtraction)
+    heatmap_array = sort_heatmap_array(group_lick, **sorting_kwargs)
+    heatmap_extent = (group_lick.t[0], group_lick.t[-1], HEATMAP_OFFSET_RANGE[1], HEATMAP_OFFSET_RANGE[0])
+    
+    ax.imshow(heatmap_array, extent=heatmap_extent, 
+              cmap=color_scheme.LICK_COLORMAP if baseline_subtraction is None else color_scheme.BASELINE_SUBTRACTION_COLORMAP,
+              **plotting_params.LICK_VMIN_VMAX[baseline_subtraction is None],
+              **style_dicts.HEATMAP_STYLE)
+    default_ax_realign(ax)
+    
+    # add y ticks
+    if yticks_flag:
+        label_heatmap_y_ticklabels(ax, len(lick), HEATMAP_OFFSET_RANGE)
     else:
         ax.set_yticks([])
     return HEATMAP_OFFSET_RANGE[1]
@@ -181,7 +209,7 @@ def unit_heatmap_fluorescence(
         label_heatmap_y_ticklabels(ax, len(fluorescence), HEATMAP_OFFSET_RANGE)
     else:
         ax.set_yticks([])
-    return HEATMAP_OFFSET_RANGE[1]
+    return 0
 
 
 def unit_heatmap_deconv_fluorescence(
@@ -211,4 +239,4 @@ def unit_heatmap_deconv_fluorescence(
         label_heatmap_y_ticklabels(ax, len(fluorescence), HEATMAP_OFFSET_RANGE)
     else:
         ax.set_yticks([])
-    return HEATMAP_OFFSET_RANGE[1]
+    return 0

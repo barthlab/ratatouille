@@ -8,7 +8,7 @@ import pandas as pd
 import seaborn as sns
 
 from kitchen.plotter import style_dicts
-from kitchen.plotter.color_scheme import num_to_color
+from kitchen.plotter.color_scheme import num_to_hex_color
 from kitchen.structure.hierarchical_data_structure import DataSet, Node
 from kitchen.utils import sequence_kit
 
@@ -46,7 +46,7 @@ def trace_view(
     
     all_data = defaultdict(list)
     for group_idx, (group_name, dataset) in enumerate(group_of_datasets.items()):
-        group_settings = {"color": num_to_color(group_idx),} | plotting_settings.get(group_name, {})
+        group_settings = {"color": num_to_hex_color(group_idx),} | plotting_settings.get(group_name, {})
         x_values = np.array([x_axis_func(node) for node in dataset])
         y_values = np.array([y_axis_func(node) for node in dataset])
         df = pd.DataFrame({"x": x_values, "y": y_values})

@@ -16,6 +16,7 @@ def split_dataset_by_trial_type(dataset: DataSet, plot_manual: PlotManual, _elem
         _self = partial(CHECK_PLOT_MANUAL, plot_manual=plot_manual)
     )
     # type2dataset = {k: v for k, v in type2dataset.items() if k in INTRINSIC_TRIAL_TYPE_ORDER}
+    
     type2dataset = {k: v for k, v in sorted(type2dataset.items(), key=lambda x: INTRINSIC_TRIAL_TYPE_ORDER.index(x[0]))}
     if _add_dummy:
         type2dataset["Dummy"] = get_dummy_trials(dataset, _element_trial_level=_element_trial_level)

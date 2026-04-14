@@ -36,17 +36,20 @@ def sync_check(dataset: DataSet, sync_events: Tuple[str], plot_manual: PlotManua
             all_node_object_uid = [node.object_uid for node in dataset if node.data.fluorescence is not None]
             assert len(set(all_node_object_uid)) == 1, f"Object uid mismatch, got {all_node_object_uid}"
         
-def sync_node(node: Node, sync_events: Tuple[str]):    
+def sync_node(node: Node, sync_events: Tuple[str] | Tuple[Tuple[str], ...]):    
     """Align node to the given sync events"""
     if node.info.get("trial_type") == "Dummy":
         return node.aligned_to(node.info["raw_ref_t"])
     assert node.data.timeline is not None, f"Cannot find timeline in {node}"
-    sync_event_ts = node.data.timeline.filter(sync_events).t
+    sync_event_ts = node.data.timeline.advanced_filter(sync_events).t
     assert len(sync_event_ts) > 0, f"Cannot find sync event in {node}: \n {node.data.timeline}\n {sync_events}"
     if len(sync_event_ts) > 1 and "raw_ref_t" in node.info:
-        time2sync = sync_event_ts[np.argmin(np.abs(sync_event_ts - node.info["raw_ref_t"]))]
-    else:
+        after_ts = sync_event_ts[sync_event_ts >= node.info["raw_ref_t"]]
+        time2sync = after_ts[np.argmin(after_ts - node.info["raw_ref_t"])]
+    elif len(sync_event_ts) == 1:
         time2sync = sync_event_ts[0]
+    else:
+        raise ValueError(f"Cannot find unique sync event in {node}: \n {node.data.timeline}\n {sync_events}")
     return node.aligned_to(time2sync)
 
 

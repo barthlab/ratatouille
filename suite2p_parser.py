@@ -73,5 +73,5 @@ def parse_all_suite2p_under_dir(dir_path: str):
 
 
 if __name__ == "__main__":
-    parse_all_suite2p_under_dir(r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\PassivePuff_HighFreqImaging\HighFreqImaging_202602")
+    parse_all_suite2p_under_dir(r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\HeadFixedTraining_CalciumImaging")
     

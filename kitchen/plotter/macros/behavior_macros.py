@@ -14,7 +14,7 @@ from kitchen.operator.sync_nodes import sync_nodes
 from kitchen.plotter.ax_plotter.advance_plot import subtract_view
 from kitchen.plotter.ax_plotter.basic_plot import stack_view
 from kitchen.plotter.ax_plotter.basic_trace import trace_view
-from kitchen.plotter.color_scheme import num_to_color, string_to_hex_color
+from kitchen.plotter.color_scheme import num_to_hex_color, string_to_hex_color
 from kitchen.plotter.decorators.default_decorators import default_exit_save, default_plt_param, default_style
 from kitchen.plotter.plotting_manual import CHECK_PLOT_MANUAL, PlotManual
 from kitchen.plotter.plotting_params import STACK_X_INCHES, STACK_Y_INCHES
@@ -93,7 +93,7 @@ def trace_view_delta_behavior_macro(
                 "trial", _self=lambda x: x.info.get("trial_type") == trial_type)
             group_of_dataset[f"{y_group_node.mice_id}_{trial_type}"] = sync_nodes(certain_type_dataset, alignment_events, plot_manual)
             plotting_settings[f"{y_group_node.mice_id}_{trial_type}"] = {
-                "color": num_to_color(y_group_idx),
+                "color": num_to_hex_color(y_group_idx),
                 "marker": "o" if trial_type not in left_day_trial_types else ".",
                 "ls": "-" if trial_type not in left_day_trial_types else "--",
                 "alpha": 1 if trial_type not in left_day_trial_types else 0.5,

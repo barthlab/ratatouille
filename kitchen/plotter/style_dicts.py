@@ -62,7 +62,7 @@ PUPIL_CENTER_Y_TRACE_STYLE = {
 }
 
 PUPIL_SACCADE_TRACE_STYLE = {
-    "color": color_scheme.PUPIL_CENTER_COLOR,
+    "color": color_scheme.PUPIL_CENTER_SACCADE_COLOR,
     "linewidth": 0.5,
     "alpha": 0.9,
 }
@@ -87,8 +87,8 @@ NOSE_TRACE_STYLE = {
 
 FLUORESCENCE_TRACE_STYLE = {
     "color": color_scheme.FLUORESCENCE_COLOR,
-    "lw": 0.3,
-    "alpha": 0.9,
+    "lw": 0.8,
+    "alpha": 0.7,
 }
 
 DECONV_FLUORESCENCE_TRACE_STYLE = {
@@ -250,7 +250,7 @@ HEATMAP_SEP_LINE_MINOR_STYLE = {
 
 LEGEND_STYLE = {
     "frameon": False,
-    "loc": "lower right",
+    "loc": "best",
     "fontsize": "small",
 }
 

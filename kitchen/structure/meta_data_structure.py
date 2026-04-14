@@ -7,6 +7,7 @@ Core data structures for hierarchical experimental data organization:
 """
 
 from dataclasses import dataclass, field
+from numbers import Integral
 from typing import ClassVar, Generator, Optional, Tuple, Any
 from typing_extensions import Self
 
@@ -87,9 +88,13 @@ class HierarchicalUID:
     @property
     def _comparison_tuple(self) -> tuple:
         """Returns a tuple of hierarchy values for comparison."""
-        def zfill_num(x):
-            return str(x).zfill(5) if isinstance(x, int) else str(x)
-        return tuple(zfill_num(self.get_hier_value(name, "")) for name in self._HIERARCHY_FIELDS)
+        def norm(x):
+            if x is None:
+                return ""
+            if isinstance(x, Integral):   # works for int and numpy int types
+                return str(int(x)).zfill(5)
+            return str(x)
+        return tuple(norm(self.get_hier_value(name)) for name in self._HIERARCHY_FIELDS)
 
     def __lt__(self, other):
         if not isinstance(other, self.__class__):
@@ -191,8 +196,8 @@ class TemporalObjectCoordinate:
     Provides complete coordinate system for locating experimental data
     in both spatial and temporal dimensions.
     """
-    temporal_uid: TemporalUID = field(default_factory=TemporalUID)
     object_uid: ObjectUID = field(default_factory=ObjectUID)
+    temporal_uid: TemporalUID = field(default_factory=TemporalUID)
 
     def contains(self, other: "TemporalObjectCoordinate") -> bool:
         """

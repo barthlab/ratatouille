@@ -3,6 +3,7 @@ from typing import List, Optional, Self, Tuple
 import numpy as np
 from scipy import stats
 
+from kitchen.settings.trials import DEFAULT_TRIAL_RANGE_FOR_GROUPING
 from kitchen.structure.neural_data_structure import Events, TimeSeries
 from kitchen.utils.numpy_kit import smart_interp
 
@@ -112,16 +113,21 @@ def calculate_group_tuple(arrs: List[np.ndarray], t: np.ndarray) -> AdvancedTime
 
 
 def grouping_events_rate(events: List[Events], bin_size: float, use_event_value_as_weight: bool = True,
-                         baseline_subtraction: Optional[Tuple[float, float, bool]] = None) -> AdvancedTimeSeries:
+                         _predefined_bin_centers: Optional[np.ndarray] = None,
+                         baseline_subtraction: Optional[Tuple[float, float, bool]] = None, 
+                         minimal_range: Tuple[float, float] = DEFAULT_TRIAL_RANGE_FOR_GROUPING) -> AdvancedTimeSeries:
     """Group a list of events in rate."""
     assert bin_size > 0, "bin size should be positive"
     if len(events) == 0:
         return AdvancedTimeSeries.create_empty()
     group_t = np.sort(np.concatenate([event.t for event in events]))
     # Handle case where all events are empty (no spikes across all trials)
-    if len(group_t) == 0:
-        return AdvancedTimeSeries.create_empty()
-    bins = np.arange(group_t[0] - bin_size, group_t[-1] + bin_size, bin_size)
+    if len(group_t) ==0:
+        t_range = minimal_range
+    else:
+        t_range = [min(minimal_range[0], group_t[0]), max(minimal_range[1], group_t[-1])]
+    bins = np.arange(t_range[0] - bin_size, t_range[-1] + bin_size, bin_size) if _predefined_bin_centers is None else \
+        np.concatenate([_predefined_bin_centers - bin_size/2, [_predefined_bin_centers[-1] + bin_size/2]])
     all_rates = [np.histogram(event.t, bins=bins, weights=event.v
                               if use_event_value_as_weight else None)[0] / bin_size for event in events]
 
@@ -142,13 +148,22 @@ def grouping_events_histogram(events: List[Events], bins: np.ndarray, use_event_
     return calculate_group_tuple(all_rates, (bins[:-1] + bins[1:]) / 2)
 
 
+def get_ts_union_t(timeseries: List[TimeSeries], scale_factor: float = 2) -> np.ndarray:
+    min_t, max_t = max(timeseries, key=lambda x: x.t[0]).t[0], min(timeseries, key=lambda x: x.t[-1]).t[-1]
+    max_fs = max(timeseries, key=lambda x: x.fs).fs
+    group_t = np.linspace(min_t, max_t, int((max_t - min_t) * max_fs * scale_factor))
+    return group_t
+
+
+def get_ts_combine_t(timeseries: List[TimeSeries]) -> np.ndarray:
+    return np.sort(np.concatenate([ts.t for ts in timeseries]))
+
+
 def grouping_timeseries(timeseries: List[TimeSeries], scale_factor: float = 2, interp_method: str = "previous", 
                         baseline_subtraction: Optional[Tuple[float, float, bool]] = None,
                         _predefined_t: Optional[np.ndarray] = None) -> AdvancedTimeSeries:
     """Group a list of timeseries."""
-    min_t, max_t = max(timeseries, key=lambda x: x.t[0]).t[0], min(timeseries, key=lambda x: x.t[-1]).t[-1]
-    max_fs = max(timeseries, key=lambda x: x.fs).fs
-    group_t = np.linspace(min_t, max_t, int((max_t - min_t) * max_fs * scale_factor)) if _predefined_t is None else _predefined_t
+    group_t = get_ts_union_t(timeseries, scale_factor) if _predefined_t is None else _predefined_t
     all_values = [smart_interp(group_t, ts.t, ts.v, interp_method) for ts in timeseries]
     if baseline_subtraction is not None:
         baseline_start, baseline_end, if_absolute = baseline_subtraction

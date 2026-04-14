@@ -18,6 +18,7 @@ def add_new_yticks(ax: plt.Axes, new_ticks: list[TICK_PAIR] | TICK_PAIR, add_ref
     # Get current ticks and labels
     current_ticks = ax.get_yticks()
     current_labels = [label.get_text() for label in ax.get_yticklabels()]
+    assert len(current_ticks) == len(current_labels), f"Current ticks and labels mismatch, got ticks {current_ticks} and labels {current_labels}"
 
     # Add new ticks and labels to the current ticks and labels
     for tick in new_ticks:

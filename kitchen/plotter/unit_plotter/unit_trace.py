@@ -3,6 +3,7 @@ import random
 import logging
 from typing import Optional, Any
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import numpy as np
 from tqdm import tqdm
 
@@ -150,10 +151,8 @@ def unit_plot_pupil_center(pupil: None | Pupil | list[Pupil], ax: plt.Axes, y_of
         # plot single pupil center
         plotting_pupil_center_x = pupil.center_x_ts.copy()
         plotting_pupil_center_y = pupil.center_y_ts.copy()
-        plotting_pupil_saccade = pupil.saccade_velocity_ts.copy()
         ax.plot(plotting_pupil_center_x.t, plotting_pupil_center_x.v * ratio + y_offset, **style_dicts.PUPIL_CENTER_X_TRACE_STYLE)
         ax.plot(plotting_pupil_center_y.t, plotting_pupil_center_y.v * ratio + y_offset, **style_dicts.PUPIL_CENTER_Y_TRACE_STYLE)
-        # ax.plot(plotting_pupil_saccade.t, plotting_pupil_saccade.v * ratio + y_offset, **style_dicts.PUPIL_SACCADE_TRACE_STYLE)
         y_height = max(np.nanmax(plotting_pupil_center_x.v), np.nanmax(plotting_pupil_center_y.v)) * ratio
     else:
         # plot multiple pupil centers
@@ -161,15 +160,38 @@ def unit_plot_pupil_center(pupil: None | Pupil | list[Pupil], ax: plt.Axes, y_of
                                                    baseline_subtraction=baseline_subtraction)
         group_pupil_center_y = grouping_timeseries([single_pupil.center_y_ts for single_pupil in pupil], 
                                                    baseline_subtraction=baseline_subtraction)
-        group_pupil_saccade = grouping_timeseries([single_pupil.saccade_velocity_ts for single_pupil in pupil], 
-                                                 baseline_subtraction=baseline_subtraction)
         oreo_plot(ax, group_pupil_center_x, y_offset, ratio, style_dicts.PUPIL_CENTER_X_TRACE_STYLE, style_dicts.FILL_BETWEEN_STYLE)
         oreo_plot(ax, group_pupil_center_y, y_offset, ratio, style_dicts.PUPIL_CENTER_Y_TRACE_STYLE, style_dicts.FILL_BETWEEN_STYLE)
-        oreo_plot(ax, group_pupil_saccade, y_offset, ratio, style_dicts.PUPIL_SACCADE_TRACE_STYLE, style_dicts.FILL_BETWEEN_STYLE)
         y_height = max(np.nanmax(group_pupil_center_x.mean), np.nanmax(group_pupil_center_y.mean)) * ratio
     # add y ticks
     if yticks_flag:
         yticks_combo("pupil_center", ax, y_offset, ratio)
+    else:
+        add_new_yticks(ax, TICK_PAIR(y_offset, "", color_scheme.PUPIL_COLOR))
+    return max(y_height, 0.2 * ratio)
+
+
+def unit_plot_saccade_velocity(pupil: None | Pupil | list[Pupil], ax: plt.Axes, y_offset: float, ratio: float = 1.0,
+                           yticks_flag: bool = True, baseline_subtraction: Optional[tuple[float, float, bool]] = None) -> float:
+    """plot pupil center"""    
+    if not sanity_check(pupil):
+        return 0
+    assert pupil is not None, "Sanity check failed"
+
+    if isinstance(pupil, Pupil):
+        # plot single pupil center
+        plotting_pupil_saccade = pupil.saccade_velocity_ts.copy()
+        ax.plot(plotting_pupil_saccade.t, plotting_pupil_saccade.v * ratio + y_offset, **style_dicts.PUPIL_SACCADE_TRACE_STYLE)
+        y_height = np.nanmax(plotting_pupil_saccade.v) * ratio
+    else:
+        # plot multiple pupil centers
+        group_pupil_saccade = grouping_timeseries([single_pupil.saccade_velocity_ts for single_pupil in pupil], 
+                                                 baseline_subtraction=baseline_subtraction)
+        oreo_plot(ax, group_pupil_saccade, y_offset, ratio, style_dicts.PUPIL_SACCADE_TRACE_STYLE, style_dicts.FILL_BETWEEN_STYLE)
+        y_height = np.nanmax(group_pupil_saccade.mean) * ratio
+    # add y ticks
+    if yticks_flag:
+        yticks_combo("saccade", ax, y_offset, ratio)
     else:
         add_new_yticks(ax, TICK_PAIR(y_offset, "", color_scheme.PUPIL_COLOR))
     return max(y_height, 0.2 * ratio)
@@ -267,13 +289,22 @@ def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes,
 
                 end_event = event_type.replace("On", "Off")
                 possible_end_time = one_timeline.filter(end_event).t
+                if len(possible_end_time[possible_end_time >= event_time]) == 0:
+                    continue
                 end_time = possible_end_time[possible_end_time >= event_time][0]
+                
+                ax.axvline(event_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type],
+                            **calibrate_alpha(style_dicts.VLINE_STYLE, num_event_calibrate))
                 if end_time - event_time >= 0.09:
-                    ax.axvspan(event_time, end_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type],
-                                **calibrate_alpha(style_dicts.VSPAN_STYLE, num_event_calibrate))
-                else:
-                    ax.axvline(event_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type],
-                                **calibrate_alpha(style_dicts.VLINE_STYLE, num_event_calibrate))
+                    ax.add_patch(mpatches.Rectangle((event_time, y_offset), end_time - event_time, ratio, 
+                                                color=color_scheme.GRAND_COLOR_SCHEME[event_type],
+                                                **calibrate_alpha(style_dicts.VSPAN_STYLE, num_event_calibrate)))
+                    # ax.axvspan(event_time, end_time, 
+                    #            color=color_scheme.GRAND_COLOR_SCHEME[event_type],
+                    #             **calibrate_alpha(style_dicts.VSPAN_STYLE, num_event_calibrate))
+                # else:
+                #     ax.axvline(event_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type],
+                #                 **calibrate_alpha(style_dicts.VLINE_STYLE, num_event_calibrate))
     return ratio
 
 
@@ -316,8 +347,11 @@ def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[
         y_offset,
         f"Cell {example_fluorescence.cell_idx[0]}" if cell_id_flag else "Cell", color_scheme.FLUORESCENCE_COLOR))
     add_new_yticks(ax, TICK_PAIR(
-        y_offset + 1 * ratio,
-        f"1 {DF_F0_SIGN}" if (np.all(example_fluorescence.cell_order == 0) or (not cell_id_flag)) else "", color_scheme.FLUORESCENCE_COLOR))
+        y_offset + 0.5 * ratio,
+        f"0.5 {DF_F0_SIGN}" if (np.all(example_fluorescence.cell_order == 0) or (not cell_id_flag)) else "", color_scheme.FLUORESCENCE_COLOR))
+    # add_new_yticks(ax, TICK_PAIR(
+    #     y_offset + 1 * ratio,
+    #     f"1 {DF_F0_SIGN}" if (np.all(example_fluorescence.cell_order == 0) or (not cell_id_flag)) else "", color_scheme.FLUORESCENCE_COLOR))
     return max(np.nanmax(group_fluorescence.mean) * ratio, 1*ratio)
         
 

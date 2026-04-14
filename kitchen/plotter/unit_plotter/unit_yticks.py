@@ -1,6 +1,6 @@
 from matplotlib import pyplot as plt
 
-from kitchen.plotter.color_scheme import FLUORESCENCE_COLOR, LICK_COLOR, LOCOMOTION_COLOR, NOSE_COLOR, POSITION_COLOR, POTENTIAL_COLOR, PUPIL_CENTER_COLOR, PUPIL_COLOR, WHISKER_COLOR
+from kitchen.plotter.color_scheme import FLUORESCENCE_COLOR, LICK_COLOR, LOCOMOTION_COLOR, NOSE_COLOR, POSITION_COLOR, POTENTIAL_COLOR, PUPIL_CENTER_COLOR, PUPIL_CENTER_SACCADE_COLOR, PUPIL_COLOR, WHISKER_COLOR
 from kitchen.plotter.utils.tick_labels import TICK_PAIR, add_new_yticks
 from kitchen.settings.fluorescence import DF_F0_SIGN
 from kitchen.utils.value_dispatch import value_dispatch
@@ -50,8 +50,8 @@ def _yticks_combo_pupil_center(command: str, ax: plt.Axes, y_offset: float, rati
 
 @yticks_combo.register("saccade")
 def _yticks_combo_saccade(command: str, ax: plt.Axes, y_offset: float, ratio: float = 1.0, **kwargs):
-    add_new_yticks(ax, [TICK_PAIR(y_offset, "saccade", PUPIL_CENTER_COLOR),
-                        TICK_PAIR(y_offset + 0.2*ratio, "20 px/s", PUPIL_CENTER_COLOR)])
+    add_new_yticks(ax, [TICK_PAIR(y_offset, "saccade", PUPIL_CENTER_SACCADE_COLOR),
+                        TICK_PAIR(y_offset + 0.2*ratio, "20 px/s", PUPIL_CENTER_SACCADE_COLOR)])
                         
 
 @yticks_combo.register("delta_pupil")

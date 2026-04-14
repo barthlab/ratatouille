@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.patches import Rectangle
 
+
 # Behavior color scheme
 LOCOMOTION_COLOR = "Blue"
 POSITION_COLOR = "Orange"
@@ -13,6 +14,7 @@ LICK_COLOR = "Red"
 
 PUPIL_COLOR = "Purple"
 PUPIL_CENTER_COLOR = "Brown"
+PUPIL_CENTER_SACCADE_COLOR = "Red"
 IS_BLINK_COLOR = "Blue"
 PUPIL_CENTER_X_COLOR = "Orange"
 PUPIL_CENTER_Y_COLOR = "Brown"
@@ -43,7 +45,7 @@ NOWATER_COLOR = "orangered"
 BUZZER_COLOR = "darkorange"
 PELTIER_COLOR = "aqua"
 DARK_STIM_COLOR = "darkblue"
-DARK_PUFF_COLOR = "darkgray"
+DARK_PUFF_COLOR = "gray"
 DARK_BLUELED_COLOR = "darkblue"
 DARK_BLANK_COLOR = "lightgray"
 DARK_WATER_COLOR = "blue"
@@ -88,7 +90,7 @@ BASELINE_SUBTRACTION_COLORMAP = "RdYlBu_r"
 LOCOMOTION_COLORMAP = "Blues"
 POSITION_COLORMAP = "Oranges"
 
-LICK_COLORMAP = "Reds"
+LICK_COLORMAP = "Greys"
 
 PUPIL_COLORMAP = "Purples"
 PUPIL_CENTER_COLORMAP = "Oranges"
@@ -105,32 +107,25 @@ DECONV_FLUORESCENCE_COLORMAP = "YlOrBr"
 
 
 
-def string_to_hex_color(text: str) -> str:
+
+
+# USE 
+from distinctipy import distinctipy
+N_COLORS = 11
+DISTINCT_COLORS = distinctipy.get_colors(N_COLORS)
+
+
+def string_to_hex_color(text: str):
     data = text.encode('utf-8')
 
     hash_object = hashlib.md5(data)
     hex_dig = hash_object.hexdigest()
 
-    return f"#{hex_dig[:6]}"
+    return DISTINCT_COLORS[int(hex_dig[:6]) % N_COLORS]
 
 
+def num_to_hex_color(num: int, max_num: int = N_COLORS):
+    if max_num != N_COLORS:
+        return distinctipy.get_colors(max_num)[num % max_num]
+    return DISTINCT_COLORS[num % N_COLORS]
 
-def num_to_color(n: int) -> str:
-    """
-    Returns a consistent color for any positive integer.
-    0-9  : Returns standard "Cn" strings (Matplotlib Tableaus).
-    10+  : Generates a unique Hex color that fits the style but is distinct.
-    """
-    if 0 <= n < 10:
-        return f"C{n}"
-
-    golden_ratio = 0.618033988749895
-    
-    h = (n * golden_ratio) % 1.0
-    
-    s = 0.75 
-    v = 0.95 
-
-    r, g, b = colorsys.hsv_to_rgb(h, s, v)
-    
-    return '#{:02x}{:02x}{:02x}'.format(int(r*255), int(g*255), int(b*255))

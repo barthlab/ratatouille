@@ -1,5 +1,7 @@
 # Timeline data loading settings and constants
 
+DEFAULT_FUSION_WINDOW = 0.1  # s
+
 
 SUPPORTED_TIMELINE_EVENT = {
     "TrialOn",
@@ -104,11 +106,20 @@ AUDITORY_EVENTS_DEFAULT = (
     "BuzzerOn",
 )
 
+ADAPTIVE_EVENTS_DEFAULT = (
+    ("VerticalPuffOn",
+    "HorizontalPuffOn",
+    "BlankOn",),
+    ("WaterOn",
+    "NoWaterOn",),
+)
+
 
 ALL_ALIGNMENT_STYLE = {
     "Aligned2Stim": STIMULUS_EVENTS_DEFAULT,
     "Aligned2Reward": REWARD_EVENTS_DEFAULT,
     "Aligned2Buzzer": AUDITORY_EVENTS_DEFAULT,
     "Aligned2Trial": ("TrialOn",),
+    "Aligned2Adaptive": ADAPTIVE_EVENTS_DEFAULT,
 }
 

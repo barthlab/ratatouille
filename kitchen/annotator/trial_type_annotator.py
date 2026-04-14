@@ -149,12 +149,24 @@ def trial_type_annotator(trial_node: Trial | FovTrial, trial_align: float, trial
             trial_node.info["trial_type"] = "Stationary"
         else:
             trial_node.info["trial_type"] = "Mobile"
+
+    
+    def io_oddball(trial_node: Trial | FovTrial, trial_align: float):
+        assert trial_node.data.timeline is not None, f"Cannot find timeline in {trial_node}"
+        stim_events = trial_node.data.timeline.advanced_filter(STIMULUS_EVENTS_DEFAULT)
+        first_stim_event = np.searchsorted(stim_events.t, trial_align)
+        first_stim_event_time = stim_events.t[first_stim_event]
+        first_stim_event_type = stim_events.v[first_stim_event]
+        offset_duration = int(round((first_stim_event_time - trial_align)/2.5) * 2500)
+        trial_node.info["trial_type"] = f"{first_stim_event_type}_{offset_duration}"
+
         
 
     trial_type_annotator_options = {
         "default": io_default,
         "js_jux": io_js_jux,
         "stationary_vs_mobile": io_stationary_vs_mobile,
+        "oddball": io_oddball,
     }
     if trial_type_annotator_name is None:
         logger.debug("No trial type annotator specified, skip trial type annotation")
@@ -173,7 +185,10 @@ def trial_type_annotator(trial_node: Trial | FovTrial, trial_align: float, trial
 
 
 INTRINSIC_TRIAL_TYPE_ORDER = (
-    
+    'blueLEDOn_7500', 
+    'blueLEDOn_15000', 
+    'blueLEDOn_30000',
+
     "CuedPuff",
     "PuffCue",
     "CuedBlueLED",
@@ -207,4 +222,15 @@ INTRINSIC_TRIAL_TYPE_ORDER = (
     "CuePuffNoWater",
     "CueBlankWater",
     "CueBlankNoWater",
+
+    "CuePuff",
+    "CueBlank",
+    "Subtract",
+    "(Puff - Blank) Water",
+    "(Puff - Blank) NoWater",
+    "Puff (Water - NoWater)",
+    "Blank (Water - NoWater)",
+
+    "SubtractOnly",
+    "SubtractCue",
 )

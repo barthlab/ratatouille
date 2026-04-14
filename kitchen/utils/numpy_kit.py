@@ -62,7 +62,10 @@ def numpy_percentile_filter(input_array: np.ndarray, s: int, q: float) -> np.nda
     return result
 
 
-def smart_interp(x_new, xp, fp, method: str = "linear"):
+def smart_interp(x_new, xp, fp, method: str = "linear") -> np.ndarray:
+    # assert not np.any(np.isnan(fp)), f"NaN found in fp: {fp}"
+    assert not np.any(np.isnan(xp)), f"NaN found in xp: {xp}"
+    assert not np.any(np.isnan(x_new)), f"NaN found in x_new: {x_new}"
     if method == "previous":
         f_new = interp1d(xp, fp, kind='previous', axis=-1, bounds_error=False, fill_value='extrapolate')
     elif method == "nearest":
@@ -71,7 +74,9 @@ def smart_interp(x_new, xp, fp, method: str = "linear"):
         f_new = interp1d(xp, fp, kind='linear', axis=-1, bounds_error=False, fill_value='extrapolate')
     else:
         raise ValueError(f"Unknown interpolation method: {method}")
-    return f_new(x_new)
+    f_interped = f_new(x_new)
+    # assert not np.any(np.isnan(f_interped)), f"NaN introduced in f_interped: {f_interped} \n x_new: {x_new} \n xp: {xp} \n fp: {fp}"
+    return f_interped
 
 
 def smart_nan_removal(xp, fp, method: str = "nearest"):

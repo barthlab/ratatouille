@@ -6,9 +6,10 @@ from collections import defaultdict
 from scipy import signal
 import logging
 
+from kitchen.plotter.plotting_params import LICK_BIN_SIZE, LOCOMOTION_BIN_SIZE
 from kitchen.settings.potential import COMPONENTS_BANDWIDTH, MAXIMAL_BANDWIDTH, SPIKE_MAX_WINDOW_LEN, SPIKE_MIN_DISTANCE, SPIKE_MIN_HEIGHT_STD_RATIO, SPIKE_MIN_PROMINENCE_STD_RATIO, SPIKES_BANDWIDTH, STD_SLIDING_WINDOW, GCaMP_kernel
-from kitchen.settings.timeline import SUPPORTED_TIMELINE_EVENT, TRIAL_ALIGN_EVENT_DEFAULT
-from kitchen.settings.fluorescence import DEFAULT_RECORDING_DURATION, DF_F0_RANGE, TRIAL_DF_F0_WINDOW
+from kitchen.settings.timeline import DEFAULT_FUSION_WINDOW, SUPPORTED_TIMELINE_EVENT, TRIAL_ALIGN_EVENT_DEFAULT
+from kitchen.settings.fluorescence import DEFAULT_RECORDING_DURATION, DETREND_BASELINE_WINDOW, DF_F0_RANGE, TRIAL_DF_F0_WINDOW
 from kitchen.settings.trials import BOUT_FILTER_PARAMETERS
 from kitchen.utils.numpy_kit import sliding_std, smart_interp, smart_nan_removal, zscore
 from kitchen.utils.pass_filter import high_pass, low_pass
@@ -151,6 +152,25 @@ class TimeSeries:
         assert self.v.shape[axis] == 1, f"Cannot squeeze axis {axis} with shape {self.v.shape}"
         return self.__class__(v=np.squeeze(self.v, axis=axis), t=self.t)
     
+    def unsqueeze(self, axis: int) -> Self:
+        """Unsqueeze the time series."""
+        return self.__class__(v=np.expand_dims(self.v, axis=axis), t=self.t)
+    
+    def to_events(self) -> "Events":
+        """Convert time series to events with values as event values and times as event times."""
+        assert self.v.ndim == 1, f"values should be 1-d array, got {self.v.shape}"
+        assert np.allclose(np.diff(self.t), np.diff(self.t)[0]), f"Time points should be evenly spaced to convert to events, got {self.t}"
+        bin_size = 1 / self.fs
+        return Events(v=self.v.copy() * bin_size, t=self.t.copy())
+    
+
+def TimeSeries_concat(tss: List[TimeSeries]) -> TimeSeries:
+    """Concatenate multiple time series."""
+    new_t = np.concatenate([ts.t for ts in tss])
+    new_v = np.concatenate([ts.v for ts in tss], axis=-1)
+    sort_idx = np.argsort(new_t)
+    return TimeSeries(v=new_v[..., sort_idx], t=new_t[sort_idx])
+
 
 @dataclass
 class Events:
@@ -245,12 +265,17 @@ class Events:
         counts, bin_edges = np.histogram(self.t, bins=bins)
         return TimeSeries(v=counts / bin_size, t=bin_edges[:-1] + bin_size/2)
 
-    def rate(self, bin_size: float) -> TimeSeries:
+    def rate(self, bin_size: float, pad_time: float = 0.5, 
+             min_t: Optional[float] = None, max_t: Optional[float] = None) -> TimeSeries:
         """If value is number like, compute value rate (values / sec) within bin_size seconds."""
         assert np.issubdtype(self.v.dtype, np.number), f"Cannot compute rate for non-number value type: {self.v.dtype}"
         assert bin_size > 0, "bin size should be positive"
-        assert len(self) > 0, "Cannot compute rate for empty events"
-        bins = np.arange(self.t[0]-bin_size, self.t[-1] + bin_size, bin_size)
+        assert len(self) > 0 or pad_time > 0, "Cannot compute rate for empty events without padding"
+        if len(self) == 0:
+            min_t, max_t = min_t or -pad_time, max_t or pad_time
+        else:
+            min_t, max_t = min_t or self.t[0] - pad_time, max_t or self.t[-1] + pad_time
+        bins = np.arange(min_t - bin_size, max_t + bin_size, bin_size)
         sum_in_bin, bin_edges = np.histogram(self.t, bins=bins, weights=self.v)
         return TimeSeries(v=sum_in_bin / bin_size, t=bin_edges[:-1] + bin_size/2)
 
@@ -294,6 +319,30 @@ class Events:
         for v, ts in groupby_dict.items():
             yield v, np.array(ts)
     
+    def fusion(self, fuse_window: float=DEFAULT_FUSION_WINDOW) -> Self:
+        """Fuse same value events within fuse_window seconds."""
+        assert fuse_window > 0, "fuse window should be positive"
+        if len(self) == 0:
+            return self
+        new_t, new_v = [], []
+        for v, ts in self.groupby():
+            blocks, current_block = [], [ts[0]]
+
+            for i in range(1, len(ts)):
+                if ts[i] - ts[i - 1] < fuse_window:
+                    current_block.append(ts[i])
+                else:
+                    blocks.append(current_block)
+                    current_block = [ts[i]]
+
+            blocks.append(current_block)
+
+            fused = [sum(block) / len(block) for block in blocks]
+            new_t.extend(fused)
+            new_v.extend([v] * len(fused))
+        sort_idx = np.argsort(new_t)
+        return self.__class__(v=np.array(new_v)[sort_idx], t=np.array(new_t)[sort_idx])
+
     def filter(self, event_types: Any | Iterable[Any]) -> Self:
         """Extract events of specific types."""
         if not isinstance(event_types, list):
@@ -367,8 +416,8 @@ class Fluorescence:
     def __post_init__(self):
         assert self.raw_f.v.shape == (self.num_cell, self.num_timepoint), \
             f"raw_f: Expected shape {(self.num_cell, self.num_timepoint)}, but got {self.raw_f.v.shape}"
-        assert self.fov_motion.v.shape == (2, self.num_timepoint), \
-            f"fov_motion: Expected shape {(2, self.num_timepoint)}, but got {self.fov_motion.v.shape}"
+        # assert self.fov_motion.v.shape == (2, self.num_timepoint), \
+        #     f"fov_motion: Expected shape {(2, self.num_timepoint)}, but got {self.fov_motion.v.shape}"
         assert self.cell_position.shape == (self.num_cell, 2), \
             f"cell_position: Expected shape {(self.num_cell, 2)}, but got {self.cell_position.shape}"
         assert len(self.cell_idx) == self.num_cell, \
@@ -434,6 +483,12 @@ class Fluorescence:
     def z_score(self) -> TimeSeries:
         """ Normalize fluorescence to z-score. """
         return TimeSeries(v=zscore(self.raw_f.v, axis=-1), t=self.raw_f.t)
+    
+    @cached_property
+    def detrend_z_score(self) -> TimeSeries:
+        """Detrend and z-score fluorescence."""
+        detrended = self.raw_f.v - signal.medfilt(self.raw_f.v, kernel_size=(1, int(self.raw_f.fs * DETREND_BASELINE_WINDOW) + 1))
+        return TimeSeries(v=zscore(detrended, axis=-1), t=self.raw_f.t)
     
     @cached_property
     def df_f0(self, clip: bool = True) -> TimeSeries:
