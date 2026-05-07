@@ -242,15 +242,37 @@ class TemporalObjectCoordinate:
         if other == 0:
             return self
         return self.__add__(other)
-
+    
     def __getattr__(self, name: str) -> Any:
         """Look into object_uid and temporal_uid for attributes."""
-        if hasattr(self.object_uid, name):
-            return getattr(self.object_uid, name)
-        if hasattr(self.temporal_uid, name):
-            return getattr(self.temporal_uid, name)
-        raise AttributeError(f"'{self.__class__.__name__}' object [{str(self)}] has no attribute '{name}'")
 
+        # Important during unpickling: object_uid / temporal_uid may not exist yet.
+        if name in ("object_uid", "temporal_uid"):
+            raise AttributeError(
+                f"'{self.__class__.__name__}' object has no attribute '{name}'"
+            )
+
+        d = object.__getattribute__(self, "__dict__")
+
+        object_uid = d.get("object_uid", None)
+        temporal_uid = d.get("temporal_uid", None)
+
+        if object_uid is not None:
+            try:
+                return getattr(object_uid, name)
+            except AttributeError:
+                pass
+
+        if temporal_uid is not None:
+            try:
+                return getattr(temporal_uid, name)
+            except AttributeError:
+                pass
+
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object [{str(self)}] has no attribute '{name}'"
+        )
+    
     @property
     def level(self) -> Tuple[str, str]:
         """Return the most specific level of the coordinate."""
