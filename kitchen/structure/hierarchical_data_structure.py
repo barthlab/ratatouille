@@ -72,11 +72,33 @@ class Node:
 
     def __getattr__(self, name: str) -> Any:
         """Look into coordinate and data for attributes. Cannot access info."""
-        if hasattr(self.coordinate, name):
-            return getattr(self.coordinate, name)
-        if hasattr(self.data, name):
-            return getattr(self.data, name)
-        raise AttributeError(f"'{self.__class__.__name__}' object [{str(self)}] has no attribute '{name}'")
+
+        # Important during unpickling: coordinate / data may not exist yet.
+        if name in ("coordinate", "data"):
+            raise AttributeError(
+                f"'{self.__class__.__name__}' object has no attribute '{name}'"
+            )
+
+        d = object.__getattribute__(self, "__dict__")
+
+        coordinate = d.get("coordinate", None)
+        data = d.get("data", None)
+
+        if coordinate is not None:
+            try:
+                return getattr(coordinate, name)
+            except AttributeError:
+                pass
+
+        if data is not None:
+            try:
+                return getattr(data, name)
+            except AttributeError:
+                pass
+
+        raise AttributeError(
+            f"'{self.__class__.__name__}' node [{str(self)}] has no attribute '{name}'"
+        )
 
     @classmethod
     @property
@@ -295,6 +317,11 @@ class DataSet:
         if _specified_name is None:
             _specified_name = f"{hash_key}Select_{self.name}"
         return DataSet(name=_specified_name, nodes=selected_nodes)
+    
+    def select_subtree(self, hash_key: str, _specified_name: Optional[str] = None, _empty_warning: bool = True, **criterion: Any) -> Generator["DataSet", None, None]:
+        """Generate subtrees rooted at nodes of specific type filtered by criterion."""
+        for node in self.select(hash_key, _specified_name=_specified_name, _empty_warning=_empty_warning, **criterion):
+            yield self.subtree(node, _specified_name=f"{node.hash_key}Subtree_{_specified_name}", _empty_warning=_empty_warning)
     
     def rule_based_group_by(self, key_func: Callable[[Node], Optional[str]], _empty_warning: bool = False) -> Dict[str, "DataSet"]:
         """Select nodes based on pre-defined rules."""   
