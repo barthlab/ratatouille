@@ -487,7 +487,7 @@ class Fluorescence:
     @cached_property
     def detrend_z_score(self) -> TimeSeries:
         """Detrend and z-score fluorescence."""
-        detrended = self.raw_f.v - signal.medfilt(self.raw_f.v, kernel_size=(1, int(self.raw_f.fs * DETREND_BASELINE_WINDOW) + 1))
+        detrended = self.raw_f.v - signal.medfilt(self.raw_f.v, kernel_size=(1, int(self.raw_f.fs * DETREND_BASELINE_WINDOW / 2)*2 + 1))
         return TimeSeries(v=zscore(detrended, axis=-1), t=self.raw_f.t)
     
     @cached_property
@@ -499,6 +499,16 @@ class Fluorescence:
             df_f0[(df_f0 < DF_F0_RANGE[0]) | (df_f0 > DF_F0_RANGE[1])] = np.nan
         return TimeSeries(v= df_f0, t=self.raw_f.t)
     
+    @cached_property
+    def delta_deconv_f(self) -> TimeSeries:
+        """Compute the change in deconvolved fluorescence."""
+        if self.deconv_f is None:
+            return None
+        baseline = np.nanmean(self.deconv_f.segment(*TRIAL_DF_F0_WINDOW).v, axis=-1, keepdims=True)
+        delta = self.deconv_f.v - baseline
+        return TimeSeries(v=delta, t=self.deconv_f.t) 
+    
+
     def aligned_to(self, align_time: float) -> "Fluorescence":
         """Align fluorescence to a specific time point."""
         return Fluorescence(

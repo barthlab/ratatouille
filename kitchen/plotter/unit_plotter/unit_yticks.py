@@ -1,3 +1,5 @@
+import math
+
 from matplotlib import pyplot as plt
 
 from kitchen.plotter.color_scheme import FLUORESCENCE_COLOR, LICK_COLOR, LOCOMOTION_COLOR, NOSE_COLOR, POSITION_COLOR, POTENTIAL_COLOR, PUPIL_CENTER_COLOR, PUPIL_CENTER_SACCADE_COLOR, PUPIL_COLOR, WHISKER_COLOR
@@ -14,7 +16,7 @@ def yticks_combo(command: str, ax: plt.Axes, y_offset: float, ratio: float = 1.0
 @yticks_combo.register("locomotion")
 def _yticks_combo_locomotion(command: str, ax: plt.Axes, y_offset: float, ratio: float = 1.0, **kwargs):
     add_new_yticks(ax, [TICK_PAIR(y_offset, "Locomotion", LOCOMOTION_COLOR), 
-                        TICK_PAIR(y_offset + 2 * ratio, "2 cm/s", LOCOMOTION_COLOR)])
+                        TICK_PAIR(y_offset + math.log1p(2) * ratio, "2 cm/s", LOCOMOTION_COLOR)])
     
 @yticks_combo.register("delta_locomotion")
 def _yticks_combo_delta_locomotion(command: str, ax: plt.Axes, y_offset: float, ratio: float = 1.0, **kwargs):

@@ -1,6 +1,7 @@
 import logging
 
-from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_FeatureSpace import Visualize_Waveform, VisualizeExample_Physiology_Fingerprint, get_weight_tuple_Decomposition_Weights, get_weight_tuple_PSTH, get_weight_tuple_Physiology_Fingerprint, get_weight_tuple_Waveform, simple_Landscope_feature_space, simple_pairwise_distance_distribution
+from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_FeatureSpace import Visualize_Waveform, VisualizeExample_Physiology_Fingerprint, get_weight_tuple_Decomposition_Weights, get_weight_tuple_PSTH, get_weight_tuple_Physiology_Fingerprint, get_weight_tuple_Waveform, simple_Landscope_feature_space, simple_pairwise_correlation_matrix, simple_pairwise_distance_distribution
+from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_FeatureSpace_EarlySustain import VisualizeExample_Physiology_Fingerprint_EarlySpikeDistribution, VisualizeExample_Physiology_Fingerprint_EarlyVsSustained, VisualizeExample_Physiology_Fingerprint_Vertical
 from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_Settings import COHORT_COLORS
 
 
@@ -16,15 +17,23 @@ logging.getLogger('numba').setLevel(logging.WARNING)
 
 
 def analyze_physiology_fingerprint():
-    # VisualizeExample_Physiology_Fingerprint()
+    # VisualizeExample_Physiology_Fingerprint()    
+    # VisualizeExample_Physiology_Fingerprint_Vertical()
+    # VisualizeExample_Physiology_Fingerprint_EarlyVsSustained()
+    # VisualizeExample_Physiology_Fingerprint_EarlySpikeDistribution()
+
     physiology_weight_matrix, node_name, cohort_name = get_weight_tuple_Physiology_Fingerprint()
 
-    simple_Landscope_feature_space(physiology_weight_matrix, cohort_name, "Physiology_Fingerprint")
+    # simple_Landscope_feature_space(physiology_weight_matrix, cohort_name, "Physiology_Fingerprint")
     simple_pairwise_distance_distribution(physiology_weight_matrix, cohort_name, "Physiology_Fingerprint")
+    simple_pairwise_correlation_matrix(physiology_weight_matrix, cohort_name, "Physiology_Fingerprint")
 
     physiology_weight_matrix, node_name, cohort_name = get_weight_tuple_Physiology_Fingerprint(with_spont_FR=False)
-    simple_Landscope_feature_space(physiology_weight_matrix, cohort_name, "Physiology_Fingerprint_noSpont")
+    # simple_Landscope_feature_space(physiology_weight_matrix, cohort_name, "Physiology_Fingerprint_noSpont")
     simple_pairwise_distance_distribution(physiology_weight_matrix, cohort_name, "Physiology_Fingerprint_noSpont")
+    simple_pairwise_correlation_matrix(physiology_weight_matrix, cohort_name, "Physiology_Fingerprint_noSpont")
+
+# def analyze_physiology_fingerprint_state_dependent():
 
 def analyze_psth():
     for variant in ["raw", "zscore", "log-scale"]:
@@ -56,10 +65,10 @@ def analyze_decomposition_weights():
                     # simple_pairwise_distance_distribution(component_projection, cohort_name, f"Decomposition_{variant}_{decomposition_method}_{n_components}_{append_baseline}", _normalize_all_dimension=False)
                     
 def main():
-    # analyze_physiology_fingerprint()
+    analyze_physiology_fingerprint()
     # analyze_psth()
     # analyze_waveform()
-    analyze_decomposition_weights()
+    # analyze_decomposition_weights()
 
 if __name__ == "__main__":
     main()

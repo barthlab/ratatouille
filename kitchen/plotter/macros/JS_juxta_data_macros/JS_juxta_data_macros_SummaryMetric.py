@@ -84,7 +84,7 @@ def get_all_cellsession_PSTH_mean(
 
 
 def SummaryMetric_PSTH(
-        BINSIZE = 10/1000,  # s
+        BINSIZE = 5/1000,  # s
         FEATURE_RANGE = (-0.5, 1),  # (min, max) s
 ):
     
@@ -95,6 +95,7 @@ def SummaryMetric_PSTH(
     import matplotlib.patheffects as pe
 
     plt.rcParams["font.family"] = "Arial"
+    plt.rcParams["font.size"] = 6
     x_offset = 1.7
     fig, ax = plt.subplots(1, 1, constrained_layout=True)
     for dataset_index, dataset_name in enumerate(("SST_JUX", "PV_JUX", "PYR_JUX", ) ):        
@@ -105,10 +106,10 @@ def SummaryMetric_PSTH(
                                         v=np.mean(all_spikes_histogram, axis=0),
                                         variance=np.std(all_spikes_histogram, axis=0), 
                                         raw_array=all_spikes_histogram), 0, 1, 
-                    {"color": COHORT_COLORS[dataset_name], "lw": 2.5, "alpha": 0.9, "zorder": -dataset_index,}, 
+                    {"color": COHORT_COLORS[dataset_name], "lw": 0.5, "alpha": 0.9, "zorder": -dataset_index,}, 
                     style_dicts.FILL_BETWEEN_STYLE | {"alpha": 0.4, "zorder": -dataset_index})
         ax.axvspan(dataset_index * x_offset, dataset_index * x_offset + 0.5, 
-                   alpha=0.5, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10)
+                   alpha=0.3, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10)
     ax.axhline(0, color='gray', linestyle='--', lw=1, alpha=0.5, zorder=-10)
     
     ax.spines[['right', 'top']].set_visible(False)
@@ -116,8 +117,8 @@ def SummaryMetric_PSTH(
     # ax.set_ylabel("Firing Rate [Hz]")
             
     # ax.set_xlim(-0.25, 0.75)
-    ax.set_ylim(-10, 150)
-    fig.set_size_inches(10, 2.5)
+    ax.set_ylim(-10, 200)
+    fig.set_size_inches(6.5, 1.)
 
     save_path = path.join(get_saving_path(), "SummaryMetric_PSTH.png")
     fig.savefig(save_path, dpi=500, transparent=True)
@@ -138,15 +139,20 @@ def PlainHeatmap_PSTH(
     from matplotlib.colors import SymLogNorm
 
     plt.rcParams["font.family"] = "Arial"
+    plt.rcParams["font.size"] = 6
     fig, axs = plt.subplots(1, 3, constrained_layout=True)
-    for ax, dataset_name in zip(axs, ( "SST_JUX", "PV_JUX", "PYR_JUX",) ):        
+    for ax, dataset_name in zip(axs, ( "SST_JUX", "PV_JUX", "PYR_JUX",) ):    
+        ax.tick_params(
+            pad=1       # smaller gap between ticks and tick labels
+        )
+            
         color_scheme.POTENTIAL_COLOR = COHORT_COLORS[dataset_name]
         style_dicts.POTENTIAL_TRACE_STYLE["color"] = COHORT_COLORS[dataset_name]
         bin_centers, all_spikes_histogram, _, _ = get_all_cellsession_PSTH_mean(dataset_name, BINSIZE, FEATURE_RANGE)
         mask = (bin_centers > 0) & (bin_centers < 0.5)
         sorted_order = np.argsort(np.mean(all_spikes_histogram[:, mask], axis=1))
         sns.heatmap(all_spikes_histogram[sorted_order],  
-                    ax=ax, cbar=True, 
+                    ax=ax, cbar=False,
                     cmap='YlOrBr', norm=SymLogNorm(linthresh=10., vmin=0, vmax=150),)
         
         desired_ticks = [0, 0.5]
@@ -156,9 +162,9 @@ def PlainHeatmap_PSTH(
         ax.invert_yaxis()
         ax.set_xlabel("Time [s]")
         ax.set_yticks([0.5, len(all_spikes_histogram)-0.5], 
-                      ["1", f"{len(all_spikes_histogram)}"], rotation=0)
+                      [f"{len(all_spikes_histogram)}", "1"], rotation=0)
         ax.spines[['right', 'top', 'left', 'bottom']].set_visible(True)
-    fig.set_size_inches(14, 3)
+    fig.set_size_inches(6, 1.5)
 
     save_path = path.join(get_saving_path(), "PlainHeatmap_PSTH.png")
     fig.savefig(save_path, dpi=500, transparent=True)
@@ -212,6 +218,7 @@ def SummaryMetric_LFP(
     import matplotlib.patches as patches
 
     plt.rcParams["font.family"] = "Arial"
+    plt.rcParams["font.size"] = 6
     y_offset = 1.2
     fig, ax = plt.subplots(1, 1, constrained_layout=True)
     for dataset_index, dataset_name in enumerate(("PYR_JUX", "PV_JUX", "SST_JUX", ) ):        
@@ -222,18 +229,19 @@ def SummaryMetric_LFP(
                                         v=np.mean(all_LFP, axis=0) + dataset_index * y_offset, 
                                         variance=np.std(all_LFP, axis=0), 
                                         raw_array=all_LFP), 0, 1, 
-                    {"color": COHORT_COLORS[dataset_name], "lw": 2.5, "alpha": 0.9, "zorder": -dataset_index}, 
+                    {"color": COHORT_COLORS[dataset_name], "lw": 1., "alpha": 0.9, "zorder": -dataset_index}, 
                     style_dicts.FILL_BETWEEN_STYLE | {"alpha": 0.4, "zorder": -dataset_index})
         ax.axhline(dataset_index * y_offset, color=COHORT_COLORS[dataset_name], 
                    linestyle='--', lw=1, alpha=0.5, zorder=-10)
-    ax.axvspan(0, 0.5, alpha=0.5, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10)
+    ax.axvspan(0, 0.5, alpha=0.3, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10)
+    ax.axvline(0, color='gray', linestyle='--', lw=0.5, zorder=-10)
     ax.spines[['right', 'top']].set_visible(False)
     # ax.set_xlabel("Time [s]")
     # ax.set_ylabel("LFP [mV]")
             
     ax.set_xlim(-0.02, 0.06)
     # ax.set_ylim(-5, 155)
-    fig.set_size_inches(3, 3)
+    fig.set_size_inches(1.5, 1.5)
 
     save_path = path.join(get_saving_path(), "SummaryMetric_LFP.png")
     fig.savefig(save_path, dpi=500, transparent=True)
@@ -283,6 +291,7 @@ def SummaryMetric_Waveform(
     import matplotlib.pyplot as plt    
 
     plt.rcParams["font.family"] = "Arial"
+    plt.rcParams["font.size"] = 6
     fig, ax = plt.subplots(1, 1, constrained_layout=True)
     for dataset_index, dataset_name in enumerate(("SST_JUX", "PV_JUX",  "PYR_JUX", ) ):        
         color_scheme.POTENTIAL_COLOR = COHORT_COLORS[dataset_name]
@@ -293,15 +302,15 @@ def SummaryMetric_Waveform(
                                         v=np.mean(all_waveforms, axis=0) - baseline, 
                                         variance=np.std(all_waveforms, axis=0), 
                                         raw_array=all_waveforms), 0, 1, 
-                    {"color": COHORT_COLORS[dataset_name], "lw": 2.5, "alpha": 0.9, "zorder": -dataset_index}, 
-                    style_dicts.FILL_BETWEEN_STYLE | {"alpha": 0.4, "zorder": -dataset_index})
+                    {"color": COHORT_COLORS[dataset_name], "lw": 1., "alpha": 0.9, "zorder": -dataset_index}, 
+                    style_dicts.FILL_BETWEEN_STYLE | {"alpha": 0.3, "zorder": -dataset_index})
         # ax.axhline(dataset_index * y_offset, color=COHORT_COLORS[dataset_name], 
         #            linestyle='--', lw=1, alpha=0.5, zorder=-10)
     ax.spines[['right', 'top', ]].set_visible(False)
     # ax.set_xlabel("Time [ms]")
     # ax.set_ylabel("Norm. Vm [a.u.]")
             
-    fig.set_size_inches(2.5, 2.5)
+    fig.set_size_inches(1.5, 1.5)
 
     save_path = path.join(get_saving_path(), "SummaryMetric_Waveform.png")
     fig.savefig(save_path, dpi=500, transparent=True)

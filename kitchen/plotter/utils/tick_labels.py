@@ -28,6 +28,7 @@ def add_new_yticks(ax: plt.Axes, new_ticks: list[TICK_PAIR] | TICK_PAIR, add_ref
         current_labels.append(tick.label)
 
     # Set the new ticks and labels on the axis
+    assert len(current_ticks) == len(current_labels), f"After adding new ticks, ticks and labels mismatch, got ticks {current_ticks} and labels {current_labels}"
     ax.set_yticks(ticks=current_ticks, labels=current_labels)
     for tick_instance, new_tick in zip(ax.get_yticklabels()[-num_new_ticks:], new_ticks):
         tick_instance.set_color(new_tick.color)

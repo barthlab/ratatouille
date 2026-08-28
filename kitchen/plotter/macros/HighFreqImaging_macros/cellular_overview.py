@@ -1,5 +1,7 @@
 
 from collections import defaultdict
+import os
+from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -107,9 +109,13 @@ def visualize_celluar_activity_with_deconv(
                 ax.tick_params(axis='y', labelleft=False)
             for ax in axs[3, 1:]:
                 ax.tick_params(axis='y', labelleft=False)   
-        
+
             save_path = routing.default_fig_path(cs_subtree, "CelluarOverview_with_deconv" + f"_{{}}_{_aligment_style}.png", fov_skip=True)
-            save_path = save_path.replace(f"deconv_{cell_session_node.cell_id}_", f"deconv_{cell_session_node.fluorescence.cell_order[0]:02d}_")
+            
+            dir_path = Path(save_path).parent
+            basename = dir_path.name
+            save_path = dir_path.parent.parent/"CelluarOverview" / cell_session_node.mice_id / Path(f"CelluarOverview_with_deconv_{basename}_Cell{cell_session_node.cell_id}.png")
+            # save_path = save_path.replace(f"deconv_{cell_session_node.cell_id}_", f"deconv_{cell_session_node.fluorescence.cell_order[0]:02d}_")
             default_exit_save(fig, save_path)
 
 
@@ -297,6 +303,7 @@ def visualize_behavior_correlation_distribution(
     plot_manual_loco = PlotManual(locomotion=True, baseline_subtraction=None)
     coroutines = {}
     grand_fluo_order = {}
+    grand_deconv_order = {}
     fig, axs = plt.subplots(7, len(corr_index), figsize=(20, 5), height_ratios=[1, 1, 1, 0.4, 1, 1, 1])
     for col_index, (cs_node, corr_index1) in enumerate(corr_index):
         axs[3, col_index].remove()
@@ -311,15 +318,28 @@ def visualize_behavior_correlation_distribution(
         group_fluorescence = grouping_timeseries([single_fluorescence.df_f0.squeeze(0) 
                                                         for single_fluorescence in select_truthy_items(
                                                             [node.data.fluorescence 
-                                                             for node in sync_nodes(cs_subtree.select("trial"), alignment_events, plot_manual=plot_manual_fluo)])], 
+                                                             for node in sync_nodes(cs_subtree.select(
+                                                                 "trial", _self=lambda x: x.info.get("trial_type") == "PuffOnly"),
+                                                                  alignment_events, plot_manual=plot_manual_fluo)])], 
                                             baseline_subtraction=None)
-        amplitude_range_in_frame1 = np.searchsorted(group_fluorescence.t, (0, 5))
-        amplitude_range_in_frame2 = np.searchsorted(group_fluorescence.t, (-5, 0))
+        amplitude_range_in_frame1 = np.searchsorted(group_fluorescence.t, (0, 2))
+        # amplitude_range_in_frame2 = np.searchsorted(group_fluorescence.t, (-1, 0))
         amplitudes1 = np.nanmean(group_fluorescence.raw_array[:, amplitude_range_in_frame1[0]:amplitude_range_in_frame1[1]], axis=1)
-        amplitudes2 = np.nanmean(group_fluorescence.raw_array[:, amplitude_range_in_frame2[0]:amplitude_range_in_frame2[1]], axis=1)
-        amplitude_diff = amplitudes1 - amplitudes2
-        grand_fluo_order[cs_node] = np.sum(amplitude_diff)
+        # amplitudes2 = np.nanmean(group_fluorescence.raw_array[:, amplitude_range_in_frame2[0]:amplitude_range_in_frame2[1]], axis=1)
+        # amplitude_diff = amplitudes1 - amplitudes2
+        grand_fluo_order[cs_node] = np.mean(amplitudes1)
 
+        # get amp deconv 
+        group_deconv_fluo = grouping_timeseries([single_fluorescence.delta_deconv_f.squeeze(0) 
+                                                        for single_fluorescence in select_truthy_items(
+                                                            [node.data.fluorescence 
+                                                             for node in sync_nodes(cs_subtree.select(
+                                                                 "trial", _self=lambda x: x.info.get("trial_type") == "PuffOnly"),
+                                                                  alignment_events, plot_manual=plot_manual_fluo)])], 
+                                            baseline_subtraction=None)
+        amplitude_range_deconv = np.searchsorted(group_deconv_fluo.t, (0, 1))
+        amplitudes_deconv = np.nanmean(group_deconv_fluo.raw_array[:, amplitude_range_deconv[0]:amplitude_range_deconv[1]], axis=1)
+        grand_deconv_order[cs_node] = np.mean(amplitudes_deconv)
 
 
         for type_idx, (trial_type, raw_type_dataset) in enumerate(type2dataset.items()):
@@ -364,6 +384,7 @@ def visualize_behavior_correlation_distribution(
 
 
     sorted_grand_fluo_order = sorted(grand_fluo_order.items(), key=lambda x: x[1], reverse=True)
+    sorted_grand_deconv_order = sorted(grand_deconv_order.items(), key=lambda x: x[1], reverse=True)
     # fig, axs = plt.subplots(7, len(corr_index), figsize=(20, 5), height_ratios=[1, 1, 1, 0.4, 1, 1, 1])
     # for col_index, (cs_node, corr_index1) in enumerate(sorted_grand_fluo_order):
     #     axs[3, col_index].remove()
@@ -414,7 +435,7 @@ def visualize_behavior_correlation_distribution(
     # # save_path = routing.default_fig_path(dataset, "FluorescenceAmplitudeSortedOverview.png")
     # # default_exit_save(fig, save_path)
 
-
+    avg_fluo = defaultdict(list)
     avg_PSTH = defaultdict(list)
     type_specific_timeline = defaultdict(list)
     for cs_node, corr_index1 in sorted_grand_fluo_order:
@@ -427,14 +448,33 @@ def visualize_behavior_correlation_distribution(
         
         for trial_type, raw_type_dataset in type2dataset.items():
             type_dataset = sync_nodes(raw_type_dataset, alignment_events, plot_manual=plot_manual_fluo)
+
+            type_specific_timeline[trial_type].append(type_dataset.nodes[0].data.timeline)
+
             group_fluorescence = grouping_timeseries([single_fluorescence.df_f0.squeeze(0) 
                                                         for single_fluorescence in select_truthy_items(
                                                             [node.data.fluorescence for node in type_dataset])], 
                                             baseline_subtraction=None)
-            avg_PSTH[trial_type].append(group_fluorescence.mean_ts)
-            type_specific_timeline[trial_type].append(type_dataset.nodes[0].data.timeline)
+            avg_fluo[trial_type].append(group_fluorescence.mean_ts)
+
+    for cs_node, corr_index1 in sorted_grand_fluo_order:
+        cs_subtree = dataset.subtree(cs_node)
+        type2dataset = split_dataset_by_trial_type(cs_subtree, 
+                                                    plot_manual=plot_manual_fluo,
+                                                    _element_trial_level =_element_trial_level,)
+        if len(type2dataset) == 0:
+            continue
+        for trial_type, raw_type_dataset in type2dataset.items():
+            type_dataset = sync_nodes(raw_type_dataset, alignment_events, plot_manual=plot_manual_fluo)
+            group_delta_deconv_fluorescence = grouping_timeseries([single_fluorescence.delta_deconv_f.squeeze(0) 
+                                                                  for single_fluorescence in select_truthy_items(
+                                                                      [node.data.fluorescence for node in type_dataset])], 
+                                                                 baseline_subtraction=None)
+            avg_PSTH[trial_type].append(group_delta_deconv_fluorescence.mean_ts)
     
     avg_PSTH = {k: grouping_timeseries(v) for k, v in avg_PSTH.items()} 
+    avg_fluo = {k: grouping_timeseries(v) for k, v in avg_fluo.items()} 
+    
     fig, ax = plt.subplots(1, len(avg_PSTH), figsize=(6, 3), constrained_layout=True)
     for idx, (trial_type, group_fluorescence) in enumerate(avg_PSTH.items()):
         heatmap_extent = (group_fluorescence.t[0], group_fluorescence.t[-1], 10, 1)
@@ -443,6 +483,22 @@ def visualize_behavior_correlation_distribution(
         ax[idx].set_title(trial_type)
         default_ax_realign(ax[idx])
         label_heatmap_y_ticklabels(ax[idx], group_fluorescence.raw_array.shape[0], (1, 10))
-        unit_plot_timeline(timeline=type_specific_timeline[trial_type], ax=ax[idx], y_offset=0, ratio=1.0)
+        # unit_plot_timeline(timeline=type_specific_timeline[trial_type], ax=ax[idx], y_offset=0, ratio=1.0)
+        ax[idx].set_xlim(-0.5, 1.)
+        ax[idx].set_xticks([ 0, 0.5])
     save_path = routing.default_fig_path(dataset, "AveragePSTH.png")
+    default_exit_save(fig, save_path)
+    
+    fig, ax = plt.subplots(1, len(avg_fluo), figsize=(6, 3), constrained_layout=True)
+    for idx, (trial_type, group_fluorescence) in enumerate(avg_fluo.items()):
+        heatmap_extent = (group_fluorescence.t[0], group_fluorescence.t[-1], 10, 1)
+        ax[idx].imshow(group_fluorescence.raw_array, extent=heatmap_extent, cmap="RdYlBu_r", vmin=-1.5, vmax=1.5,
+                       **style_dicts.HEATMAP_STYLE)
+        ax[idx].set_title(trial_type)
+        default_ax_realign(ax[idx])
+        label_heatmap_y_ticklabels(ax[idx], group_fluorescence.raw_array.shape[0], (1, 10))
+        # unit_plot_timeline(timeline=type_specific_timeline[trial_type], ax=ax[idx], y_offset=0, ratio=1.0)
+        ax[idx].set_xlim(-2, 2.5)
+        ax[idx].set_xticks([0, 0.5])
+    save_path = routing.default_fig_path(dataset, "AverageFluorescence.png")
     default_exit_save(fig, save_path)

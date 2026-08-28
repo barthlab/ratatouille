@@ -20,17 +20,17 @@ logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
 
 def main():  
-    for dataset_name in ("SST_WC", "PV_JUX", "PYR_JUX", "SST_JUX",):     
-        dataset = load_dataset(template_id="PassivePuff_JuxtaCellular_FromJS_202509", cohort_id=dataset_name, 
-                               recipe="default_ephys", name=dataset_name)
-        color_scheme.POTENTIAL_COLOR = COHORT_COLORS[dataset_name]
-        style_dicts.POTENTIAL_TRACE_STYLE["color"] = COHORT_COLORS[dataset_name]
-        for session_node in dataset.select(hash_key="cellsession"):
-            print(session_node)
-            SingleCell_4HZ_JUST_LFP_AVG(session_node, dataset)
-            # SingleCell_4HZ_BeamView_Beautify(session_node, dataset)
-    exit()
-    for dataset_name in ("SST_WC", "PV_JUX", "PYR_JUX", "SST_JUX",):     
+    # for dataset_name in ("SST_WC", "PV_JUX", "PYR_JUX", "SST_JUX",):     
+    #     dataset = load_dataset(template_id="PassivePuff_JuxtaCellular_FromJS_202509", cohort_id=dataset_name, 
+    #                            recipe="default_ephys", name=dataset_name)
+    #     color_scheme.POTENTIAL_COLOR = COHORT_COLORS[dataset_name]
+    #     style_dicts.POTENTIAL_TRACE_STYLE["color"] = COHORT_COLORS[dataset_name]
+    #     for session_node in dataset.select(hash_key="cellsession"):
+    #         print(session_node)
+    #         SingleCell_4HZ_JUST_LFP_AVG(session_node, dataset)
+    #         # SingleCell_4HZ_BeamView_Beautify(session_node, dataset)
+    # exit()
+    for dataset_name in ("SST_WC", "PV_JUX", "PYR_JUX", "SST_JUX",): 
         dataset = load_dataset(template_id="PassivePuff_JuxtaCellular_FromJS_202509", cohort_id=dataset_name, 
                                recipe="default_ephys", name=dataset_name)
         color_scheme.POTENTIAL_COLOR = COHORT_COLORS[dataset_name]

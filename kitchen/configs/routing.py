@@ -81,7 +81,7 @@ def default_fig_path(root: DataSet | Node, fig_name: Optional[str] = None, fov_s
         root_coordinate.temporal_uid.session_id,
         root_coordinate.object_uid.cell_id,
     ]
-    fig_path = robust_path_join(FIGURE_PATH, *fig_path_values) 
+    fig_path = robust_path_join(FIGURE_PATH, *fig_path_values)
     if fig_name is not None:
         fig_path = smart_path_append(fig_path, fig_name)
     return fig_path

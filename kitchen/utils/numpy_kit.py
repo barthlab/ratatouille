@@ -91,6 +91,9 @@ def smart_nan_removal(xp, fp, method: str = "nearest"):
 def sliding_std(x: np.ndarray, window_len: int) -> np.ndarray:
     return np.array(pd.Series(x).rolling(window=window_len, center=True).std())
 
+def sliding_mean(x: np.ndarray, window_len: int) -> np.ndarray:
+    return np.array(pd.Series(x).rolling(window=window_len, center=True, min_periods=1).mean())
+
 
 def smooth_uniform(arr, window_len):
     """Smoothes with a uniform moving average."""

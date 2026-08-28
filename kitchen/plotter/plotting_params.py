@@ -1,21 +1,21 @@
 # Ratio
 POSITION_RATIO = 0.6
-LOCOMOTION_RATIO = 0.15
+LOCOMOTION_RATIO = 0.20
 LICK_RATIO = 0.1
 PUPIL_RATIO = 4
 # PUPIL_RATIO = 2
 SACCADE_RATIO = 6
 SACCADE_VEL_RATIO = 2
-WHISKER_RATIO = 1
+WHISKER_RATIO = 2
 NOSE_RATIO = 1
 
 RAW_FLUORESCENCE_RATIO = 0.2
-FLUORESCENCE_RATIO = 4
+FLUORESCENCE_RATIO = 1
 
 POTENTIAL_RATIO = 1
 WC_POTENTIAL_RATIO = 1/15
 
-TIMELINE_RATIO = 0.2
+TIMELINE_RATIO = 0.1
 
 RATIO_DICT = {
     "position": POSITION_RATIO,
@@ -29,7 +29,7 @@ RATIO_DICT = {
 }
 
 # Bin size
-LOCOMOTION_BIN_SIZE = 0.1  # s
+LOCOMOTION_BIN_SIZE = 0.5  # s
 LICK_BIN_SIZE = 0.1  # s
 
 
@@ -45,7 +45,7 @@ ANNOTATION_BBOX_HEIGHT_FACTOR = 0.5
 
 # Figure params
 NORMALIZED_PROGRESS_YLIM = 15
-DPI = 400
+DPI = 300
 
 FLAT_X_INCHES = 30      # inches
 FLAT_Y_INCHES = 6       # inches
@@ -68,7 +68,7 @@ HEATMAP_OFFSET_RANGE = (1., 10.)
 
 LOCOMOTION_VMIN_VMAX = {
     False: {"vmin": -2, "vmax": +2},
-    True: {"vmin": 0, "vmax": 5},
+    True: {"vmin": 0, "vmax": 2},
 }
 WHISKER_VMIN_VMAX = {
     False: {"vmin": -1, "vmax": +1},
@@ -92,5 +92,5 @@ FLUORESCENCE_VMIN_VMAX = {
 }
 FLUORESCENCE_DECONV_VMIN_VMAX = {
     False: {"vmin": -1, "vmax": +1},
-    True: {"vmin": 0, "vmax": 5},
+    True: {"vmin": -5, "vmax": 5},
 }

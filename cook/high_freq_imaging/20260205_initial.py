@@ -19,29 +19,29 @@ logging.getLogger('matplotlib').setLevel(logging.WARNING)
 logging.getLogger('numba').setLevel(logging.WARNING) 
 
 def preprocessing():
-    hfi_data_path = r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\PassivePuff_HighFreqImaging\HighFreqImaging_202602"
-    format_converter.video_convert(hfi_data_path, src_format=".h264")
-    dataset = load_dataset(template_id="PassivePuff_HighFreqImaging", cohort_id="HighFreqImaging_202602", 
+    hfi_data_path = r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\PassivePuff_HighFreqImaging\HighFreqImaging_202608"
+    format_converter.video_convert(hfi_data_path)
+    dataset = load_dataset(template_id="PassivePuff_HighFreqImaging", cohort_id="HighFreqImaging_Combine_ROIs", 
                            recipe="default_two_photon_mes_parser", name="HFI_SST")
     dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
     custom_extraction.default_collection(dataset)
     # meye_pupil_extraction.default_collection(dataset)
 
 def label_videos():
-    hft_data_path = r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\HeadFixedTraining\SensoryPrediction_202513"
-    format_converter.video_convert(hft_data_path)
-    video_marker.marker_video_use_timeline(hft_data_path)
+    hft_data_path = r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\PassivePuff_HighFreqImaging\HighFreqImaging_zstack\M021_TFR_8F"
+    format_converter.video_convert(hft_data_path, src_format=".avi")
+    # video_marker.marker_video_use_timeline(hft_data_path, prefix="TIFFVIDEO_")
 
 def main():
-    dataset = load_dataset(template_id="PassivePuff_HighFreqImaging", cohort_id="HighFreqImaging_202602", 
+    dataset = load_dataset(template_id="PassivePuff_HighFreqImaging", cohort_id="HighFreqImaging_202606", 
                            recipe="default_two_photon_mes_parser", name="HFI_SST")
     dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
 
 
 
 if __name__ == "__main__":
-    # preprocessing()
+    preprocessing()
     # label_videos()
-    main()
+    # main()
 
 

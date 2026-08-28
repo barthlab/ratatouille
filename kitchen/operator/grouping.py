@@ -101,6 +101,9 @@ class AdvancedTimeSeries(TimeSeries):
     def mean_ts(self) -> TimeSeries:
         return TimeSeries(v=self.v.copy(), t=self.t)
 
+    def subset(self, indices: np.ndarray) -> Self:
+        return calculate_group_tuple([self.raw[idx] for idx in indices], self.t)
+    
 
 def calculate_group_tuple(arrs: List[np.ndarray], t: np.ndarray) -> AdvancedTimeSeries:
     """Group a list of arrays in mean and variance."""
@@ -115,7 +118,8 @@ def calculate_group_tuple(arrs: List[np.ndarray], t: np.ndarray) -> AdvancedTime
 def grouping_events_rate(events: List[Events], bin_size: float, use_event_value_as_weight: bool = True,
                          _predefined_bin_centers: Optional[np.ndarray] = None,
                          baseline_subtraction: Optional[Tuple[float, float, bool]] = None, 
-                         minimal_range: Tuple[float, float] = DEFAULT_TRIAL_RANGE_FOR_GROUPING) -> AdvancedTimeSeries:
+                         minimal_range: Tuple[float, float] = DEFAULT_TRIAL_RANGE_FOR_GROUPING,
+                         _log_rate=False) -> AdvancedTimeSeries:
     """Group a list of events in rate."""
     assert bin_size > 0, "bin size should be positive"
     if len(events) == 0:
@@ -130,6 +134,9 @@ def grouping_events_rate(events: List[Events], bin_size: float, use_event_value_
         np.concatenate([_predefined_bin_centers - bin_size/2, [_predefined_bin_centers[-1] + bin_size/2]])
     all_rates = [np.histogram(event.t, bins=bins, weights=event.v
                               if use_event_value_as_weight else None)[0] / bin_size for event in events]
+
+    if _log_rate:
+        all_rates = [np.log1p(rate) for rate in all_rates]
 
     bin_centers = bins[:-1] + bin_size/2
     # baseline subtraction

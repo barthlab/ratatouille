@@ -22,9 +22,12 @@ def write_boolean_dataframe(df: pd.DataFrame, sheet_name: str, save_path: str, c
     with pd.ExcelWriter(save_path, engine='xlsxwriter') as writer:
         df_display.style.map(lambda _: 'font-weight: bold').map(set_color).to_excel(writer, sheet_name=sheet_name, index=False)
         worksheet = writer.sheets[sheet_name]
-
-        worksheet.set_column('A:E', 20)
-        worksheet.set_column('F:Z', 10)
+        
+        if "Status" in sheet_name:
+            worksheet.set_column('A:E', 20)
+            worksheet.set_column('F:Z', 10)
+        else:
+            worksheet.set_column('A:Z', 20)
 
     logger.info(f"Dataframe saved to {save_path}")
 

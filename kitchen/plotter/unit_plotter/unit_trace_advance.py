@@ -244,7 +244,8 @@ def unit_subtract_single_cell_fluorescence(
             y_offset, f"Cell {fluorescence1.cell_idx[0]}" if cell_id_flag else "Cell", FLUORESCENCE_COLOR))      
         add_new_yticks(ax, TICK_PAIR(
             y_offset + 1 * ratio,
-            f"1 {Z_SCORE_SIGN}" if (np.all(fluorescence1.cell_order == 0) or (not cell_id_flag)) else "", FLUORESCENCE_COLOR))
+            f"1 {Z_SCORE_SIGN}" if (np.all(fluorescence1.cell_order == 0) or (not cell_id_flag)) else "", FLUORESCENCE_COLOR),
+            add_ref_lines=True)
         
         # plot subtraction
         sushi_plot(ax, cell_trace1, cell_trace2, y_offset, ratio, FILL_BETWEEN_STYLE | SUBTRACT_STYLE)

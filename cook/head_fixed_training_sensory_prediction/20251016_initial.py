@@ -24,7 +24,7 @@ def preprocessing():
     dataset = load_dataset(template_id="HeadFixedTraining_Behavior", cohort_id="2026_04", 
                            recipe="default_behavior_only_oddball", name="sensory_prediction")
     dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
-    # custom_extraction.default_collection(dataset)
+    custom_extraction.default_collection(dataset)
     meye_pupil_extraction.default_collection(dataset)
 
 def label_videos():

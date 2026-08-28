@@ -64,7 +64,7 @@ def parse_suite2p(p: Path):
 
 
 def parse_all_suite2p_under_dir(dir_path: str):
-    pattern = os.path.join("suite2p", "plane0")
+    pattern = os.path.join("plane0")
     all_suite2p_ops = search_pattern_file(pattern, dir_path)
     print(f"Found {len(all_suite2p_ops)} suite2p ops files under {dir_path}, start parsing...")
     for p in Path(dir_path).rglob(pattern):
@@ -73,5 +73,5 @@ def parse_all_suite2p_under_dir(dir_path: str):
 
 
 if __name__ == "__main__":
-    parse_all_suite2p_under_dir(r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\HeadFixedTraining_CalciumImaging")
+    parse_all_suite2p_under_dir(r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\PassivePuff_HighFreqImaging\HighFreqImaging_Combine_ROIs")
     

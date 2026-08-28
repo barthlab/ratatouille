@@ -28,13 +28,13 @@ DF_F0_RANGE = (-3, 10)  # dF/F0 range for clipping
 
 
 # GCaMP6f Deconvolution
-DO_DECONV = False
-DECONV_TAU = 0.58  # s
+DO_DECONV = True
+DECONV_TAU = 1. # s
 DECONV_PERCENTILE = 20 # %
 DECONV_WINDOW_BASELINE = 60.0 # in seconds, window in which to compute max/min filters
 def GCaMP_deconvolve(raw_f: np.ndarray, fs: float) -> np.ndarray:
     from suite2p.extraction import dcnv
     window_size = int(DECONV_WINDOW_BASELINE * fs)
     normed_f = raw_f / numpy_percentile_filter(raw_f, window_size, DECONV_PERCENTILE)
-    deconv_f = dcnv.oasis(F=normed_f, tau=DECONV_TAU, fs=fs, batch_size=1000) * 10
+    deconv_f = dcnv.oasis(F=normed_f, tau=DECONV_TAU, fs=fs, batch_size=100) * 10
     return deconv_f

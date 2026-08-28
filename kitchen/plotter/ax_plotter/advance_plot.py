@@ -3,11 +3,13 @@ from typing import Generator, Tuple
 import matplotlib.pyplot as plt
 
 from kitchen.operator.sync_nodes import sync_check, sync_nodes
+from kitchen.plotter.ax_plotter.basic_plot import stack_view
 from kitchen.plotter.plotting_manual import PlotManual
 from kitchen.plotter.plotting_params import FLUORESCENCE_RATIO, SACCADE_RATIO, TIMELINE_RATIO, LICK_RATIO, LOCOMOTION_RATIO, PUPIL_RATIO, WHISKER_RATIO
 from kitchen.plotter.unit_plotter.unit_trace import unit_plot_timeline
 from kitchen.plotter.unit_plotter.unit_trace_advance import SUBTRACT_MANUAL, unit_subtract_lick, unit_subtract_locomotion, unit_subtract_pupil, unit_subtract_pupil_center, unit_subtract_single_cell_fluorescence, unit_subtract_whisker
 from kitchen.plotter.utils.tick_labels import add_line_legend, add_textonly_legend
+from kitchen.plotter.utils.twin_plots import access_twinx
 from kitchen.structure.hierarchical_data_structure import DataSet
 from kitchen.utils.sequence_kit import select_truthy_items
 
@@ -100,3 +102,45 @@ def subtract_view(
         add_textonly_legend(ax, {subtract_manual.name1: {"color": subtract_manual.color1}, 
                                 subtract_manual.name2: {"color": subtract_manual.color2}})
 
+
+def parallel_view(
+        ax: plt.Axes,
+        datasets: list[DataSet],
+        sync_events: Tuple[str],
+
+        plot_manual1: PlotManual = PlotManual(),
+        plot_manual2: PlotManual = PlotManual(),
+
+) -> Generator[float, float, None]:
+    assert len(datasets) == 2, "Parallel view only works for 2 datasets"
+    
+    dataset1, dataset2 = datasets
+
+    ax_twin = access_twinx(ax)
+        
+    # ax_twin.set_yticks([])
+    # 
+    # def sync_ylim(any_ax):
+    #     ax_twin.set_ylim(any_ax.get_ylim())
+    #     ticks = ax.get_yticks()
+    #     if len(ticks) == 0:
+    #         ax_twin.set_yticks([])
+    # ax.callbacks.connect("ylim_changed", sync_ylim)
+
+    stack_generator1 = stack_view(
+        ax=ax, datasets=dataset1, plot_manual=plot_manual1, sync_events=sync_events)
+    stack_generator2 = stack_view(
+        ax=ax_twin, datasets=dataset2, plot_manual=plot_manual2, sync_events=sync_events)
+    
+    try:
+        offset1 = next(stack_generator1)
+        offset2 = next(stack_generator2)
+        while True:
+            y_offset = yield max(offset1, offset2)
+            offset1 = stack_generator1.send(y_offset)
+            offset2 = stack_generator2.send(y_offset)
+    except StopIteration:
+        return
+
+    
+    

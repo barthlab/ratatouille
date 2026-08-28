@@ -20,26 +20,27 @@ logging.getLogger('numba').setLevel(logging.WARNING)
 
 
 def main():
-    dataset = load_dataset(template_id="PassivePuff_HighFreqImaging", cohort_id="HighFreqImaging_202602", 
+    dataset = load_dataset(template_id="PassivePuff_HighFreqImaging", cohort_id="HighFreqImaging_Combine_ROIs", 
                            recipe="default_two_photon_mes_parser", name="HFI_SST")
-    # dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
-
+    dataset.status(save_path=path.join(path.dirname(__file__), "status_report.xlsx"))
+    
     plot_manual = PlotManual(whisker=True, fluorescence=True, locomotion=True)
 
-    # visualize_celluar_activity_with_deconv(dataset)
-    # visualize_celluar_activity_with_behavior(dataset)
+    visualize_celluar_activity_with_deconv(dataset)
+    visualize_celluar_activity_with_behavior(dataset)
+    exit()
 
+    visualize_behavior_correlation_distribution(dataset)
+    # variability_visualization_of_fluo_and_deconv(dataset)
 
-    # visualize_behavior_correlation_distribution(dataset)
-    variability_visualization_of_fluo_and_deconv(dataset)
-
+    # exit()
     
-    # for mice_node in dataset.select("mice"):
-    #     for session_node in dataset.subtree(mice_node).select("session"):
-            # flat_view_default_macro(dataset.subtree(session_node, "SessionSubtree"), node_level="session", plot_manual=plot_manual, 
-                                    # sharey=False, default_padding=0.5) 
-            # stack_view_default_macro(dataset.subtree(session_node, "SessionSubtree"), node_level="cellsession", plot_manual=plot_manual,
-            #                          _aligment_style="Aligned2Trial", unit_shape=(2, 2))
+    for mice_node in dataset.select("mice"):
+        for session_node in dataset.subtree(mice_node).select("session"):
+            flat_view_default_macro(dataset.subtree(session_node, "SessionSubtree"), node_level="session", plot_manual=plot_manual, 
+                                    sharey=False, default_padding=0.5) 
+            stack_view_default_macro(dataset.subtree(session_node, "SessionSubtree"), node_level="cellsession", plot_manual=plot_manual,
+                                     _aligment_style="Aligned2Trial", unit_shape=(2, 2))
         # flat_view_default_macro(dataset.subtree(mice_node, "MiceSubtree"), node_level="session", plot_manual=plot_manual, 
         #                         sharey=False, default_padding=0.5)
         

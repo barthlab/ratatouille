@@ -92,9 +92,11 @@ def timeline_loader_from_fov(fov_node: Fov, timeline_loader_name: str = "default
                 session_name = session_name.group(1)
 
                 # extract day name     
-                day_name = filename.split("_")[2]
-                assert day_name.startswith("D"), f"Expected day name to start with 'D' in {filename}"
-                day_name = day_name[1:].zfill(2)
+                day_name_match = re.search(r"_D(\d{2})_", filename)
+                if day_name_match is None:
+                    day_name_match = re.search(r"_day(\d{2})_", filename)
+                assert day_name_match is not None, f"Expected day name to start with 'D' or 'day' in {filename}"
+                day_name = day_name_match.group(1).zfill(2)
                 
                 extracted_timeline = Timeline(
                     v=dummy_name_convert(data_array['details'].to_numpy()),

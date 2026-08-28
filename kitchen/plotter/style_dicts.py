@@ -2,7 +2,7 @@ from kitchen.settings.timeline import SUPPORTED_TIMELINE_EVENT
 import kitchen.plotter.color_scheme as color_scheme
 
 DEFAULT_ALPHA = 0.9
-MAX_OVERLAP_ALPHA_NUM_DUE_TO_MATPLOTLLIB_BUG = 200 # 255, see matplotlib alpha bug
+MAX_OVERLAP_ALPHA_NUM_DUE_TO_MATPLOTLLIB_BUG = 100 # 255, see matplotlib alpha bug
 
 REFERENCE_LINE_STYLE = {
     "color": "gray",
@@ -21,7 +21,7 @@ TICK_LINE_STYLE = {
 LOCOMOTION_TRACE_STYLE = {
     "color": color_scheme.LOCOMOTION_COLOR,
     "linewidth": 0.5,
-    "alpha": 0.9,
+    "alpha": 0.7,
 }
 
 POSITION_SCATTER_STYLE = {

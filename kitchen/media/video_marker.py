@@ -9,25 +9,25 @@ from kitchen.configs import routing
 from kitchen.settings.fluorescence import DEFAULT_RECORDING_DURATION
 
 
-def marker_video_use_timeline(dir_path: str):
+def marker_video_use_timeline(dir_path: str, prefix: str = "VIDEO_", save_prefix: str = "DEMO_"):
     """Mark videos with event text overlays based on timeline data."""
-    video_files = routing.search_pattern_file('VIDEO_*', dir_path)
+    video_files = routing.search_pattern_file(f'{prefix}*', dir_path)
     timeline_files = routing.search_pattern_file('TIMELINE_*', dir_path)
-    demo_files = routing.search_pattern_file('DEMO_*', dir_path)
+    demo_files = routing.search_pattern_file(f'{save_prefix}*', dir_path)
     
     # Match files by basename (without extensions)
-    existing_demos = {os.path.splitext(os.path.basename(f)[5:])[0] for f in demo_files}  # Remove "DEMO_" prefix and extension
+    existing_demos = {os.path.splitext(os.path.basename(f)[len(save_prefix):])[0] for f in demo_files}  # Remove save_prefix and extension
     
     for video_file in video_files:
-        basename = os.path.splitext(os.path.basename(video_file)[6:])[0]  # Remove "VIDEO_" prefix and extension
+        basename = os.path.splitext(os.path.basename(video_file)[len(prefix):])[0]  # Remove prefix and extension
         
-        if basename in existing_demos:
-            continue  # Skip if demo already exists
+        # if basename in existing_demos:
+        #     continue  # Skip if demo already exists
             
         # Find matching timeline file
         timeline_file = None
         for tf in timeline_files:
-            if os.path.splitext(os.path.basename(tf)[9:])[0] == basename:  # Remove "TIMELINE_" prefix and extension
+            if os.path.splitext(os.path.basename(tf)[len('TIMELINE_'):])[0] == basename:  # Remove "TIMELINE_" prefix and extension
                 timeline_file = tf
                 break
         
@@ -38,7 +38,8 @@ def marker_video_use_timeline(dir_path: str):
         # Parse timeline and create demo
         try:
             events = parse_timeline(timeline_file)
-            demo_path = os.path.join(os.path.dirname(video_file), f"DEMO_{basename}.mp4")
+            print(events)
+            demo_path = os.path.join(os.path.dirname(video_file), f"{save_prefix}{basename}.mp4")
             create_demo_video(video_file, demo_path, events)
             print(f"Created: {demo_path}")
         except Exception as e:
@@ -54,7 +55,7 @@ def parse_timeline(timeline_file: str):
     with open(timeline_file, 'r') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            time_val = float(row['time'])
+            time_val = float(row['time']) / 1000  #  to second
             detail = row['details'].strip()
             
             if detail == 'task start':
@@ -101,11 +102,15 @@ def create_demo_video(video_file: str, demo_file: str, events: dict):
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out = cv2.VideoWriter(demo_file, fourcc, fps, (width, height))
     
-    start_time = events['start']
-    end_time = events['end']
-    video_duration = end_time - start_time
+    video_start_time = 342.54008 / 1000
+
+    video_end_time = 599973.9492 / 1000  # to second
+    video_duration = video_end_time - video_start_time
+    video_timeline_offset = (975662 * 0.00124) / 1000 - events['start']
+
+    
     min_duration_frames = int(0.5 * fps)  # Minimum 0.5s display
-    font_scale, thickness = 1.8, 2
+    font_scale, thickness = 0.5, 1
     
     # Event colors (BGR format for OpenCV)
     event_colors = {
@@ -114,6 +119,7 @@ def create_demo_video(video_file: str, demo_file: str, events: dict):
         'NoWater': (128, 128, 128),   # Gray
         'VerticalPuff': (0, 255, 0),  # Green
         'HorizontalPuff': (0, 128, 255), # Orange
+        'Blank': (0, 0, 255),           # Red
         'PeltierLeft': (255, 128, 0), # Blue
         'PeltierRight': (255, 128, 0), # Blue
         'PeltierBoth': (255, 128, 0), # Blue
@@ -140,7 +146,7 @@ def create_demo_video(video_file: str, demo_file: str, events: dict):
                 
             # Calculate current timeline time
             progress = frame_num / total_frames
-            current_time = start_time + progress * video_duration
+            current_time = video_start_time + progress * video_duration - video_timeline_offset
             
             # Create overlay for text with transparency
             overlay = frame.copy()

@@ -318,10 +318,10 @@ class DataSet:
             _specified_name = f"{hash_key}Select_{self.name}"
         return DataSet(name=_specified_name, nodes=selected_nodes)
     
-    def select_subtree(self, hash_key: str, _specified_name: Optional[str] = None, _empty_warning: bool = True, **criterion: Any) -> Generator["DataSet", None, None]:
+    def select_subtree(self, hash_key: str, _specified_name: Optional[str] = None, _empty_warning: bool = True, **criterion: Any) -> Generator[tuple[Node, "DataSet"], None, None]:
         """Generate subtrees rooted at nodes of specific type filtered by criterion."""
         for node in self.select(hash_key, _specified_name=_specified_name, _empty_warning=_empty_warning, **criterion):
-            yield self.subtree(node, _specified_name=f"{node.hash_key}Subtree_{_specified_name}", _empty_warning=_empty_warning)
+            yield node, self.subtree(node, _specified_name=f"{node.hash_key}Subtree_{_specified_name}", _empty_warning=_empty_warning)
     
     def rule_based_group_by(self, key_func: Callable[[Node], Optional[str]], _empty_warning: bool = False) -> Dict[str, "DataSet"]:
         """Select nodes based on pre-defined rules."""   
@@ -346,7 +346,7 @@ class DataSet:
                             for coord in pseudo_node_coordinate_set]
         return pseudo_node_list
 
-    def status(self, save_path: Optional[str] = None, row_level: str="session"):
+    def status(self, save_path: Optional[str] = None, row_level: str="session", add_info: bool=False):
         """Return string representation of dataset status."""
         assert len(self.select(row_level)) > 0, f"Status report expects at least one {row_level} node."
 
@@ -357,7 +357,12 @@ class DataSet:
                                 "FOV": session_node.coordinate.object_uid.fov_id,
                                 "Day": session_node.coordinate.temporal_uid.day_id,
                                 "Session": session_node.coordinate.temporal_uid.session_id,
-                                **session_node.data.status()})
+                                })
+            if row_level.lower() == "cellsession":
+                status_list[-1]["Cell"] = session_node.coordinate.object_uid.cell_id
+            status_list[-1] = {**status_list[-1], **session_node.data.status()}
+            if add_info:
+                status_list[-1] = {**status_list[-1], **session_node.info}
         df = pd.DataFrame(status_list)
         
         save_path = "status_report.xlsx" if save_path is None else save_path

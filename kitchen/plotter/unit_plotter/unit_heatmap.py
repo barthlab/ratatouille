@@ -48,7 +48,7 @@ def unit_heatmap_locomotion(locomotion: None | list[Events], ax: plt.Axes,
     assert locomotion is not None, "Sanity check failed"
 
     # plot multiple locomotion rates
-    group_locomotion = grouping_events_rate(locomotion, bin_size=LOCOMOTION_BIN_SIZE, baseline_subtraction=baseline_subtraction)
+    group_locomotion = grouping_events_rate(locomotion, bin_size=LOCOMOTION_BIN_SIZE, baseline_subtraction=baseline_subtraction, _log_rate=True)
     heatmap_array = sort_heatmap_array(group_locomotion, **sorting_kwargs)
     heatmap_extent = (group_locomotion.t[0], group_locomotion.t[-1], HEATMAP_OFFSET_RANGE[1], HEATMAP_OFFSET_RANGE[0])
     
@@ -223,7 +223,7 @@ def unit_heatmap_deconv_fluorescence(
     assert fluorescence is not None, "Sanity check failed"
 
     # plot multiple fluorescences
-    group_deconv_fluorescence = grouping_timeseries([single_fluorescence.deconv_f.squeeze(0) for single_fluorescence in fluorescence], 
+    group_deconv_fluorescence = grouping_timeseries([single_fluorescence.delta_deconv_f.squeeze(0) for single_fluorescence in fluorescence], 
                                              baseline_subtraction=baseline_subtraction)
     heatmap_array = sort_heatmap_array(group_deconv_fluorescence, **sorting_kwargs)
     heatmap_extent = (group_deconv_fluorescence.t[0], group_deconv_fluorescence.t[-1], HEATMAP_OFFSET_RANGE[1], HEATMAP_OFFSET_RANGE[0])

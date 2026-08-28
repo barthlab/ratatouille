@@ -10,6 +10,7 @@ from kitchen.configs import routing
 from kitchen.loader.general_loader_interface import load_dataset
 from kitchen.operator.grouping import grouping_timeseries
 from kitchen.plotter import color_scheme
+from kitchen.utils.ordering_kit import linkage_order
 from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_ClusteringAnalysis import get_putative_labels
 from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_Settings import CLUSTER_COLORS, COHORT_COLORS
 from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_SingleCell import get_500ms_puff_trials
@@ -611,6 +612,7 @@ def simple_pairwise_distance_distribution(weight_matrix, cohort_name, feature_sp
     from scipy.spatial.distance import pdist
 
     plt.rcParams["font.family"] = "Arial"
+    plt.rcParams["font.size"] = 6
 
     n_cell, n_feature = weight_matrix.shape
     assert n_cell == len(cohort_name)
@@ -619,8 +621,12 @@ def simple_pairwise_distance_distribution(weight_matrix, cohort_name, feature_sp
         normalized_weight_matrix = numpy_kit.zscore(weight_matrix, axis=0)
     else:
         normalized_weight_matrix = weight_matrix
-    fig, ax = plt.subplots(1, 1, figsize=(3, 2), constrained_layout=True)
-
+    fig, ax = plt.subplots(1, 1, figsize=(1.7, 1.5), constrained_layout=True)
+    
+    ax.tick_params( 
+        length=1,
+        pad=1     
+    )
     summarized_pairwise_distance = []
     for group_name in np.unique(cohort_name):
         weight_in_group = normalized_weight_matrix[cohort_name == group_name]
@@ -630,17 +636,178 @@ def simple_pairwise_distance_distribution(weight_matrix, cohort_name, feature_sp
     df = pd.concat(summarized_pairwise_distance, ignore_index=True)
     sns.kdeplot(data=df, x="distance", hue="group", multiple="layer", 
                 palette=COHORT_COLORS, hue_order=["SST_JUX", "PYR_JUX", "PV_JUX", ],
-                ax=ax, legend=False, fill=True, alpha=0.7, common_norm=False,
-                edgecolor="black", linewidth=0.5,)
+                ax=ax, legend=False, fill=False, alpha=0.9, common_norm=False,
+                linewidth=1.5,)
     # sns.histplot(pairwise_distance, ax=ax, kde=True, stat="density", binwidth=0.05
     #              fill=True, alpha=0.4, color=COHORT_COLORS[group_name])
-    ax.set_xlabel("Pairwise Correlation [R]")
-    ax.set_ylabel("Density [a.u.]")
+    ax.set_xlabel("Pairwise Correlation", fontsize=7)
+    ax.set_ylabel("Density", fontsize=7)
     ax.set_yticks([])
+    ax.set_xticks([-1, 0, 1])
     ax.spines[['right', 'top', 'left']].set_visible(False)
 
     save_path = path.join(get_saving_path(), "FeatureSpace", f"PairwiseDistance_{feature_space_name}.png")
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     fig.savefig(save_path, dpi=500, transparent=True)
     plt.close(fig)
+    logger.info("Plot saved to " + save_path)
+
+
+
+def simple_pairwise_correlation_matrix(
+    weight_matrix,
+    cohort_name,
+    feature_space_name: str,
+    _normalize_all_dimension: bool = True,
+):
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import os
+    from os import path
+
+    plt.rcParams["font.family"] = "Arial"
+    plt.rcParams["font.size"] = 6
+
+    n_cell, n_feature = weight_matrix.shape
+    cohort_name = np.asarray(cohort_name)
+
+    assert n_cell == len(cohort_name)
+
+    if _normalize_all_dimension:
+        normalized_weight_matrix = numpy_kit.zscore(weight_matrix, axis=0,)
+    else:
+        normalized_weight_matrix = weight_matrix
+
+    cohort_order = [
+        "SST_JUX",
+        "PV_JUX",
+        "PYR_JUX",
+    ]
+
+    sort_idx = []
+    for cohort in cohort_order:
+        cohort_idx = np.where(cohort_name == cohort)[0]
+        weight_in_cohort = normalized_weight_matrix[cohort_idx]
+        local_order = linkage_order(weight_in_cohort, method="average", metric="correlation")
+
+        ordered_idx = cohort_idx[local_order]
+        sort_idx.append(ordered_idx)
+
+    sort_idx = np.concatenate(sort_idx)
+
+    sorted_weight_matrix = normalized_weight_matrix[sort_idx]
+    sorted_cohort_name = cohort_name[sort_idx]
+
+
+    correlation_matrix = np.corrcoef(sorted_weight_matrix)
+
+
+    cohort_sizes = [
+        np.sum(sorted_cohort_name == cohort)
+        for cohort in cohort_order
+    ]
+    boundaries = np.cumsum(cohort_sizes)[:-1]
+
+
+    starts = np.concatenate([[0], np.cumsum(cohort_sizes)[:-1]])
+    centers = starts + np.asarray(cohort_sizes) / 2
+
+    fig, ax = plt.subplots(
+        1,
+        1,
+        figsize=(1.7, 1.5),
+        constrained_layout=True,
+    )
+
+    im = ax.imshow(
+        correlation_matrix,
+        cmap="coolwarm",
+        vmin=-1,
+        vmax=1,
+        interpolation="none",
+        aspect="equal",
+        rasterized=True,
+    )
+
+    # Thin white lines separating cohorts
+    # -0.5 aligns lines exactly between matrix pixels
+    for boundary in boundaries:
+        position = boundary - 0.5
+
+        ax.axhline(
+            position,
+            color="white",
+            linewidth=0.5,
+            ls="--"
+        )
+        ax.axvline(
+            position,
+            color="white",
+            linewidth=0.5,
+            ls="--"
+        )
+
+    # ------------------------------------------------------------
+    # Cohort labels instead of individual cell labels
+    # ------------------------------------------------------------
+    ax.set_xticks(centers)
+    ax.set_yticks(centers)
+
+    ax.set_xticklabels(
+        ["SST", "PV", "PYR"],
+        fontsize=7,
+    )
+    for label, color in zip(
+        ax.get_xticklabels(),
+        [COHORT_COLORS["SST_JUX"],
+            COHORT_COLORS["PV_JUX"],
+            COHORT_COLORS["PYR_JUX"],]
+    ):
+        label.set_color(color)
+
+    ax.set_yticklabels(
+        ["SST", "PV", "PYR"],
+        fontsize=7,
+        rotation=90,
+        va="center", ha="right"
+    )
+    for label, color in zip(
+        ax.get_yticklabels(),
+        [COHORT_COLORS["SST_JUX"],
+            COHORT_COLORS["PV_JUX"],
+            COHORT_COLORS["PYR_JUX"],]
+    ):
+        label.set_color(color)
+
+    ax.tick_params(
+        length=0,
+        pad=1,
+    )
+
+    # Remove spines
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    # ------------------------------------------------------------
+    # Save
+    # ------------------------------------------------------------
+    save_path = path.join(
+        get_saving_path(),
+        "FeatureSpace",
+        f"PairwiseCorrelationMatrix_{feature_space_name}.png",
+    )
+
+    os.makedirs(
+        os.path.dirname(save_path),
+        exist_ok=True,
+    )
+
+    fig.savefig(
+        save_path,
+        dpi=500,
+        transparent=True,
+    )
+
+    plt.close(fig)
+
     logger.info("Plot saved to " + save_path)

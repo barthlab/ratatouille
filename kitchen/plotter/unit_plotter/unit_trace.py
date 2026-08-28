@@ -11,6 +11,7 @@ from kitchen.operator.grouping import grouping_events_rate, grouping_timeseries
 from kitchen.plotter.unit_plotter.unit_yticks import yticks_combo
 from kitchen.plotter.utils.alpha_calculator import calibrate_alpha, ind_alpha
 from kitchen.plotter.utils.fill_plot import oreo_plot
+from kitchen.plotter.utils.twin_plots import access_twinx
 from kitchen.settings.fluorescence import DF_F0_SIGN, Z_SCORE_SIGN
 import kitchen.plotter.color_scheme as color_scheme
 from kitchen.plotter.plotting_params import LICK_BIN_SIZE, LOCOMOTION_BIN_SIZE, RAW_FLUORESCENCE_RATIO, TIME_TICK_DURATION, WC_POTENTIAL_RATIO
@@ -51,7 +52,7 @@ def unit_plot_locomotion(locomotion: None | Events | list[Events], ax: plt.Axes,
             y_height = 8*ratio
     else:
         # plot multiple locomotion rates
-        group_locomotion = grouping_events_rate(locomotion, bin_size=LOCOMOTION_BIN_SIZE, baseline_subtraction=baseline_subtraction)
+        group_locomotion = grouping_events_rate(locomotion, bin_size=LOCOMOTION_BIN_SIZE, baseline_subtraction=baseline_subtraction, _log_rate=True)
         y_height = np.nanmax(group_locomotion.mean) * ratio
         oreo_plot(ax, group_locomotion, y_offset, ratio, style_dicts.LOCOMOTION_TRACE_STYLE, style_dicts.FILL_BETWEEN_STYLE)
 
@@ -282,26 +283,31 @@ def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes,
                 if event_type not in color_scheme.GRAND_COLOR_SCHEME:
                     continue
                 num_event_calibrate = len(all_event[event_type]) if len(timeline) > 1 else 1
-                if ("On" not in event_type) or (event_type.replace("On", "Off") not in one_timeline.v) or (len(timeline) == 1):
+                
+                if len(timeline) == 1:
                     ax.axvline(event_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type],
                                 **calibrate_alpha(style_dicts.VLINE_STYLE, num_event_calibrate))
+                if ("On" not in event_type) or (event_type.replace("On", "Off") not in one_timeline.v):
                     continue
 
                 end_event = event_type.replace("On", "Off")
                 possible_end_time = one_timeline.filter(end_event).t
                 if len(possible_end_time[possible_end_time >= event_time]) == 0:
+
+                    ax.axvline(event_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type],
+                                **calibrate_alpha(style_dicts.VLINE_STYLE, num_event_calibrate))
                     continue
                 end_time = possible_end_time[possible_end_time >= event_time][0]
-                
+
                 ax.axvline(event_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type],
                             **calibrate_alpha(style_dicts.VLINE_STYLE, num_event_calibrate))
                 if end_time - event_time >= 0.09:
-                    ax.add_patch(mpatches.Rectangle((event_time, y_offset), end_time - event_time, ratio, 
-                                                color=color_scheme.GRAND_COLOR_SCHEME[event_type],
-                                                **calibrate_alpha(style_dicts.VSPAN_STYLE, num_event_calibrate)))
-                    # ax.axvspan(event_time, end_time, 
-                    #            color=color_scheme.GRAND_COLOR_SCHEME[event_type],
-                    #             **calibrate_alpha(style_dicts.VSPAN_STYLE, num_event_calibrate))
+                    # ax.add_patch(mpatches.Rectangle((event_time, y_offset), end_time - event_time, ratio, 
+                    #                             color=color_scheme.GRAND_COLOR_SCHEME[event_type],
+                    #                             **calibrate_alpha(style_dicts.VSPAN_STYLE, num_event_calibrate)))
+                    ax.axvspan(event_time, end_time, 
+                               color=color_scheme.GRAND_COLOR_SCHEME[event_type],
+                                **calibrate_alpha(style_dicts.VSPAN_STYLE, num_event_calibrate))
                 # else:
                 #     ax.axvline(event_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type],
                 #                 **calibrate_alpha(style_dicts.VLINE_STYLE, num_event_calibrate))
@@ -343,12 +349,14 @@ def unit_plot_single_cell_fluorescence(fluorescence: None | Fluorescence | list[
                     **calibrate_alpha(style_dicts.INDIVIDUAL_FLUORESCENCE_TRACE_STYLE, group_fluorescence.data_num))
     # add y ticks
     example_fluorescence = fluorescence[0]
+    
+    
     add_new_yticks(ax, TICK_PAIR(
         y_offset,
         f"Cell {example_fluorescence.cell_idx[0]}" if cell_id_flag else "Cell", color_scheme.FLUORESCENCE_COLOR))
     add_new_yticks(ax, TICK_PAIR(
-        y_offset + 0.5 * ratio,
-        f"0.5 {DF_F0_SIGN}" if (np.all(example_fluorescence.cell_order == 0) or (not cell_id_flag)) else "", color_scheme.FLUORESCENCE_COLOR))
+        y_offset + 0.2 * ratio,
+        f"0.2 {DF_F0_SIGN}" if (np.all(example_fluorescence.cell_order == 0) or (not cell_id_flag)) else "", color_scheme.FLUORESCENCE_COLOR))
     # add_new_yticks(ax, TICK_PAIR(
     #     y_offset + 1 * ratio,
     #     f"1 {DF_F0_SIGN}" if (np.all(example_fluorescence.cell_order == 0) or (not cell_id_flag)) else "", color_scheme.FLUORESCENCE_COLOR))
@@ -368,8 +376,8 @@ def unit_plot_single_cell_deconv_fluorescence(fluorescence: None | Fluorescence 
         
         # plot single cell fluorescence
         assert fluorescence.num_cell == 1, f"Expected 1 cell, but got {fluorescence.num_cell}"
-        cell_trace = fluorescence.deconv_f.v[0]
-        ax.plot(fluorescence.deconv_f.t, cell_trace * ratio + y_offset, **style_dicts.FLUORESCENCE_TRACE_STYLE)
+        cell_trace = fluorescence.delta_deconv_f.v[0]
+        ax.plot(fluorescence.delta_deconv_f.t, cell_trace * ratio + y_offset, **style_dicts.FLUORESCENCE_TRACE_STYLE)
 
         # add y ticks
         add_new_yticks(ax, TICK_PAIR(
@@ -380,7 +388,7 @@ def unit_plot_single_cell_deconv_fluorescence(fluorescence: None | Fluorescence 
         return max(np.nanmax(cell_trace) * ratio, 1*ratio)
 
     # plot multiple cell fluorescence
-    group_fluorescence = grouping_timeseries([fluorescence.deconv_f for fluorescence in fluorescence]).squeeze(0)
+    group_fluorescence = grouping_timeseries([fluorescence.delta_deconv_f for fluorescence in fluorescence]).squeeze(0)
     if len(group_fluorescence) == 0:
         return 0
     oreo_plot(ax, group_fluorescence, y_offset, ratio, style_dicts.FLUORESCENCE_TRACE_STYLE, style_dicts.FILL_BETWEEN_STYLE)

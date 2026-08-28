@@ -49,7 +49,7 @@ def fluorescence_loader_from_node(
 
         """get cell position"""
         stat = mat_dict['stat']
-        cell_position = np.stack([stat[0, cell_id][0, 0][6][0] for cell_id in is_cell], axis=0)
+        cell_position = np.stack([stat[0, cell_id][0, 0]["med"][0] for cell_id in is_cell], axis=0)
 
         """split into sessions"""
         num_cells, num_total_frames = raw_f.shape
@@ -240,7 +240,17 @@ def fluorescence_loader_from_node(
 
             # alignment happens here
             ttl_aligns = timeline.advanced_filter(TTL_EVENT_DEFAULT)
-            ttl_t = extracted_info["Event t (ms)"][extracted_info["Event Tag"] == 2]/1000  # type: ignore
+            ttl_t_ms = extracted_info["Event t (ms)"]/1000  # type: ignore
+            ttl_t = ttl_t_ms[np.where(extracted_info["Event Tag"] == 2)[0]+1]  # for trial event offset
+
+            # additional alignment for task start
+            if len(ttl_t_ms[extracted_info["Event Tag"] == 1]) > 0 and len(timeline.advanced_filter(["task start"])) > 0:
+                ttl_aligns = timeline.advanced_filter(["task start"]) + ttl_aligns
+                ttl_t = np.concatenate([
+                    ttl_t_ms[extracted_info["Event Tag"] == 1], # for task start
+                    ttl_t                                       # for trial event offset
+                ])
+                
             assert len(ttl_t) == len(ttl_aligns.t), f"Cannot match ttl and timeline in {filename} and {session_coordinate}: {ttl_t} ({len(ttl_t)}) vs {ttl_aligns.t} ({len(ttl_aligns.t)})"
       
             """match ttl and timeline"""
@@ -248,7 +258,9 @@ def fluorescence_loader_from_node(
                 ttl_to_timeline_offset = ttl_t[0] - ttl_aligns.t[0]
             else:
                 ttl_to_timeline_offsets = ttl_t - ttl_aligns.t
-                assert np.allclose(ttl_to_timeline_offsets, ttl_to_timeline_offsets[0], atol=1/1000), \
+                if len(ttl_to_timeline_offsets) == 0:
+                    raise ValueError(f"No TTL events found in {filename} and {session_coordinate}: \nttl_t={ttl_t}\nttl_aligns.t={ttl_aligns.t}\n")
+                assert np.allclose(ttl_to_timeline_offsets, ttl_to_timeline_offsets[0], atol=1/20), \
                     f"Cannot match ttl and timeline in {filename} and {session_coordinate}: {ttl_to_timeline_offsets}"
                 ttl_to_timeline_offset = ttl_to_timeline_offsets[0]
             

@@ -58,9 +58,11 @@ def video_convert(dir_path: str, src_format: str = ".h264", dst_format: str = ".
             command = f"{base_cmd} {video_cmd} {output_path}"
 
         else:
-            command = (r"ffmpeg -i {} -c:v libx264 -crf 18 -vf fps={} "
-                       r"-hide_banner -loglevel warning {}").format(
-                           file_path, OUTPUT_VIDEO_FPS, output_path)
+            # command = (r"ffmpeg -i {} -c:v libx264 -crf 18 -vf fps={} "
+            #            r"-hide_banner -loglevel warning {}").format(
+            #                file_path, OUTPUT_VIDEO_FPS, output_path)
+            command = (r"ffmpeg -i {}  -hide_banner -loglevel warning {}").format(
+                           file_path, output_path)
         # if src_format == ".h264":
         #     command = (r"ffmpeg -framerate {} -i {} -q:v 6 -vf fps={} "
         #             r"-hide_banner -loglevel warning {}").format(

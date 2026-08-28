@@ -30,15 +30,35 @@ def save_multipage_tiff(arr: np.ndarray, path: str, compression=None):
     if arr.ndim != 3:
         raise ValueError("Expected a 3D array (Y, X, Z), got {arr.shape}.")
     arr = np.moveaxis(arr, -1, 0)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     tiff.imwrite(
         path,
         arr,                    # (Z, Y, X) becomes pages
         photometric="minisblack",
         compression=compression # optional; use None to disable
     )
-    os.makedirs(os.path.dirname(path), exist_ok=True)
     print(f"Saved {arr.shape} array to {path}")
 
+
+def save_zstack_tiff(arr: np.ndarray, stack_info: dict, path: str, compression=None):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    assert arr.shape == (stack_info["DepthPixelNum"], stack_info["HeightPixelNum"], stack_info["WidthPixelNum"],), \
+        f"Expected shape {(stack_info['DepthPixelNum'], stack_info['HeightPixelNum'], stack_info['WidthPixelNum'])}, got {arr.shape}"
+    
+    tiff.imwrite(
+        path,
+        arr[:, None, :, :],
+        metadata={
+            "axes": "ZCYX",
+            "PhysicalSizeX": stack_info["WidthStep"],
+            "PhysicalSizeY": stack_info["HeightStep"],
+            "PhysicalSizeZ": stack_info["DepthStep"],
+            "PhysicalSizeXUnit": "µm",
+            "PhysicalSizeYUnit": "µm",
+            "PhysicalSizeZUnit": "µm",
+        }
+    )
+    print(f"Saved {arr.shape} array to {path}")
 
 
 def parse_mes(p: Path):
@@ -47,20 +67,82 @@ def parse_mes(p: Path):
     variable_list = whosmat(p)
     shapes = {var_name: var_shape for var_name, var_shape, var_type in variable_list}
     for var_name, var_shape, var_type in variable_list:
-        print(var_name, var_shape, var_type)
-        
         # Dfxxxxx: information, struct, (x, 1) shape
         # Ifxxxxx_0001: image data, (width, total_line) shape, uint16
-        if var_name.startswith("D"):  
-            # corresponding image data
-            image_var_name = var_name.replace("D", "I") + "_0001"
-            if shapes[image_var_name][1] < shapes[image_var_name][0] * 10:  # not likely a recording
-                continue
+        if not var_name.startswith("D"):  
+            continue
+        print(var_name, var_shape, var_type)
+        
+        # corresponding image data
+        image_var_name = var_name.replace("D", "I") 
+        corresponding_image_names = sorted([
+            name for name in shapes.keys() 
+            if name.startswith(image_var_name)
+            and len(name) == len(image_var_name) + 5  # "_0001" ~ "_9999"
+            and name[-4:].isdigit()  # ensure the suffix is numeric
+        ])
+
+        first_image_name = image_var_name + "_0001"
+
+        
+        def parse_single_image():
+            stack_data = loadmat(p, variable_names=corresponding_image_names, squeeze_me=True, 
+                                  struct_as_record=False)
+            for image_number in corresponding_image_names:
+                image_array = stack_data[image_number]
+                image_idx = int(var_name[2:])
+                img_file_name = file_name.replace(".mes", f"_img{image_idx:03d}_{image_number[-4:]}")
+                save_path = os.path.join(dir_name, "single_image", "IMG_" + img_file_name + ".tif")
+                save_multipage_tiff(image_array[:, :, None].transpose(1, 0, 2)[::-1], save_path)  # add a dummy Z dimension
+
+
+        def parse_zstack():
+            zstack_idx = int(var_name[2:])
+            num_stacks = len(corresponding_image_names)
+            print(f"Found {num_stacks} stacks for {var_name}, "
+                  f"ranging from {corresponding_image_names[0][-4:]} to {corresponding_image_names[-1][-4:]}")
+            assert num_stacks == int(corresponding_image_names[-1][-4:]), \
+                f"Unmatched number of stacks for {var_name}: expected {int(corresponding_image_names[-1][-4:])}, found {num_stacks}"
             
+            stack_data = loadmat(p, variable_names=corresponding_image_names, squeeze_me=True, 
+                                  struct_as_record=False)
+            stack_frames = [stack_data[frame_name] for frame_name in corresponding_image_names]
+            stack_array = np.stack(stack_frames, axis=0).transpose(0, 2, 1)[:, ::-1]  # ZYX
+
+            Df = loadmat(p, variable_names=[var_name], squeeze_me=True, 
+                         struct_as_record=False)[var_name]
+            FirstDf = Df[0]
+            zstack_info = {
+                "WidthPixelNum": FirstDf.Width,
+                "WidthStep": FirstDf.WidthStep,
+                "HeightPixelNum": FirstDf.Height,
+                "HeightStep": FirstDf.HeightStep,
+                "DepthPixelNum": FirstDf.D3Size,
+                "DepthStep": FirstDf.D3Step,
+                "AverageFrameNum": FirstDf.Average,
+                "FrameDepths": [single_Df.Zlevel for single_Df in Df]        
+            }
+            
+            zstack_file_name = file_name.replace(".mes", f"_ZStacks{zstack_idx:03d}")
+            save_path = os.path.join(dir_name, "ZSTACK_" + zstack_file_name + ".ome.tif")
+            
+            save_zstack_tiff(stack_array, zstack_info, save_path)
+
+            for k, v in zstack_info.items():
+                zstack_info[k] = pd.Series(v)
+            save_path = os.path.join(dir_name, "ZSTACKINFO_" + zstack_file_name + ".xlsx")
+            write_normal_dataframe(pd.DataFrame(zstack_info), f"ZStacks{zstack_idx:03d}", save_path)
+
+        def parse_recording(current_image_name):
             # recording index
             recording_idx = int(var_name[2:])
-            print(f"Found recording {recording_idx} with shape {shapes[image_var_name]}, start parsing...")
-            recording_file_name = file_name.replace(".mes", f"_Recording{recording_idx:03d}")
+            print(f"Found recording {recording_idx} with shape {shapes[current_image_name]}, start parsing...")
+            image_sub_names = current_image_name.split("_")
+            assert image_sub_names[0] == "If" + var_name[2:] or image_sub_names[0] == "IF" + var_name[2:], \
+                f"Image variable name {current_image_name} does not match expected pattern 'If{recording_idx:03d}_xxxx'"
+            image_idx = int(image_sub_names[1])
+
+            recording_file_name = file_name.replace(".mes", f"_Recording{recording_idx:03d}_{image_idx:04d}")
             Df = loadmat(p, variable_names=[var_name], squeeze_me=True, 
                             struct_as_record=False)[var_name][0]
             # events time
@@ -85,8 +167,8 @@ def parse_mes(p: Path):
                 f"Start pixel {start_pixel_index}, End pixel {end_pixel_index}, Rounded start pixel {rounded_start_pixel_index}, Rounded end pixel {rounded_end_pixel_index}"
             n_frame = int((rounded_end_pixel_index - rounded_start_pixel_index + 1) / transverse_pixel_num)
 
-            image_data = loadmat(p, variable_names=[image_var_name], squeeze_me=True, 
-                            struct_as_record=False)[image_var_name]
+            image_data = loadmat(p, variable_names=[current_image_name], squeeze_me=True, 
+                            struct_as_record=False)[current_image_name]
             # reshape image data
             assert image_data.shape == (width_num, total_line_pixel_num), \
                 f"Expected image shape {(width_num, total_line_pixel_num)}, but got {image_data.shape}"
@@ -131,6 +213,20 @@ def parse_mes(p: Path):
             write_normal_dataframe(pd.DataFrame(recording_info), f"Recording{recording_idx:03d}", save_path)
 
 
+        if len(corresponding_image_names) > 100:  # likely a zstack
+            print("-" * 4 + f"Z-stack!")
+            parse_zstack()
+        elif first_image_name in shapes and shapes[first_image_name][1] >= shapes[first_image_name][0] * 10:  # likely a recording
+            print("-" * 4 + f"Recording!")
+            for tmp_image_name in corresponding_image_names:
+                if shapes[tmp_image_name][1] >= shapes[tmp_image_name][0] * 10:
+                    parse_recording(tmp_image_name)
+        else:
+            print("-" * 4 + f"Single image!")
+            parse_single_image()
+        
+        print("-" * 32)
+
 
 def parse_all_mes_under_dir(dir_path: str):
     all_mes_files = search_pattern_file("*.mes", dir_path)
@@ -141,4 +237,5 @@ def parse_all_mes_under_dir(dir_path: str):
     
 
 if __name__ == "__main__":
-    parse_all_mes_under_dir(r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\HeadFixedTraining_CalciumImaging")
+    parse_all_mes_under_dir(r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\PassivePuff_HighFreqImaging\HighFreqImaging_202607\M022_TFR_10M")
+    # parse_all_mes_under_dir(r"C:\Users\maxyc\PycharmProjects\Ratatouille\ingredients\HeadFixedTraining_CalciumImaging\NewMice")
