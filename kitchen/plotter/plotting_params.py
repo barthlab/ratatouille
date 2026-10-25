@@ -45,7 +45,7 @@ ANNOTATION_BBOX_HEIGHT_FACTOR = 0.5
 
 # Figure params
 NORMALIZED_PROGRESS_YLIM = 15
-DPI = 300
+DPI = 500
 
 FLAT_X_INCHES = 30      # inches
 FLAT_Y_INCHES = 6       # inches

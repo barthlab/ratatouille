@@ -3,6 +3,7 @@ from functools import reduce
 from typing import Callable, Generator, Iterable, Dict, Any, List, Mapping, Optional, Tuple, TypeVar
 import logging
 from abc import ABCMeta, abstractmethod
+from itertools import product
 
 logger = logging.getLogger(__name__)
 
@@ -134,3 +135,12 @@ def get_sorted_merge_indices(pre_merge_dict: Dict[str, list], _convert2offset: b
     if _convert2offset:
         output_indices = {k: indices2offset(v) for k, v in output_indices.items()}
     return output_indices
+
+
+def grid_on(params_dict: Dict[str, list[Any]]) -> Generator[Dict[str, Any], None, None]:
+    """Generates all combinations of parameters from a dictionary of lists."""
+    keys = [key for key, value in params_dict.items() if value is not None]
+    values_product = product(*(params_dict[key] for key in keys))
+    for values in values_product:
+        yield dict(zip(keys, values))
+

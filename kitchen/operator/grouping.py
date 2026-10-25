@@ -40,6 +40,9 @@ class AdvancedTimeSeries(TimeSeries):
     @property
     def data_num(self) -> int:
         return len(self.raw)
+
+    def __len__(self) -> int:
+        return self.data_num
     
     @property
     def data_shape(self) -> tuple:

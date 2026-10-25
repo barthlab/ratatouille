@@ -66,16 +66,16 @@ def main():
     }
 
 
-    # all_feature_spaces = prepare_all_feature_spaces()
-    # Visualize_metric_score(all_feature_spaces, label_dict=all_labels, metric_name= "silhouette_score")
-    # Visualize_metric_score(all_feature_spaces, label_dict=all_labels, metric_name= "calinski_harabasz_score")
-    # Visualize_metric_score(all_feature_spaces, label_dict=all_labels, metric_name= "davies_bouldin_score")
-
-    PSTH_tuple = get_weight_tuple_PSTH("raw", 10/1000)
-    all_feature_spaces = {
-        "PSTH": PSTH_tuple,
-        "Physiology Fingerprint": phy_tuple
-    }
-    Visualize_within_group_correlation(all_labels, all_feature_spaces)
+    all_feature_spaces = prepare_all_feature_spaces()
+    Visualize_metric_score(all_feature_spaces, label_dict=all_labels, metric_name= "silhouette_score")
+    Visualize_metric_score(all_feature_spaces, label_dict=all_labels, metric_name= "calinski_harabasz_score")
+    Visualize_metric_score(all_feature_spaces, label_dict=all_labels, metric_name= "davies_bouldin_score")
+    
+    # PSTH_tuple = get_weight_tuple_PSTH("raw", 10/1000)
+    # all_feature_spaces = {
+    #     "PSTH": PSTH_tuple,
+    #     "Physiology Fingerprint": phy_tuple
+    # }
+    # Visualize_within_group_correlation(all_labels, all_feature_spaces)
 if __name__ == "__main__":
     main()

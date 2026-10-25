@@ -16,3 +16,14 @@ def linkage_order(X: np.ndarray, method="ward", metric="euclidean"):
     Z = linkage(d, method=method)
     Z = optimal_leaf_ordering(Z, d)
     return leaves_list(Z)
+
+
+def linkage_leaf_maps(linkage, n_leaf: int) -> dict:
+    leaf_map = {i: {i} for i in range(n_leaf)}
+    for i, row in enumerate(linkage):
+        node_id = n_leaf + i
+        child1, child2 = int(row[0]), int(row[1])
+        leaf_map[node_id] = leaf_map[child1].union(leaf_map[child2])
+    return leaf_map
+
+

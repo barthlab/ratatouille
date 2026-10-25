@@ -76,6 +76,7 @@ def default_style(
 
         # Overide style
         plot_settings: Optional[dict[str, dict]] = None,
+        saving_settings: dict = {},
 ):
     default_plt_param()
 
@@ -92,6 +93,7 @@ def default_style(
             ax.tick_params(axis='x', labelbottom=True)
         if sharey_ticks:
             ax.tick_params(axis='y', labelleft=True) 
+        ax.tick_params(axis='both', which='both', length=1, pad=1)
         ax.set_xlabel(uniform_xlabel)
         ax.set_ylabel(uniform_ylabel)
         if not xticks_flag:
@@ -127,14 +129,13 @@ def default_style(
             apply_plot_settings(axs[ax_name], ax_setup_dict)
             
     # Save or show the figure
-    default_exit_save(fig, save_path)
+    default_exit_save(fig, save_path, **saving_settings)
 
 
 def default_plt_param():
     # Set default font size
     plt.rcParams["font.family"] = "Arial"
-    plt.rcParams['font.size'] = 7
-    plt.rcParams['legend.fontsize'] = 5
+    plt.rcParams["font.size"] = 6
     # plt.rcParams.update({
     #     'xtick.labelsize': 5,      # X-axis tick labels
     #     'ytick.labelsize': 5,      # Y-axis tick labels
@@ -152,16 +153,19 @@ def default_exit_save(
         fig: plt.Figure,
         save_path: Optional[str] = None, 
         _transparent: bool = False,
+        _no_close: bool = False,
+        _dpi: Optional[int] = None
 ):
     """
     Save or show the figure.
     """
     if save_path:        
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        fig.savefig(save_path, dpi=DPI, transparent=_transparent)
+        fig.savefig(save_path, dpi=_dpi if _dpi is not None else DPI, transparent=_transparent)
         logger.info(f"Plot saved to {save_path}")
     else:
         plt.show()
     
     # Close the figure
-    plt.close(fig)
+    if not _no_close:
+        plt.close(fig)

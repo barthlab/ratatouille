@@ -3,8 +3,21 @@ COHORT_COLORS = {
     "SST_WC": "#FFC400",
     "PV_JUX": "#E8000B",
     "PYR_JUX": "#023EFF",
+    "PYR_WC": "#023EFF",
 }
-
+COHORT_BRIGHTER_COLORS = {
+    "SST_JUX": "#ffaa00",
+    "SST_WC": "#ffff00",  #"#9e9d24",
+    "PV_JUX": "#ff0055",
+    "PYR_JUX": "#023EFF",
+    "PYR_WC": "#023EFF",
+}
+# COHORT_BRIGHTER_COLORS = {
+#     "SST_JUX": "#f4b400",
+#     "SST_WC": "#f4b400",  #"#9e9d24",
+#     "PV_JUX": "#db4437",
+#     "PYR_JUX": "#4285f4",
+# }
 bright_colors = ["#023EFF", "#FF7C00", "#1AC938", 
           "#E8000B", "#8B2BE2", "#9F4800", 
           "#F14CC1", "#A3A3A3", "#FFC400", "#00D7FF"]
@@ -15,6 +28,7 @@ COHORT_edgecolors = {
     "SST_WC": "black",
     "PV_JUX": "none",
     "PYR_JUX": "none",
+    "PYR_WC": "none",
 }
 
 

@@ -152,3 +152,189 @@ def reorder_indices(A: np.ndarray, B: np.ndarray, _allow_leftover: bool = False)
 def remove_project(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     """Remove the projection of b from a."""
     return a - (np.dot(a, b) / np.dot(b, b)) * b
+
+
+
+OUTLIER_LABEL = (-1, )
+
+def Labels2CoClusterMatrix(labels: np.ndarray) -> np.ndarray:
+    labels = np.asarray(labels)
+    
+    co_cluster_matrix = (labels[:, None] == labels[None, :]).astype(float)  
+
+    valid_labels = ~np.isin(labels, OUTLIER_LABEL)
+
+    valid_pairs = valid_labels[:, None] & valid_labels[None, :]
+    co_cluster_matrix[~valid_pairs] = np.nan
+
+    idx = np.where(valid_labels)[0]
+    co_cluster_matrix[idx, idx] = 1.0
+
+    return co_cluster_matrix
+
+
+def CoClusterMatrix2Labels(co_cluster_matrix: np.ndarray) -> np.ndarray:
+    co_cluster_matrix = np.asarray(co_cluster_matrix)
+
+    if co_cluster_matrix.ndim != 2:
+        raise ValueError("co_cluster_matrix must be a 2D array.")
+
+    n, m = co_cluster_matrix.shape
+    if n != m:
+        raise ValueError("co_cluster_matrix must be square.")
+
+    # Valid samples have a 1 on the diagonal.
+    # Outliers produced by Labels2CoClusterMatrix have NaN there.
+    valid = ~np.isnan(np.diag(co_cluster_matrix))
+
+    labels = np.full(n, OUTLIER_LABEL[0], dtype=int)
+
+    cluster_label = 0
+
+    for i in range(n):
+        if not valid[i] or labels[i] != OUTLIER_LABEL[0]:
+            continue
+
+        # All valid samples co-clustered with i belong to the same cluster.
+        members = valid & (co_cluster_matrix[i] == 1.0)
+        labels[members] = cluster_label
+        cluster_label += 1
+
+    return labels
+
+
+def matrices_fillback(
+    subsample_matrices: list[np.ndarray],
+    subsample_indices: np.ndarray,
+    full_size: int,
+) -> list[np.ndarray]:
+    idx = np.asarray(subsample_indices)
+    n = len(idx)
+
+    if any(matrix.shape != (n, n) for matrix in subsample_matrices):
+        raise ValueError(f"All matrices must have shape ({n}, {n}).")
+
+    ix = np.ix_(idx, idx)
+
+    def fillback(matrix: np.ndarray) -> np.ndarray:
+        result = np.full((full_size, full_size), np.nan)
+        result[ix] = matrix
+        return result
+
+    return [fillback(matrix) for matrix in subsample_matrices]
+
+
+
+
+
+
+
+def _validate_x(x):
+    """Convert input to a clean 1D float array."""
+    x = np.asarray(x, dtype=float).ravel()
+
+    if x.size < 2:
+        raise ValueError("x must contain at least 2 values.")
+
+    if not np.all(np.isfinite(x)):
+        raise ValueError("x contains NaN or infinite values.")
+
+    return x
+
+
+def _mean(x):
+    return np.mean(_validate_x(x))
+
+def _variance(x):
+    return np.var(_validate_x(x), ddof=1)
+
+def _fano_factor(x):
+    """
+    Fano factor = Var / |mean|.
+    """
+    x = _validate_x(x)
+
+    mean = np.mean(np.abs(x))
+
+    if np.isclose(mean, 0):
+        return np.nan
+
+    return np.var(x, ddof=1) / abs(mean)
+
+
+def _coefficient_of_variation(x):
+    """
+    Coefficient of variation = SD / |mean|.
+    """
+    x = _validate_x(x)
+
+    mean = np.mean(np.abs(x))
+
+    if np.isclose(mean, 0):
+        return np.nan
+
+    return np.std(x, ddof=1) / abs(mean)
+
+
+def _normalized_participation_ratio(x):
+    """
+    Participation ratio = (sum(x^2))^2 / sum(x^4)
+    Normalized 
+    """
+    x = _validate_x(x)
+    m = len(x)
+
+    if m <= 1:
+        return np.nan
+
+    sum_sq = np.sum(x**2)
+    sum_fourth = np.sum(x**4)
+
+    if np.isclose(sum_sq, 0):
+        return np.nan
+
+    n_eff = sum_sq**2 / sum_fourth
+    return (n_eff - 1) / (m - 1)
+
+
+def _relative_consecutive_difference(x):
+    """
+        mean(
+            2 * |x[t+1] - x[t]|
+            / (|x[t+1]| + |x[t]|)
+        )
+    """
+    x = _validate_x(x)
+
+    x1 = x[:-1]
+    x2 = x[1:]
+
+    numerator = 2 * np.abs(x2 - x1)
+    denominator = np.abs(x2) + np.abs(x1)
+
+    local = np.divide(
+        numerator,
+        denominator,
+        out=np.zeros_like(numerator),
+        where=denominator != 0
+    )
+    return np.mean(local)
+
+
+def _lag1_autocorrelation(x):
+    """
+    Pearson correlation between:
+
+        x[0:N-1] and x[1:N]
+
+    """
+    x = _validate_x(x)
+
+    x1 = x[:-1]
+    x2 = x[1:]
+
+    if np.isclose(np.std(x1), 0) or np.isclose(np.std(x2), 0):
+        return np.nan
+    return np.corrcoef(x1, x2)[0, 1]
+
+

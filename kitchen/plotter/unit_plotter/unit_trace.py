@@ -287,6 +287,8 @@ def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes,
                 if len(timeline) == 1:
                     ax.axvline(event_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type],
                                 **calibrate_alpha(style_dicts.VLINE_STYLE, num_event_calibrate))
+                    continue
+                                
                 if ("On" not in event_type) or (event_type.replace("On", "Off") not in one_timeline.v):
                     continue
 
@@ -299,8 +301,8 @@ def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes,
                     continue
                 end_time = possible_end_time[possible_end_time >= event_time][0]
 
-                ax.axvline(event_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type],
-                            **calibrate_alpha(style_dicts.VLINE_STYLE, num_event_calibrate))
+                # ax.axvline(event_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type],
+                #             **calibrate_alpha(style_dicts.VLINE_STYLE, num_event_calibrate))
                 if end_time - event_time >= 0.09:
                     # ax.add_patch(mpatches.Rectangle((event_time, y_offset), end_time - event_time, ratio, 
                     #                             color=color_scheme.GRAND_COLOR_SCHEME[event_type],
@@ -308,9 +310,9 @@ def unit_plot_timeline(timeline: None | Timeline | list[Timeline], ax: plt.Axes,
                     ax.axvspan(event_time, end_time, 
                                color=color_scheme.GRAND_COLOR_SCHEME[event_type],
                                 **calibrate_alpha(style_dicts.VSPAN_STYLE, num_event_calibrate))
-                # else:
-                #     ax.axvline(event_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type],
-                #                 **calibrate_alpha(style_dicts.VLINE_STYLE, num_event_calibrate))
+                else:
+                    ax.axvline(event_time, color=color_scheme.GRAND_COLOR_SCHEME[event_type],
+                                **calibrate_alpha(style_dicts.VLINE_STYLE, num_event_calibrate))
     return ratio
 
 
@@ -455,6 +457,11 @@ def unit_plot_potential(potential: None | Potential | list[Potential],
         emphasize_index = random.randint(0, len(potential))
     elif emphasize_rule == "best":
         emphasize_index = np.argmax(all_mark_offset)
+    elif emphasize_rule == "most":
+        emphasize_index = np.argmax([len(one_potential.spikes.segment(-0.05, 0.1)) for one_potential in potential])
+    elif emphasize_rule == "percentile_most":
+        index = int(len(potential) * 0.99)
+        emphasize_index = np.argsort([len(one_potential.spikes.segment(-0.05, 0.1)) for one_potential in potential])[index]
     else:
         emphasize_index = -1
     

@@ -141,7 +141,7 @@ SPIKE_POTENTIAL_SCATTER_STYLE = {
     "spike":{
         "c": color_scheme.REGULAR_SPIKE_COLOR,
         "marker": "v",
-        "s": 15,
+        "s": 5,
         "edgecolors": "white",
         "linewidths": 0.3,
         "alpha": 0.9,
@@ -150,7 +150,7 @@ SPIKE_POTENTIAL_SCATTER_STYLE = {
     "early_spike": {
         "c": color_scheme.EARLY_SPIKE_COLOR,
         "marker": "v",
-        "s": 15,
+        "s": 5,
         "edgecolors": "white",
         "linewidths": 0.3,
         "alpha": 0.9,
@@ -159,7 +159,7 @@ SPIKE_POTENTIAL_SCATTER_STYLE = {
     "sustained_spike": {
         "c": color_scheme.SUSTAINED_SPIKE_COLOR,
         "marker": "v",
-        "s": 15,
+        "s": 5,
         "edgecolors": "white",
         "linewidths": 0.3,
         "alpha": 0.9,
@@ -168,7 +168,7 @@ SPIKE_POTENTIAL_SCATTER_STYLE = {
     "regular_spike": {
         "c": color_scheme.REGULAR_SPIKE_COLOR,
         "marker": "v",
-        "s": 15,
+        "s": 5,
         "edgecolors": "white",
         "linewidths": 0.3,
         "alpha": 0.9,
@@ -177,7 +177,7 @@ SPIKE_POTENTIAL_SCATTER_STYLE = {
     "detected_spike": {
         "c": color_scheme.DETECTED_SPIKE_COLOR,
         "marker": "v",
-        "s": 15,
+        "s": 5,
         "edgecolors": "white",
         "linewidths": 0.3,
         "alpha": 0.9,
@@ -187,26 +187,26 @@ SPIKE_POTENTIAL_SCATTER_STYLE = {
 
 EMPHASIZED_POTENTIAL_LINE_ADD_STYLE = {
     "alpha": 1,
-    "lw": 0.5,
+    "lw": 0.4,
     "zorder": 5,
 }
 
 DEEMPHASIZED_POTENTIAL_LINE_ADD_STYLE = {
-    "alpha": 0.7,
-    "lw": 0.5,
+    "alpha": 0.6,
+    "lw": 0.1,
     "zorder": 1,
 }
 
 EMPHASIZED_POTENTIAL_SCATTER_ADD_STYLE = {
     "alpha": 1,
-    "s": 15,
+    "s": 8,
     "linewidths": 0.3,
     "zorder": 5,
 }
 
 DEEMPHASIZED_POTENTIAL_SCATTER_ADD_STYLE = {
-    "alpha": 0.7,
-    "s": 5,
+    "alpha": 0.6,
+    "s": 3,
     "linewidths": 0.05,
     "zorder": 1,
 }
@@ -256,7 +256,7 @@ LEGEND_STYLE = {
 
 VSPAN_STYLE = {
     "lw": 0,
-    "alpha": 0.4,
+    "alpha": 0.3,
     "zorder": -10,
 }
 

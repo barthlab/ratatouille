@@ -162,6 +162,12 @@ class TimeSeries:
         assert np.allclose(np.diff(self.t), np.diff(self.t)[0]), f"Time points should be evenly spaced to convert to events, got {self.t}"
         bin_size = 1 / self.fs
         return Events(v=self.v.copy() * bin_size, t=self.t.copy())
+
+    def z_score(self) -> Self:
+        """Return the z-scored time series."""
+        mean_v = np.nanmean(self.v, axis=-1)
+        std_v = np.nanstd(self.v, axis=-1)
+        return self.__class__(v=(self.v - mean_v) / std_v, t=self.t)
     
 
 def TimeSeries_concat(tss: List[TimeSeries]) -> TimeSeries:
@@ -582,7 +588,7 @@ class Potential:
             downsampled_t = self.vm.t[::downsample_ratio]
             spike_indices = np.searchsorted(downsampled_t, self.spikes.t)
             spike_1hot = np.zeros_like(downsampled_t)
-            spike_1hot[spike_indices] += 1
+            np.add.at(spike_1hot, spike_indices, 1)
             gcamp_kernel, kernel_t = GCaMP_kernel(self.vm.fs / downsample_ratio)
             putative_df_f0 = np.convolve(spike_1hot, gcamp_kernel, mode='full')[:len(downsampled_t)]
             self._components["conv"] = TimeSeries(v=putative_df_f0, t=downsampled_t)

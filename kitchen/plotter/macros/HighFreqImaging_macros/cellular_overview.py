@@ -11,7 +11,7 @@ from kitchen.configs import routing
 from kitchen.operator.grouping import grouping_events_rate, grouping_timeseries
 from kitchen.operator.split import split_dataset_by_trial_type
 from kitchen.operator.sync_nodes import sync_nodes
-from kitchen.plotter import style_dicts
+from kitchen.plotter import color_scheme, style_dicts
 from kitchen.plotter.ax_plotter.basic_plot import heatmap_view, stack_view
 from kitchen.plotter.decorators.default_decorators import coroutine_cycle, default_exit_save
 from kitchen.plotter.plotting_manual import PlotManual
@@ -37,8 +37,8 @@ def visualize_celluar_activity_with_deconv(
     plot_manual_deconv = PlotManual(deconv_fluorescence=True, baseline_subtraction=None)
 
     plt.rcParams["font.family"] = "Arial"
-    plt.rcParams['font.size'] = 7
-    plt.rcParams['legend.fontsize'] = 9
+    plt.rcParams['font.size'] = 6
+    # plt.rcParams['legend.fontsize'] = 9
     for mice_node in dataset.select("mice"):
         for cell_session_node in dataset.subtree(mice_node).select("cellsession"):
             cs_subtree = dataset.subtree(cell_session_node)
@@ -48,10 +48,15 @@ def visualize_celluar_activity_with_deconv(
             if len(type2dataset) == 0:
                 continue
             
-            fig, axs = plt.subplots(4, 4, figsize=(6, 6), sharex=False, sharey=False, 
-                                    constrained_layout=True, height_ratios=[1, 0.6, 1, 0.6], width_ratios=[1, 1, 0.6, 0.6])            
+            fig, axs = plt.subplots(4, 4, figsize=(7.2, 3.3), sharex=False, sharey=False, 
+                                    constrained_layout=True, height_ratios=[3, 1, 3, 1], width_ratios=[1, 1, 0.6, 0.6])            
             fig.suptitle(f"Cell {cell_session_node.fluorescence.cell_order[0]} in {cell_session_node.session_id}")
-            
+
+            for ax in axs.flatten():
+                ax.tick_params(length=0, pad=1)
+                ax.spines[["top", "right", "left", "bottom"]].set_visible(False)                
+                # ax.axvspan(0, 0.5, alpha=0.3, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10)
+                
             coroutines = {}
             axs[0, 0].set_ylabel("Fluorescence", fontsize=9)
             axs[2, 0].set_ylabel("Deconvolved", fontsize=9)
@@ -67,7 +72,7 @@ def visualize_celluar_activity_with_deconv(
                 for ax in axs[:, idx+2]:
                     ax.tick_params(axis='y', labelleft=True)
                     ax.set_yticks([])
-                    ax.set_xlim(-0.5, 1.)
+                    ax.set_xlim(-1.5, 2)
                 heatmap_plotter = heatmap_view(ax=axs[0, idx], datasets=type_dataset, sync_events=alignment_events, 
                                               plot_manual=plot_manual_fluo, modality_name="fluorescence")
                 coroutines[heatmap_plotter] = f"{trial_type}_heatmap_view"
@@ -99,7 +104,7 @@ def visualize_celluar_activity_with_deconv(
             for ax in axs[0, :]:
                 ax.set_xticks([])
             for ax in axs[1, :]:
-                ax.set_ylim(0, 3.5)   
+                ax.set_ylim(0, 2)   
             for ax in axs[2, :]:
                 ax.set_xticks([])         
             for ax in axs[3, :]:
@@ -116,7 +121,7 @@ def visualize_celluar_activity_with_deconv(
             basename = dir_path.name
             save_path = dir_path.parent.parent/"CelluarOverview" / cell_session_node.mice_id / Path(f"CelluarOverview_with_deconv_{basename}_Cell{cell_session_node.cell_id}.png")
             # save_path = save_path.replace(f"deconv_{cell_session_node.cell_id}_", f"deconv_{cell_session_node.fluorescence.cell_order[0]:02d}_")
-            default_exit_save(fig, save_path)
+            default_exit_save(fig, save_path, _transparent=True)
 
 
 def visualize_celluar_activity_with_behavior(

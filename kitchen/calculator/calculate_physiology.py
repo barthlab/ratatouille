@@ -82,33 +82,189 @@ def calculate_cv2(spike_times: np.ndarray) -> float:
     return float(np.mean(cv2_pairs))
 
 
-def calculate_autocorrelogram_rise_time(spike_times: np.ndarray, bin_size: float=0.001, max_lag: float=10):
-    if not isinstance(spike_times, np.ndarray) or spike_times.ndim != 1:
-        raise TypeError("spike_times must be a 1D NumPy array.")
-    
-    if len(spike_times) < 2:
-        print("Warning: Not enough spikes to compute an autocorrelogram. Returning NaNs.")
+
+import numpy as np
+from scipy.ndimage import gaussian_filter1d
+from scipy.optimize import curve_fit
+
+
+# CellExplorer fit_ACG start point and bounds:
+# [tau_decay, tau_rise, c, d, asymptote, refrac, tau_burst, h]
+_CE_P0 = (20.0, 1.0, 30.0, 2.0, 0.5, 5.0, 1.5, 2.0)
+
+_CE_BOUNDS = (
+    (1.0,   0.1, 0.0,  0.0, -30.0, 0.0, 0.1,   0.0),
+    (500.0, 50.0, 500.0, 15.0, 50.0, 20.0, 5.0, 100.0),
+)
+
+_CE_PARAM_NAMES = (
+    "tau_decay_ms",
+    "tau_rise_ms",
+    "c",
+    "d",
+    "asymptote",
+    "refrac_ms",
+    "tau_burst_ms",
+    "h",
+)
+
+
+def _prepare_spikes(spike_times):
+    """Return finite, sorted, 1D spike times."""
+    spikes = np.asarray(spike_times, dtype=float)
+
+    if spikes.ndim != 1:
+        raise TypeError("spike_times must be a 1D array.")
+
+    return np.sort(spikes[np.isfinite(spikes)])
+
+
+def _positive_acg_counts(spikes, bin_size, max_lag):
+    """Count positive-lag spike pairs using bins centered on multiples of bin_size."""
+    n_bins = int(np.round(max_lag / bin_size))
+    counts = np.zeros(n_bins + 1, dtype=np.int64)
+    upper_lag = max_lag + bin_size / 2
+
+    for i, t in enumerate(spikes[:-1]):
+        stop = np.searchsorted(spikes, t + upper_lag, side="right")
+
+        dt = spikes[i + 1 : stop] - t
+        k = np.floor(dt / bin_size + 0.5).astype(int)
+        k = k[(k >= 1) & (k <= n_bins)]
+
+        if k.size:
+            counts += np.bincount(k, minlength=n_bins + 1)
+
+    return counts
+
+
+def _acg_model(
+    x_ms,
+    tau_decay,
+    tau_rise,
+    c,
+    d,
+    asymptote,
+    refrac,
+    tau_burst,
+    h,
+):
+    """CellExplorer triple-exponential ACG model; times are in ms."""
+    y = (
+        c
+        * (
+            np.exp(-(x_ms - refrac) / tau_decay)
+            - d * np.exp(-(x_ms - refrac) / tau_rise)
+        )
+        + h * np.exp(-(x_ms - refrac) / tau_burst)
+        + asymptote
+    )
+
+    return np.maximum(y, 0.0)
+
+
+def calculate_autocorrelogram_rise_time(
+    spike_times,
+    return_diagnostics=False,
+):
+    """
+    Estimate CellExplorer-style ACG tau_rise in milliseconds.
+
+    spike_times are in seconds.
+    """
+    spikes = _prepare_spikes(spike_times)
+
+    if spikes.size < 2:
+        return (np.nan, {}) if return_diagnostics else np.nan
+
+    # CellExplorer narrow ACG: +/-50 ms, 0.5-ms bins.
+    bin_size = 0.0005
+    max_lag = 0.050
+
+    counts = _positive_acg_counts(spikes, bin_size, max_lag)
+
+    x_ms = np.arange(1, counts.size) * (bin_size * 1000.0)
+    y = counts[1:].astype(float) / (spikes.size * bin_size)
+
+    # CellExplorer zeros the +0.5-ms point before fitting.
+    y[0] = 0.0
+
+    try:
+        params, _ = curve_fit(
+            _acg_model,
+            x_ms,
+            y,
+            p0=_CE_P0,
+            bounds=_CE_BOUNDS,
+            maxfev=100_000,
+        )
+
+        fitted = _acg_model(x_ms, *params)
+
+        ss_tot = np.sum((y - y.mean()) ** 2)
+        ss_res = np.sum((y - fitted) ** 2)
+        r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else np.nan
+
+    except (RuntimeError, ValueError, FloatingPointError):
+        params = np.full(8, np.nan)
+        fitted = np.full_like(y, np.nan)
+        r2 = np.nan
+
+    tau_rise_ms = float(params[1])
+
+    if not return_diagnostics:
+        return tau_rise_ms
+
+    diagnostics = {
+        "n_spikes": spikes.size,
+        "x_ms": x_ms,
+        "acg_rate_hz": y,
+        "fitted_acg": fitted,
+        "r2": r2,
+        **dict(zip(_CE_PARAM_NAMES, params)),
+    }
+
+    return tau_rise_ms, diagnostics
+
+
+def calculate_autocorrelogram(
+    spike_times: np.ndarray,
+    bin_size: float = 0.0005,
+    max_lag: float = 1,
+    normalize: str = "rate",
+    smooth_sigma: float = 1.0,
+):
+    """
+    Calculate a symmetric autocorrelogram.
+
+    spike_times, bin_size, and max_lag are in seconds.
+    smooth_sigma is in bins.
+    """
+    spikes = _prepare_spikes(spike_times)
+
+    # Preserved from the original function.
+    if spikes.size < 2:
         return np.nan
 
-    # Calculate all inter-spike intervals (ISIs) up to max_lag
-    lags = []
-    for i in range(len(spike_times)):
-        for j in range(i + 1, len(spike_times)):
-            lag = spike_times[j] - spike_times[i]
-            # Since spike_times is sorted, we can break early
-            if lag > max_lag:
-                break
-            lags.append(lag)
+    if bin_size <= 0 or max_lag <= 0:
+        raise ValueError("bin_size and max_lag must be positive.")
 
-    if not lags:
-        print(f"Warning: No spike pairs found within the max_lag of {max_lag}s.")
-        return np.nan
+    positive = _positive_acg_counts(spikes, bin_size, max_lag)
+    n_bins = len(positive) - 1
 
-    # Create the histogram (the autocorrelogram)
-    bins = np.arange(bin_size, max_lag + bin_size, bin_size)
-    counts, bin_edges = np.histogram(lags, bins=bins)
+    lags = np.arange(-n_bins, n_bins + 1) * bin_size
 
-    # Find the bin with the highest count
-    peak_bin_index = np.argmax(counts)
-    rise_time = (bin_edges[peak_bin_index] + bin_edges[peak_bin_index + 1]) / 2.0
-    return rise_time
+    # Mirror positive pair counts; self-pairs at zero lag are excluded.
+    counts = np.r_[positive[:0:-1], 0.0, positive[1:]]
+
+    if normalize == "rate":
+        acg = counts / (spikes.size * bin_size)
+    elif normalize == "count":
+        acg = counts
+    else:
+        raise ValueError("normalize must be 'rate' or 'count'.")
+
+    if smooth_sigma is not None and smooth_sigma > 0:
+        acg = gaussian_filter1d(acg, sigma=smooth_sigma)
+
+    return acg, lags

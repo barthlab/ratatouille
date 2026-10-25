@@ -26,11 +26,11 @@ def main():
     
     plot_manual = PlotManual(whisker=True, fluorescence=True, locomotion=True)
 
-    visualize_celluar_activity_with_deconv(dataset)
+    # visualize_celluar_activity_with_deconv(dataset)
     visualize_celluar_activity_with_behavior(dataset)
     exit()
 
-    visualize_behavior_correlation_distribution(dataset)
+    # visualize_behavior_correlation_distribution(dataset)
     # variability_visualization_of_fluo_and_deconv(dataset)
 
     # exit()

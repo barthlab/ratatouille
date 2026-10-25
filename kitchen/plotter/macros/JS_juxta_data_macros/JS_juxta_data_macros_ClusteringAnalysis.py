@@ -9,14 +9,14 @@ import logging
 
 from kitchen.operator.grouping import AdvancedTimeSeries
 from kitchen.plotter import color_scheme, style_dicts
-from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_Settings import CLUSTER_COLORS, COHORT_COLORS
+from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_Settings import CLUSTER_COLORS, COHORT_COLORS, COHORT_BRIGHTER_COLORS
 from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_SummaryMetric import get_saving_path
 from kitchen.plotter.utils.fill_plot import oreo_plot
 from kitchen.utils import numpy_kit
 
 logger = logging.getLogger(__name__)
    
-DEFAULT_UMAP_KWS = {'n_components': 2, 'random_state': 42, 'n_neighbors': 9}
+DEFAULT_UMAP_KWS = {'n_components': 2, 'random_state': 12, 'n_neighbors': 8}
 
 def tick_formatter_cell_type(tick_text):
     a, b = tick_text.split("_")
@@ -26,39 +26,39 @@ def tick_formatter_cluster_type(tick_text):
     
 
 
-def get_putative_labels(weight_tuple):
+# def get_putative_labels(weight_tuple):
     
 
-    from umap import UMAP
-    from sklearn.cluster import SpectralClustering
+#     from umap import UMAP
+#     from sklearn.cluster import SpectralClustering
 
-    weight_matrix, node_names, cohort_names = weight_tuple
-    component_projection = weight_matrix[:, 1:]
-    n_components = component_projection.shape[1]
+#     weight_matrix, node_names, cohort_names = weight_tuple
+#     component_projection = weight_matrix[:, 1:]
+#     n_components = component_projection.shape[1]
 
-    if n_components == 2:
-        n_clusters = 4
-    elif n_components == 5:
-        n_clusters = 5
-    elif n_components == 4:
-        n_clusters = 3
-    else:
-        raise ValueError(f"n_components {n_components} not supported")
+#     if n_components == 2:
+#         n_clusters = 4
+#     elif n_components == 5:
+#         n_clusters = 5
+#     elif n_components == 4:
+#         n_clusters = 3
+#     else:
+#         raise ValueError(f"n_components {n_components} not supported")
     
 
-    normalized_weight_matrix = numpy_kit.zscore(weight_matrix, axis=0)
-    embedding = UMAP( **DEFAULT_UMAP_KWS).fit_transform(normalized_weight_matrix)
-    target_cluster_id = SpectralClustering(n_clusters=n_clusters, random_state=42,
-                                           n_neighbors=DEFAULT_UMAP_KWS['n_neighbors']).fit_predict(embedding)
+#     normalized_weight_matrix = numpy_kit.zscore(weight_matrix, axis=0)
+#     embedding = UMAP( **DEFAULT_UMAP_KWS).fit_transform(normalized_weight_matrix)
+#     target_cluster_id = SpectralClustering(n_clusters=n_clusters, random_state=42,
+#                                            n_neighbors=DEFAULT_UMAP_KWS['n_neighbors']).fit_predict(embedding)
 
-    cluster_names = [f"cluster {i}" for i in target_cluster_id]   
-    for cluster_id in range(n_clusters):
-        idx = [i for i, name in enumerate(cluster_names) if name == f"cluster {cluster_id}"]
-        print(f"Cluster {cluster_id} has {len(idx)} cells")
-        for x in node_names[idx]:
-            print(x)
-        print("------------------")
-    return np.array(cluster_names), (n_clusters, embedding, normalized_weight_matrix)
+#     cluster_names = [f"cluster {i}" for i in target_cluster_id]   
+#     for cluster_id in range(n_clusters):
+#         idx = [i for i, name in enumerate(cluster_names) if name == f"cluster {cluster_id}"]
+#         print(f"Cluster {cluster_id} has {len(idx)} cells")
+#         for x in node_names[idx]:
+#             print(x)
+#         print("------------------")
+#     return np.array(cluster_names), (n_clusters, embedding, normalized_weight_matrix)
 
 
 def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: str):
@@ -72,25 +72,27 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
     component_projection = weight_matrix[:, 1:]
     n_components = component_projection.shape[1]
 
-    shared_node_names = np.intersect1d(psth_node_names, node_names)
+    assert np.all(psth_node_names == node_names), f"Node names do not match between PSTH and weight matrix:\nPSTH: {psth_node_names}\nWeight matrix: {node_names}"
+    # shared_node_names = np.intersect1d(psth_node_names, node_names)
 
-    idx_in_both = numpy_kit.reorder_indices(psth_node_names, shared_node_names, _allow_leftover=True)
-    psth_matrix = psth_matrix[idx_in_both, :]
-    psth_node_names = psth_node_names[idx_in_both]
+    # idx_in_both = numpy_kit.reorder_indices(psth_node_names, shared_node_names, _allow_leftover=True)
+    # psth_matrix = psth_matrix[idx_in_both, :]
+    # psth_node_names = psth_node_names[idx_in_both]
+    # print(idx_in_both)
+    # idx_in_both = numpy_kit.reorder_indices(node_names, shared_node_names, _allow_leftover=True)
+    # weight_matrix = weight_matrix[idx_in_both, :]
+    # cohort_names = cohort_names[idx_in_both]
+    # node_names = node_names[idx_in_both]
 
-    idx_in_both = numpy_kit.reorder_indices(node_names, shared_node_names, _allow_leftover=True)
-    weight_matrix = weight_matrix[idx_in_both, :]
-    cohort_names = cohort_names[idx_in_both]
-    node_names = node_names[idx_in_both]
-
+    # print(idx_in_both)
     n_cell, _ = weight_matrix.shape    
-
+    # exit()
 
     cluster_names, (n_clusters, embedding, normalized_weight_matrix) = get_putative_labels((weight_matrix, node_names, cohort_names))
     for x, y,z in zip(cohort_names, cluster_names, node_names):
         print(x, y, z)
-    exit()
-    BINSIZE = 10/1000
+        
+    BINSIZE = 5/1000
     FEATURE_RANGE = (-1, 1.5)
     bins = np.arange(FEATURE_RANGE[0], FEATURE_RANGE[1] + BINSIZE, BINSIZE)
     bin_centers = (bins[:-1] + bins[1:]) / 2
@@ -125,23 +127,26 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
     import matplotlib.patheffects as pe
 
     plt.rcParams["font.family"] = "Arial"
-    fig, axs = plt.subplots(1, 4, figsize=(12, 2.75), constrained_layout=True, width_ratios=[1, 1, 1.5, 1.5])
+    plt.rcParams["font.size"] = 6
 
-    for cohort in ("PV_JUX", "SST_JUX", "PYR_JUX", "SST_WC",):
+    fig, axs = plt.subplots(1, 4, figsize=(10, 2.3), constrained_layout=True, width_ratios=[1, 1, 1.5, 1.5])
+
+    for cohort in ("PV_JUX", "SST_JUX", "PYR_JUX", "SST_WC"):
         idx = [i for i, name in enumerate(cohort_names) if name == cohort]
         axs[0].scatter(embedding[idx, 0], embedding[idx, 1],
-                       facecolors=COHORT_COLORS[cohort], edgecolors="black", lw=0.5, s=20, alpha=0.9)
+                       facecolors=COHORT_BRIGHTER_COLORS[cohort], edgecolors='black', lw=0.4, s=10, alpha=0.9)
         axs[1].scatter(embedding[idx, 0], embedding[idx, 1],
-                       facecolors=COHORT_COLORS[cohort], edgecolors="black", lw=0.5, s=20, alpha=0.9)
+                       facecolors=COHORT_BRIGHTER_COLORS[cohort], edgecolors='black', lw=0.4, s=10, alpha=0.9)
         
     for cluster_id in range(n_clusters):
         idx = [i for i, name in enumerate(cluster_names) if name == f"cluster {cluster_id}"]
-        draw_ellipse(embedding[idx, :], axs[1], edgecolor=CLUSTER_COLORS[f"cluster {cluster_id}"], 
-                     facecolor=CLUSTER_COLORS[f"cluster {cluster_id}"], lw=1, ls='--', alpha=0.8, zorder=-10)
+        draw_ellipse(embedding[idx, :], axs[1], facecolor='none', 
+                     edgecolor=CLUSTER_COLORS[f"cluster {cluster_id}"], lw=1, ls='--', alpha=0.8, zorder=-10)
         
     
     for ax in axs[:2]:
         ax.spines[['right', 'top']].set_visible(False)
+        ax.set_aspect('equal', adjustable='box') 
         ax.set_xlabel("UMAP 1")
         ax.set_ylabel("UMAP 2")
         ax.set_xticks([])
@@ -327,8 +332,9 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
             idx_in_cluster = [i for i, name in enumerate(cluster_names) if name == f"cluster {cluster_id}"]
             idx_in_cohort = [i for i, name in enumerate(cohort_names) if name in cohort_list]
             idx_in_both = list(set(idx_in_cluster).intersection(idx_in_cohort))
+
             if len(idx_in_both) > 0:
-                fig, axs = plt.subplots(2, 1, figsize=(3, 3.5), constrained_layout=True, height_ratios=[1, 1.5])
+                fig, axs = plt.subplots(3, 1, figsize=(1.2, 2), constrained_layout=True, height_ratios=[1, 1, 1.5])
 
                 ax = axs[0]
                 group_psth = AdvancedTimeSeries(
@@ -336,7 +342,7 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
                     variance=psth_matrix[idx_in_both, :].std(axis=0), 
                     raw_array=psth_matrix[idx_in_both, :])
                 oreo_plot(ax, group_psth, 0, 1,  
-                          {"color": CLUSTER_COLORS[f"cluster {cluster_id}"], "lw": 2, "alpha": 1},
+                          {"color": CLUSTER_COLORS[f"cluster {cluster_id}"], "lw": 1, "alpha": 1},
                           style_dicts.FILL_BETWEEN_STYLE | {"alpha": 0.4, })
                 ax.axvspan(0, 0.5, alpha=0.5, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10)
                 ax.spines[['right', 'top', 'left', 'bottom']].set_visible(False)
@@ -347,22 +353,42 @@ def Visualize_ClusteringAnalysis(weight_tuple, psth_tuple, feature_space_name: s
                 ax.set_yticks([])
 
                 ax = axs[1]
+                oreo_plot(ax, group_psth, 0, 1,  
+                          {"color": CLUSTER_COLORS[f"cluster {cluster_id}"], "lw": 1, "alpha": 1},
+                          style_dicts.FILL_BETWEEN_STYLE | {"alpha": 0.4, })
+                ax.axvspan(0, 0.5, alpha=0.5, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10)
+                ax.axhline(0, color='gray', linestyle='--', lw=1, alpha=0.5, zorder=-10)
+                ax.axvline(20/1000, color='black', linestyle='--', lw=0.5, alpha=0.5, zorder=5)
+                ax.set_xlim(-50/1000, 200/1000 )
+                ax.set_ylim(-10, 150)
+                ax.set_xticks([])
+                ax.set_yticks([])
+
+                ax = axs[2]
+                ax.tick_params(
+                    length=1,
+                    pad=1,
+                )
                 subset_psth_matrix = psth_matrix[idx_in_both, :]
                 mask = (bin_centers > 0) & (bin_centers < 0.5)
                 display_mask = (bin_centers >= -0.5) & (bin_centers <= 1)
-                sorted_order = np.argsort(np.mean(subset_psth_matrix[:, mask], axis=1))
+                sorted_order = np.argsort(np.mean(subset_psth_matrix[:, mask], axis=1),)[::-1]
                 sns.heatmap(subset_psth_matrix[sorted_order][:, display_mask],  
-                            ax=ax, cbar=True, 
+                            ax=ax, cbar=False, 
                             cmap='YlOrBr', norm=SymLogNorm(linthresh=10., vmin=0, vmax=150),)
                 
                 desired_ticks = [0, 0.5]
                 tick_positions = [np.argmin(np.abs(bin_centers[display_mask] - tick)) for tick in desired_ticks]
                 ax.set_xticks(tick_positions, desired_ticks, rotation=0)  
 
-                ax.invert_yaxis()
-                ax.set_xlabel("Time [s]")
+                # if "SST_WC" in cohort_list:
+                #     heatmap_cohort_names = [cohort_names[i] for i in np.array(idx_in_both)[sorted_order]]
+                #     WC_indices = [i for i, name in enumerate(heatmap_cohort_names) if name == "SST_WC"]
+                #     ax.set_yticks(0.5 + np.array(WC_indices), [str(wc_idx+1) for wc_idx in WC_indices], rotation=0)
+                # else:
                 ax.set_yticks([0.5, len(idx_in_both)-0.5], 
                             ["1", f"{len(idx_in_both)}"], rotation=0)
+                
                 ax.spines[['right', 'top', 'left', 'bottom']].set_visible(True)
 
                 
@@ -386,7 +412,7 @@ def Visualize_data_composition(
     n_cohorts = len(cluster_per_cohort.index)
     max_cols = max(n_clusters, n_cohorts)
 
-    fig1, axs1 = plt.subplots(2, max_cols, figsize=(max_cols * 3, 2*3,), constrained_layout=True)
+    fig1, axs1 = plt.subplots(2, max_cols, figsize=(max_cols * 1.5, 2*1.5,), constrained_layout=True)
 
     # Row 1: Cohort Composition per Cluster
     for i, cluster_id in enumerate(cohort_per_cluster.index):
@@ -475,28 +501,34 @@ def Visualize_data_composition(
     cluster_per_cohort_pct = cluster_per_cohort.div(cluster_per_cohort.sum(axis=1), axis=0) * 100
     cluster_per_cohort_pct = cluster_per_cohort_pct.fillna(0) # handle cohorts with 0 cells
 
-    fig2, ax2 = plt.subplots(1, 1, figsize=(3, 2), constrained_layout=True)
+    fig2, ax2 = plt.subplots(1, 1, figsize=(2, 1.3), constrained_layout=True)
 
-    annot_labels = cluster_per_cohort_pct.applymap(lambda x: f'{x:.0f}%' if x > 0 else '')  # type: ignore
+    ax2.tick_params(
+        length=1,
+        pad=1,
+    )
+    annot_labels = cluster_per_cohort_pct.applymap(lambda x: f'{x:.0f}%\n' if x > 0 else '') + cluster_per_cohort.copy().applymap(lambda x: f'({x})' if x > 0 else '')
     sns.heatmap(cluster_per_cohort, 
                 annot=annot_labels, 
                 fmt='s',           
                 cmap='GnBu',      
+                vmin=0, vmax=15,
                 linewidths=0.5,
                 linecolor='black',
                 ax=ax2,
                 square=True,
-                cbar_kws={'label': 'Number of Cells'},
-                annot_kws={"size": 8})
+                cbar=False,
+                # cbar_kws={'label': 'Number of Cells'},
+                annot_kws={"size": 6})
 
     # Apply custom tick formatting
     # Y-axis (Clusters)
     cluster_labels_orig = [tick.get_text() for tick in ax2.get_xticklabels()]
-    cluster_labels_new = [tick_formatter_cluster_type(l) for l in cluster_labels_orig]
+    cluster_labels_new = [str(int(tick_formatter_cluster_type(l))+1) for l in cluster_labels_orig]
     ax2.set_xticklabels(cluster_labels_new, rotation=0)
 
     for tick_label in ax2.get_xticklabels():
-        cluster_int = int(tick_label.get_text()) 
+        cluster_int = int(tick_label.get_text()) -1 
         tick_label.set_color(CLUSTER_COLORS[cluster_int])
         tick_label.set_fontweight('bold')
         # tick_label.set_path_effects([pe.withStroke(linewidth=0.3, foreground='black')])        
@@ -512,8 +544,10 @@ def Visualize_data_composition(
         tick_label.set_fontweight('bold')
         # tick_label.set_path_effects([pe.withStroke(linewidth=0.3, foreground='black')])
 
-    ax2.set_ylabel("Cohort", )
-    ax2.set_xlabel("Cluster",)
+    # ax2.set_ylabel("Cohort", )
+    # ax2.set_xlabel("Cluster",)
+    ax2.set_ylabel("" )
+    ax2.set_xlabel("")
     save_path = path.join(get_saving_path(), "ClusteringAnalysis", 
                                             f"Composition_ConfusionMatrix_{feature_space_name}.png")
     os.makedirs(os.path.dirname(save_path), exist_ok=True)

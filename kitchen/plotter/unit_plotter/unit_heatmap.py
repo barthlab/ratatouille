@@ -13,7 +13,8 @@ from kitchen.calculator.sorting_data import get_amplitude_sorted_idxs
 def label_heatmap_y_ticklabels(ax: plt.Axes, row_num: int, extent_range: tuple[float, float]) -> None:
     """label the y axis of the heatmap"""
     row_height = (extent_range[1] - extent_range[0]) / row_num
-    ax.set_yticks([extent_range[0] + row_height / 2, extent_range[1] - row_height / 2], ["1", f"{row_num}"], rotation=0)
+    ax.set_yticks([extent_range[0] + row_height / 2, extent_range[1] - row_height / 2], ["1", f"{row_num}"], 
+                  rotation=90, ha='right', va='center')
     
 
 def default_ax_realign(ax: plt.Axes) -> None:

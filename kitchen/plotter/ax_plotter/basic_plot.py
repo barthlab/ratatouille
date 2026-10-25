@@ -294,6 +294,7 @@ def beam_view(
 
         plot_manual: PlotManual = PlotManual(),
         beam_offsets: Optional[list[int]] = None,
+        **kwargs,
 ):
     """Beam view of all nodes in the dataset"""
     try:
@@ -326,7 +327,7 @@ def beam_view(
             y_offset = yield unit_plot_potential(
                 potential=node.data.potential, ax=ax, y_offset=y_offset, ratio=POTENTIAL_RATIO, 
                 aspect=plot_manual.potential, yticks_flag=show_yticks,
-                wc_flag=WC_CONVERT_FLAG(dataset_synced.nodes[0]))
+                wc_flag=WC_CONVERT_FLAG(dataset_synced.nodes[0]), **kwargs)
         else:
             y_offset = yield 0
         

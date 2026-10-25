@@ -1,6 +1,6 @@
 import logging
 
-from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_SummaryMetric import PlainHeatmap_PSTH, SummaryMetric_PSTH, SummaryMetric_LFP, SummaryMetric_Waveform
+from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_SummaryMetric import PlainHeatmap_PSTH, SummaryMetric_PSTH, SummaryMetric_LFP, SummaryMetric_Waveform, SurvivalHeatmap_PSTH
 
 
 
@@ -17,10 +17,12 @@ logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
 
 def main():
-    SummaryMetric_PSTH()
-    SummaryMetric_LFP()
+    # SummaryMetric_PSTH()
+    # SummaryMetric_PSTH(BINSIZE=1/1000)
+    # SummaryMetric_LFP()
     SummaryMetric_Waveform() 
-    PlainHeatmap_PSTH()
-
+    # PlainHeatmap_PSTH()
+    # SurvivalHeatmap_PSTH()
+    
 if __name__ == "__main__":
     main()
