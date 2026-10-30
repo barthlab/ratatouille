@@ -1,6 +1,10 @@
 from collections import defaultdict
 import logging
+from pathlib import Path
+import time
+from matplotlib.colors import to_rgba
 from matplotlib.gridspec import GridSpec
+from matplotlib.patches import Patch
 import numpy as np
 import os.path as path
 import os
@@ -265,6 +269,7 @@ def VisualizeExample_Physiology_Fingerprint_EarlyVsSustained():
 
     fig, ax = plt.subplots(1, 1, figsize=(1.5, 1.5), constrained_layout=True)
     fig_pie, axs_pie = plt.subplots(3, 1, figsize=(0.8, 1.55), constrained_layout=True)
+    fig_bar, axs_bar = plt.subplots(1, 1, figsize=(1.15, 1.75), constrained_layout=True)
     ax.tick_params(
         length=1,
         pad=1     
@@ -276,6 +281,11 @@ def VisualizeExample_Physiology_Fingerprint_EarlyVsSustained():
             pad=1     
         )
         ax_pie.spines[['right', 'top', 'left', 'bottom']].set_visible(False)
+    axs_bar.tick_params(
+        length=1,
+        pad=1     
+    )
+    axs_bar.spines[['right', 'top', 'left']].set_visible(False)
 
     for zorder_id, (cohort_id, cohort_name) in enumerate(zip([0, 1, 2,], ["SST_JUX", "PV_JUX",  "PYR_JUX", ])):
         
@@ -305,7 +315,7 @@ def VisualizeExample_Physiology_Fingerprint_EarlyVsSustained():
                     pctdistance=0.6,
                     counterclock=False,
                     wedgeprops={'edgecolor': 'black', 'lw': 0})
-        alphas = [0.8, 0.5, 0.2]        
+        alphas = [0.9, 0.5, 0.1]        
         for wedge, alpha in zip(wedges, alphas):
             wedge.set_alpha(alpha)
             
@@ -321,14 +331,31 @@ def VisualizeExample_Physiology_Fingerprint_EarlyVsSustained():
             autotext.set_ha('center')
             autotext.set_va('center')
         ax_pie.axis('equal') # Equal aspect ratio ensures that pie is drawn as a circle.
-                
-        # centre_circle = plt.Circle((0,0),0.6,fc="white", ec="black", lw=1)
-        # ax.add_artist(centre_circle)
-        # ax.text(0, 0, cluster_id, ha='center', va='center', fontsize=25, 
-        #         c=CLUSTER_COLORS[cluster_id], )
-        
-        # ax.set_title(f"Cluster {cluster_id}")
 
+        counts = np.array([down, same, up], dtype=float)
+        percentages = 100 * counts / counts.sum() 
+
+        bottom = 0
+        for percentage, category, alpha in zip(
+            percentages, ["Down", "Same", "Up"], reversed(alphas)
+        ):
+            axs_bar.bar(
+                cohort_id, percentage,
+                bottom=bottom,
+                width=0.65,
+                facecolor=to_rgba(COHORT_COLORS[cohort_name], alpha),
+                edgecolor='black',
+                linewidth=0.7,
+                label=category if cohort_id == 0 else None,
+            )
+            if percentage > 0:
+                axs_bar.text(
+                    cohort_id, bottom + percentage / 2,
+                    f"{percentage:.0f}%",
+                    # f"{category}\n{percentage:.0f}%",
+                    ha="center", va="center", fontsize=6,
+                )
+            bottom += percentage
         
     ax.axvline(-0.5, lw=0.5, color='gray', ls='--')
     ax.axvline(0.5, lw=0.5, color='gray', ls='--')
@@ -352,7 +379,33 @@ def VisualizeExample_Physiology_Fingerprint_EarlyVsSustained():
     plt.close(fig_pie)
     logger.info("Plot saved to " + save_path)
 
+    axs_bar.set_ylim(0, 102)
+    axs_bar.set_yticks([])
+    axs_bar.set_ylabel("Cells (%)", labelpad=1)
+    axs_bar.set_xticks([0, 1, 2], ["SST", "PV", "PYR"])
+    
 
+    axs_bar.legend(
+        handles=[
+            Patch(facecolor=(0, 0, 0, a), edgecolor="black", label=c)
+            for c, a in zip(["Up", "Same", "Down"], alphas)
+        ],
+        frameon=False, fontsize=6, ncol=3,
+        loc="lower center", bbox_to_anchor=(0.5, 1.02),
+        handlelength=1, handletextpad=0.3, columnspacing=0.6,
+    )
+
+    for label, cohort_name in zip(
+        axs_bar.get_xticklabels(), ["SST_JUX", "PV_JUX", "PYR_JUX"]
+    ):
+        label.set_color(COHORT_COLORS[cohort_name])
+
+
+    save_path = path.join(get_saving_path(), "Physiology_Fingerprint", "EarlyVsSustained_bar.png",)
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    fig_bar.savefig(save_path, dpi=500, transparent=True)
+    plt.close(fig_bar)
+    logger.info("Plot saved to " + save_path)
 
 
 
@@ -365,14 +418,14 @@ def VisualizeExample_Physiology_Fingerprint_EarlySpikeDistribution():
     plt.rcParams["font.family"] = "Arial"
     plt.rcParams["font.size"] = 6
     
-    fig, ax = plt.subplots(1, 1, figsize=(2., 2.5), constrained_layout=True)
+    fig, ax = plt.subplots(1, 1, figsize=(2.5, 2.5), constrained_layout=True)
     fig_dist, ax_dist = plt.subplots(1, 1, figsize=(1.5, 1.5), constrained_layout=True)
     global_LFP = []
 
     def _good_cell(cell_spike_timing):
         num_trial = len(cell_spike_timing)
-        total_spike_time = sum([len(trial) for trial in cell_spike_timing])
-        return num_trial >= 5 and total_spike_time >= 5
+        total_spike_time = sum([np.sum((-1000<=trial) & (trial<=1500)) for trial in cell_spike_timing])
+        return num_trial >= 5 and total_spike_time >= 1
 
     global_y_offset = 0
     annotate_data = {}
@@ -408,10 +461,10 @@ def VisualizeExample_Physiology_Fingerprint_EarlySpikeDistribution():
         median_all = np.array(median_early_spike_100ms + median_early_spike_500ms)
         median_all = median_all[median_all>16]  # filter out artifacts
         median_all = median_all[~np.isnan(median_all)]
-        ax_dist.scatter(np.sort(median_all), np.linspace(0, 1, len(median_all),),
+        ax_dist.scatter(np.sort(median_all), np.arange(1, 1 + len(median_all))/len(median_all),
                         facecolor=COHORT_BRIGHTER_COLORS[cohort_name_group[0]], edgecolor='black',
                         s=7, lw=0.5, alpha=0.9, zorder=10)
-        ax_dist.plot(np.sort(median_all), np.linspace(0, 1, len(median_all),),
+        ax_dist.plot(np.sort(median_all), np.arange(1, 1 + len(median_all))/len(median_all),
                      color=COHORT_BRIGHTER_COLORS[cohort_name_group[0]], lw=1, zorder=-1, alpha=0.9)
         print(f"{cohort_name_group}: Median early spike times for all cells: {np.mean(median_all):.3f}+/-{np.std(median_all):.3f}")
         annotate_data[cohort_name_group[0]] = median_all
@@ -455,8 +508,8 @@ def VisualizeExample_Physiology_Fingerprint_EarlySpikeDistribution():
         pad=1     
     )
     ax.spines[['right', 'top']].set_visible(False)
-    ax.set_xlim(-20, 60)
-    ax.set_xticks([0, 20, 40,])
+    ax.set_xlim(-20, 80)
+    ax.set_xticks([0, 20, 40, 60, ])
     ax.axvline(0, color='gray', lw=0.5, ls="--", zorder=-1)
     ax.axvline(20, color='gray', lw=0.5, ls="--", zorder=-1)
     ax.set_xlabel("Time from puff onset (ms)", labelpad=1)

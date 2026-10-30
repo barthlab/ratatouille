@@ -1903,7 +1903,7 @@ def visualize_final_grand(feature_list: list[CellFeature],
             length=1,
             pad=1     
         )
-        ax.set_xlabel("Pairwise corr. (R)", labelpad=1)
+        ax.set_xlabel("Pairwise corr. (cosine)", labelpad=1)
         ax.spines[['right', 'top',]].set_visible(False)
         ax.set_yticks([0, 0.5, 1], ["0", "50", "100"], rotation=90, ha='right', va='center')
         ax.set_xticks([-1, 0, 1])
@@ -1930,10 +1930,10 @@ def visualize_final_grand(feature_list: list[CellFeature],
     for cluster_id in clusterss:
         ephys_matrix = total_ephys_matrix[cdf_cluster_names == cluster_id]
         svd_matrix = total_svd_matrix[cdf_cluster_names == cluster_id]
-        pairwise_distance = pdist(ephys_matrix, metric="correlation")
+        pairwise_distance = pdist(ephys_matrix, metric="cosine")
         axCDF[0].plot(np.sort(1-pairwise_distance), np.arange(1, 1+len(pairwise_distance))/len(pairwise_distance), 
                       color=CLUSTER_COLORS[f"cluster {cluster_id}"], alpha=0.9, lw=1)
-        pairwise_distance = pdist(svd_matrix, metric="correlation")
+        pairwise_distance = pdist(svd_matrix, metric="cosine")
         axCDF[1].plot(np.sort(1-pairwise_distance), np.arange(1, 1+len(pairwise_distance))/len(pairwise_distance), 
                       color=CLUSTER_COLORS[f"cluster {cluster_id}"], alpha=0.9, lw=1)
 
@@ -1941,9 +1941,9 @@ def visualize_final_grand(feature_list: list[CellFeature],
     within_mask = cdf_cluster_names[i] == cdf_cluster_names[j]
     cross_mask = ~within_mask    
 
-    cross_corr = 1 - pdist(total_ephys_matrix, metric="correlation")[cross_mask]
+    cross_corr = 1 - pdist(total_ephys_matrix, metric="cosine")[cross_mask]
     axCDF[0].plot(np.sort(cross_corr), np.arange(1, 1+len(cross_corr))/len(cross_corr), color="black", alpha=0.9, lw=1, ls="--")
-    cross_corr = 1 - pdist(total_svd_matrix, metric="correlation")[cross_mask]
+    cross_corr = 1 - pdist(total_svd_matrix, metric="cosine")[cross_mask]
     axCDF[1].plot(np.sort(cross_corr), np.arange(1, 1+len(cross_corr))/len(cross_corr), color="black", alpha=0.9, lw=1, ls="--")
 
     

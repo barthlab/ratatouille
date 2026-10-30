@@ -477,6 +477,7 @@ def unit_plot_potential(potential: None | Potential | list[Potential],
 
         ax.plot(one_potential_timeseries.t, one_potential_timeseries.v * ratio + y_offset,
                 **(style_dicts.POTENTIAL_TRACE_STYLE | additional_line_style))
+        
 
         # plot all the spikes
         if spike_mark == 1:

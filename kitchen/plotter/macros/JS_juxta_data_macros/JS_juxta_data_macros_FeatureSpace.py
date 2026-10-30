@@ -839,7 +839,7 @@ def simple_Landscope_feature_space(weight_matrix, cohort_name, feature_space_nam
 def simple_pairwise_distance_distribution(weight_matrix, cohort_name, feature_space_name: str, annotate: bool = True):
     import matplotlib.pyplot as plt    
     import seaborn as sns
-    from scipy.spatial.distance import pdist
+    from scipy.spatial.distance import pdist, squareform
 
     plt.rcParams["font.family"] = "Arial"
     plt.rcParams["font.size"] = 6
@@ -860,14 +860,14 @@ def simple_pairwise_distance_distribution(weight_matrix, cohort_name, feature_sp
     for group_name in np.unique(cohort_name):
         weight_in_group = normalized_weight_matrix[cohort_name == group_name]
         if len(weight_in_group) >= 5:
-            pairwise_distance = pdist(weight_in_group, metric="correlation")
+            pairwise_distance = pdist(weight_in_group, metric="cosine")
             ax.plot(np.sort(1-pairwise_distance), np.arange(1, 1+len(pairwise_distance))/len(pairwise_distance), 
                     color=COHORT_BRIGHTER_COLORS[group_name], alpha=0.9, lw=1)
             annotate_data[group_name] = 1 - pairwise_distance
             cohort_indices.append(np.where(cohort_name == group_name)[0])
 
     all_pairwise_corr = 1 - pdist(
-        normalized_weight_matrix, metric="correlation"
+        normalized_weight_matrix, metric="cosine"
     )
 
     # with-in
@@ -877,15 +877,16 @@ def simple_pairwise_distance_distribution(weight_matrix, cohort_name, feature_sp
 
     within_corr = all_pairwise_corr[within_mask]
     cross_corr = all_pairwise_corr[cross_mask]
+    all_corr = all_pairwise_corr.flatten()
 
     # ax.plot(np.sort(within_corr), np.linspace(0, 1, len(within_corr)), color="gray", alpha=0.9, lw=1)
     ax.plot(np.sort(cross_corr), np.arange(1, 1+len(cross_corr))/len(cross_corr), color="black", alpha=0.9, lw=1, ls="--")
-    # ax.plot(np.sort(all_pairwise_corr), np.linspace(0, 1, len(all_pairwise_corr)), color="black", alpha=0.9, lw=1)
+    # ax.plot(np.sort(all_corr), np.arange(1, 1+len(all_corr))/len(all_corr), color="black", alpha=0.9, lw=1, ls='--')
     # annotate_data['within'] = within_corr
     # annotate_data['cross'] = cross_corr
     # annotate_data['all'] = all_pairwise_corr
     
-    ax.set_xlabel("Pairwise correlation (R)", labelpad=1)
+    ax.set_xlabel("Pairwise correlation (cosine)", labelpad=1)
     ax.set_ylabel("Cumulative distribution", labelpad=1)
     ax.spines[['right', 'top',]].set_visible(False)
     ax.set_yticks([0, 0.5, 1], ["0%", "50%", "100%"])
@@ -903,6 +904,8 @@ def simple_pairwise_distance_distribution(weight_matrix, cohort_name, feature_sp
     fig.savefig(save_path, dpi=500, transparent=True)
     plt.close(fig)
     logger.info("Plot saved to " + save_path)
+
+    return 1 - squareform(pdist(normalized_weight_matrix, metric="cosine")), cohort_name
 
 
 
@@ -935,7 +938,7 @@ def simple_pairwise_correlation_matrix(
     for cohort in cohort_order:
         cohort_idx = np.where(cohort_name == cohort)[0]
         weight_in_cohort = normalized_weight_matrix[cohort_idx]
-        local_order = linkage_order(weight_in_cohort, method="average", metric="correlation")
+        local_order = linkage_order(weight_in_cohort, method="average", metric="cosine")
 
         ordered_idx = cohort_idx[local_order]
         sort_idx.append(ordered_idx)
@@ -945,8 +948,8 @@ def simple_pairwise_correlation_matrix(
     sorted_weight_matrix = normalized_weight_matrix[sort_idx]
     sorted_cohort_name = cohort_name[sort_idx]
 
-
-    correlation_matrix = np.corrcoef(sorted_weight_matrix)
+    from sklearn.metrics.pairwise import cosine_similarity
+    correlation_matrix = cosine_similarity(sorted_weight_matrix)
 
 
     cohort_sizes = [
@@ -954,10 +957,11 @@ def simple_pairwise_correlation_matrix(
         for cohort in cohort_order
     ]
     boundaries = np.cumsum(cohort_sizes)[:-1]
+    print(boundaries, cohort_sizes)
 
 
     starts = np.concatenate([[0], np.cumsum(cohort_sizes)[:-1]])
-    centers = starts + np.asarray(cohort_sizes) / 2
+    centers = starts + (np.asarray(cohort_sizes) - 1) / 2
 
     fig, ax = plt.subplots(
         1,
@@ -1058,6 +1062,11 @@ def simple_pairwise_correlation_matrix(
     plt.close(fig)
 
     logger.info("Plot saved to " + save_path)
+
+    return correlation_matrix, sort_idx
+
+
+    
 
 def simple_feature_correlation_matrix(
     weight_matrix,

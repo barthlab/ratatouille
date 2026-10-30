@@ -5,7 +5,8 @@ from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_FeatureSpa
 from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_Settings import COHORT_COLORS
 from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_StabilityTestSVD import stability_test_SVD, variability_visualize
 from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_StateDependency import Visualize_Variability_of_ephysiology
-from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_TemporalPattern import temporal_pattern_Early_spike, temporal_pattern_SVD, temporal_pattern_early_vs_sustained
+from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_TemporalPattern import temporal_pattern_Early_spike, temporal_pattern_SVD, temporal_pattern_early_vs_sustained, temporal_pattern_variability_visualize
+from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_CompareModality import corr_matrix_compare_modality
 
 
 logger = logging.getLogger()
@@ -31,8 +32,9 @@ def analyze_physiology_fingerprint():
 
     # simple_Landscope_feature_space(physiology_weight_matrix, cohort_name, "Physiology_Fingerprint")
     simple_pairwise_distance_distribution(physiology_weight_matrix, cohort_name, "Physiology_Fingerprint", annotate=True)
-    # simple_pairwise_correlation_matrix(physiology_weight_matrix, cohort_name, "Physiology_Fingerprint")
-    # simple_feature_correlation_matrix(physiology_weight_matrix, cohort_name, "Physiology_Fingerprint")
+    simple_pairwise_distance_distribution(physiology_weight_matrix, cohort_name, "Physiology_Fingerprint", annotate=False)
+    simple_pairwise_correlation_matrix(physiology_weight_matrix, cohort_name, "Physiology_Fingerprint")
+    simple_feature_correlation_matrix(physiology_weight_matrix, cohort_name, "Physiology_Fingerprint")
 
 
 def analyze_physiology_fingerprint_state_dependent():
@@ -93,13 +95,18 @@ def analyze_decomposition_weights():
                     simple_pairwise_distance_distribution(component_projection, cohort_name, 
                                                           f"Decomposition_{variant}_{decomposition_method}_{n_components}_{append_baseline}",
                                                            annotate=True)
-                    # simple_pairwise_correlation_matrix(component_projection, cohort_name, 
-                    #                                    f"Decomposition_{variant}_{decomposition_method}_{n_components}_{append_baseline}",)
-                    # simple_feature_correlation_matrix(component_projection, cohort_name, 
-                    #                                   f"Decomposition_{variant}_{decomposition_method}_{n_components}_{append_baseline}")
+                    
+                    simple_pairwise_distance_distribution(component_projection, cohort_name, 
+                                                          f"Decomposition_{variant}_{decomposition_method}_{n_components}_{append_baseline}",
+                                                           annotate=False)
+                    simple_pairwise_correlation_matrix(component_projection, cohort_name, 
+                                                       f"Decomposition_{variant}_{decomposition_method}_{n_components}_{append_baseline}",)
+                    if append_baseline is False:
+                        simple_feature_correlation_matrix(component_projection, cohort_name, 
+                                                          f"Decomposition_{variant}_{decomposition_method}_{n_components}_{append_baseline}")
 
 def decomposition_stability_test():   
-    variability_visualize('raw', binsize=5/1000)
+    variability_visualize('raw', binsize=10/1000)
     # stability_test_SVD('zscore', binsize=10/1000)
 
 
@@ -107,15 +114,36 @@ def temporal_pattern():
     # temporal_pattern_SVD('raw', binsize=5/1000)
     # temporal_pattern_Early_spike()
     temporal_pattern_early_vs_sustained()
+    # temporal_pattern_variability_visualize('raw', binsize=10/1000)
+
+
+def compare_modality():
+    physiology_weight_matrix, node_name, cohort_name = get_weight_tuple_Physiology_Fingerprint(_drop_ACG_rise_time=False)
+    
+    ephys_matrix, ephys_sort_id = simple_pairwise_correlation_matrix(physiology_weight_matrix, cohort_name, 
+                                                                           "Physiology_Fingerprint")
+    ephys_node_names = node_name[ephys_sort_id]
+
+    decomposition_result = get_weight_tuple_Decomposition_Weights(
+                            'zscore', 'SVD', 5, False,  _visualize=False, BINSIZE=10/1000) 
+    component_projection, node_name, cohort_name = decomposition_result    
+    svd_matrix, svd_sort_id = simple_pairwise_correlation_matrix(component_projection, cohort_name, 
+                                        f"Decomposition_zscore_SVD_5_False",)
+    svd_node_names = node_name[svd_sort_id]
+
+    corr_matrix_compare_modality(ephys_matrix, ephys_node_names, svd_matrix, svd_node_names)
+
+
 
 def main():
     # analyze_physiology_fingerprint_state_dependent()
-    analyze_physiology_fingerprint()
+    # analyze_physiology_fingerprint()
     # analyze_psth()
     # analyze_waveform()
-    analyze_decomposition_weights()
+    # analyze_decomposition_weights()
     # decomposition_stability_test()
     # temporal_pattern()
+    compare_modality()
 
 
 if __name__ == "__main__":

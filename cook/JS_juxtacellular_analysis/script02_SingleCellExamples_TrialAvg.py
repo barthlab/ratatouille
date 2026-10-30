@@ -48,9 +48,10 @@ def register_posthoc_staining_result(mouse_node):
 
 
 def main():  
-    for dataset_name in ("SST_JUX", "SST_WC", "PV_JUX", "PYR_JUX", "PYR_WC"): 
+    # for dataset_name in ("SST_JUX", "SST_WC", "PV_JUX", "PYR_JUX", "PYR_WC"): 
     # for dataset_name in ("SST_WC", "PV_JUX", "PYR_JUX", "PYR_WC"): 
-    # for dataset_name in ("SST_WC", ): 
+    # for dataset_name in ("ChosenOneExampleSST", ): 
+    for dataset_name in ("SST_JUX",): 
         dataset = load_dataset(template_id="PassivePuff_JuxtaCellular_FromJS_202509", cohort_id=dataset_name, 
                                recipe="default_ephys", name=dataset_name)
         color_scheme.POTENTIAL_COLOR = COHORT_COLORS[dataset_name]
@@ -58,13 +59,13 @@ def main():
 
         for session_node in dataset.select(hash_key="cellsession"):          
             # register_posthoc_staining_result(session_node)
-            # print(session_node)
+            print(session_node)
             # SingleCell_4HZ_JUST_LFP_AVG(session_node, dataset)
             # SingleCell_4HZ_BeamView_Beautify(session_node, dataset)
             # SingleCell_4HZ_300HZ_BeamView(session_node, dataset, _first_k_trials=5)
             # SingleCell_4HZ_ZOOMINOUT_StackView(session_node, dataset, spike_mark=2)
             # SingleCell_4HZ_ZOOMINOUT_StackView(session_node, dataset, spike_mark=3)
-            SingleCell_RasterPlot(session_node, dataset, _tiny=True)
+            # SingleCell_RasterPlot(session_node, dataset, _tiny=True)
             
 
 if __name__ == "__main__":

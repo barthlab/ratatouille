@@ -85,6 +85,7 @@ def temporal_pattern_SVD(variant,
         ax.set_xlabel("Time (s)", labelpad=1)
         ax.spines[['right', 'top', 'left', 'bottom']].set_visible(True)
         ax.tick_params(length=1, pad=1, axis='y')
+        ax.tick_params(pad=1, axis='x')
 
         for boundary in boundaries:
             ax.axhline(boundary, color="black", linewidth=0.5)
@@ -313,6 +314,85 @@ def temporal_pattern_early_vs_sustained(task_name: str="TemporalPattern",):
     basic_ttest.stats_pairwise_paired_ttest(annotate_data, ax)
                 
     save_path = path.join(get_saving_path(), task_name, f"EarlyVsSustained_Compare_annotated.png")
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    fig.savefig(save_path, dpi=500, transparent=True)
+    plt.close(fig)
+    logger.info("Plot saved to " + save_path)
+
+
+
+def temporal_pattern_variability_visualize(variant='raw',
+                          task_name: str="TemporalPattern", **kwargs):
+    PSTH_weight_matrix, node_names, cohort_names = get_weight_tuple_PSTH(variant, **kwargs)
+
+    bins = np.arange(-1, 1.5 + kwargs["binsize"], kwargs["binsize"])
+    bin_centers = (bins[:-1] + bins[1:]) / 2
+
+
+    plt.rcParams["font.family"] = "Arial"
+    plt.rcParams["font.size"] = 6
+    # n_sep = 5
+
+    n_cells, n_timepoints = PSTH_weight_matrix.shape
+    logger.info(f"Performing stability test for SVD with on "
+                f"PSTH data ({variant}) with {n_cells} cells and {n_timepoints} timepoints.")
+    
+    node2label, node_order = get_grand_cluster_result()
+    label_node_names = list(node2label.keys())
+    available_nodes = set(node_names)
+    cluster_order = list(dict.fromkeys(
+        node2label[label_node_names[i]] for i in node_order
+        if label_node_names[i] in available_nodes
+    ))
+    node_labels = np.array([node2label.get(name) for name in node_names])
+
+    
+    fig, axs = plt.subplots(1, 2, figsize=(3.9, 0.9), constrained_layout=True)
+    for ax in axs:
+        ax.spines[['right', 'top',]].set_visible(False)
+        ax.tick_params(length=1, pad=1, which='both')
+    variances = []
+    for cluster_id in cluster_order:
+        sub_psth = PSTH_weight_matrix[node_labels == cluster_id]
+        variance = np.var(sub_psth, axis=0, ddof=1)
+        variances.append(variance)
+    variances = np.array(variances)
+    total_variance = np.sum(variances, axis=0)   
+    global_variance = np.std(PSTH_weight_matrix, axis=0, ddof=1)
+    percentages = np.divide(
+        variances * 100,
+        total_variance,
+        out=np.zeros_like(variances),
+        where=total_variance > 0
+    )
+
+    axs[0].plot(bin_centers, global_variance, color='black', lw=0.5, alpha=1)
+    axs[0].set_yticks([0, 50, 100], ["0", "50", "100"])
+    axs[0].set_ylabel("SD (Hz)", labelpad=1)
+    axs[0].set_xticks([0, 0.5], ["0", "0.5"])
+    axs[0].set_xlim(-0.5, 1)
+    axs[0].set_xlabel("Time from puff onset (s)", labelpad=1)    
+    axs[0].axvspan(0, 0.5, 
+                alpha=0.3, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10)
+    # axs[0].set_yscale('symlog', linthresh=1, linscale=0.1)
+
+    
+    axs[1].stackplot(bin_centers, *percentages, 
+                     linewidth=0.2, edgecolor=(0, 0, 0, 0.5), linestyle='-', 
+                    alpha=1, colors=[CLUSTER_COLORS[cluster_id]
+                                        for cluster_id in cluster_order])
+    axs[1].axvline(0, color='black', lw=0.5, alpha=0.5, ls='--')
+    axs[1].axvline(0.5, color='black', lw=0.5, alpha=0.5, ls='--')
+    axs[1].set_xlim(-0.5, 1)
+    axs[1].set_xticks([0, 0.5], ["0", "0.5"])
+    axs[1].set_xlabel("Time from puff onset (s)", labelpad=1)
+    axs[1].set_yticks([0, 50, 100], ["0", "50", "100"], rotation=90, ha='right', va='center')
+    axs[1].set_ylim(0, 100)    
+    axs[1].set_ylabel("Variance share (%)", labelpad=1)
+    axs[1].spines[['right', 'top', 'bottom', 'left']].set_visible(True)
+
+    save_path = path.join(get_saving_path(), task_name, 
+                        f"VarianceDist_{variant}_SVD.png")
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     fig.savefig(save_path, dpi=500, transparent=True)
     plt.close(fig)

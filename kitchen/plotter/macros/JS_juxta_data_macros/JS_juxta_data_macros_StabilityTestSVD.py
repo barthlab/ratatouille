@@ -77,7 +77,7 @@ def variability_visualize(variant='raw',
 
     
     axs[1].stackplot(bin_centers, *percentages, 
-                     linewidth=0.2, edgecolor=(0, 0, 0, 0.6), linestyle='-', 
+                     linewidth=0.2, edgecolor=(0, 0, 0, 0.5), linestyle='-', 
                     alpha=1, colors=[COHORT_BRIGHTER_COLORS[cohort_name+"_JUX"] 
                                         for cohort_name in ("PYR", "PV", "SST")])
     axs[1].axvline(0, color='black', lw=0.5, alpha=0.5, ls='--')
@@ -87,8 +87,9 @@ def variability_visualize(variant='raw',
     axs[1].set_xlabel("Time from puff onset (s)", labelpad=1)
     axs[1].set_yticks([0, 50, 100], ["0", "50", "100"], rotation=90, ha='right', va='center')
     axs[1].set_ylim(0, 100)    
-    axs[1].set_ylabel("Variance ratio (%)", labelpad=1)
+    axs[1].set_ylabel("Variance share (%)", labelpad=1)
     axs[1].spines[['right', 'top', 'bottom', 'left']].set_visible(True)
+    axs[1].spines[['right', 'top', 'bottom', 'left']].set_linewidth(0.5)
 
     save_path = path.join(get_saving_path(), task_name, 
                         f"VarianceDist_{variant}_SVD.png")

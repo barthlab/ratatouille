@@ -144,7 +144,7 @@ def SingleCell_4HZ_ZOOMINOUT_StackView(
     for ax in axs:
         max_height = unit_trace.unit_plot_potential(potential=select_truthy_items([node.data.potential for node in puff_trials_500ms]), 
                             ax=ax, y_offset=0, ratio=POTENTIAL_RATIO, aspect=4, wc_flag=WC_CONVERT_FLAG(node), spike_mark=spike_mark,
-                            emphasize_rule="best" if not WC_CONVERT_FLAG(node) else "most",)
+                            emphasize_rule="percentile_most" if not WC_CONVERT_FLAG(node) else "most",)
         # ax.set_ylim(-0.8*max_height, 0.8*max_height)
     
     axs[1].set_xlabel("Time (s)")

@@ -330,6 +330,7 @@ def stats_pairwise_permutation(weight_matrix, cohort_name, ax=None, loc="upper l
 
     Each cohort's statistic is its mean within-cohort R. Pooled within/cross
     statistics average row pairs, so larger cohorts receive more weight.
+    Whole averages all row pairs, including within- and cross-cohort pairs.
     A vs B shuffles only A/B labels, preserving their sizes; comparisons
     involving pooled statistics shuffle all cohort labels. Labels must be
     exchangeable within the shuffled set under the corresponding null.
@@ -362,13 +363,17 @@ def stats_pairwise_permutation(weight_matrix, cohort_name, ax=None, loc="upper l
         a, b = labels[pair_u], labels[pair_v]
         masks = {name: (a == g) & (b == g) for g, name in enumerate(group_names)}
         masks.update({"Within-cohort": a == b, "Cross-cohort": a != b})
-        return {name: pair_R[mask].mean() if np.any(mask) else np.nan
-                for name, mask in masks.items()}
+        stats = {name: pair_R[mask].mean() if np.any(mask) else np.nan
+                 for name, mask in masks.items()}
+        stats["Whole"] = pair_R.mean()
+        return stats
 
     observed = calculate_stats(labels)
     comparisons = list(combinations(group_names, 2))
     comparisons += [(name, "Cross-cohort") for name in group_names]
+    # comparisons += [(name, "Within-cohort") for name in group_names]
     comparisons.append(("Within-cohort", "Cross-cohort"))
+    comparisons += [(name, "Whole") for name in group_names]
     observed_diff = np.array([observed[a] - observed[b] for a, b in comparisons])
 
     n_perm = 9999
