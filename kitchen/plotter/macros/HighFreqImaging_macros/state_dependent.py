@@ -179,19 +179,21 @@ def visualize_single_cell_behavior_summary(cs_node: Node, all_puff_trials,
 
 
 def visualize_all_cell_behavior_summary(dataset: DataSet, save_path):
-
+    plt.rcParams["font.family"] = "Arial"
+    plt.rcParams["font.size"] = 6
     mean_range, var_range = (0.01, 100), (0.01, 100)
     
 
     fig1, ax1 = plt.subplots(1, 1, figsize=(1.4, 1.4), constrained_layout=True)
     ax1.tick_params(length=1, pad=1, which='both')
-    ax1.spines[["bottom", "left"]].set_visible(False)
+    # ax1.spines[["bottom", "left"]].set_visible(False)
+    ax1.spines[["top", "right"]].set_visible(False)
 
-    ax1.tick_params(top=True, labeltop=True, bottom=False, labelbottom=False, which='both')
-    ax1.tick_params(right=True, labelright=True, left=False, labelleft=False, which='both')
+    # ax1.tick_params(top=True, labeltop=True, bottom=False, labelbottom=False, which='both')
+    # ax1.tick_params(right=True, labelright=True, left=False, labelleft=False, which='both')
 
-    ax1.xaxis.set_label_position("top")
-    ax1.yaxis.set_label_position("right")
+    # ax1.xaxis.set_label_position("top")
+    # ax1.yaxis.set_label_position("right")
 
     CR_pos_cv, CR_neg_cv = [], []
     for cs_node in dataset.select("cellsession"):
@@ -214,10 +216,10 @@ def visualize_all_cell_behavior_summary(dataset: DataSet, save_path):
 
     ax1.set_aspect('equal', adjustable='box') 
 
-    # xs = np.linspace(*mean_range, 100)
-    # ax1.plot(xs, xs, c="gray", lw=0.5, ls="--", zorder=-1)
-    # ax1.plot(xs, 4*xs, c="gray", lw=0.5, ls="--", zorder=-1)
-    # ax1.plot(xs, 0.25*xs, c="gray", lw=0.5, ls="--", zorder=-1)
+    xs = np.linspace(*mean_range, 100)
+    ax1.plot(xs, xs, c="gray", lw=0.5, ls="--", zorder=-1)
+    ax1.plot(xs, 4*xs, c="gray", lw=0.5, ls="--", zorder=-1)
+    ax1.plot(xs, 0.25*xs, c="gray", lw=0.5, ls="--", zorder=-1)
 
     all_cell_data_tuple = np.array([(np.nanmean(cs_node.info["trial_level_corr"]["fluo"]), np.nanstd(cs_node.info["trial_level_corr"]["fluo"])) 
                                     for cs_node in dataset.select("cellsession") 

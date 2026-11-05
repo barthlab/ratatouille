@@ -53,13 +53,14 @@ def temporal_pattern_SVD(variant,
     node2label, node_order = get_grand_cluster_result()
     label_node_names = list(node2label.keys())
     node_to_row = {name: i for i, name in enumerate(node_names)}
-    sorted_order = [node_to_row[label_node_names[i]] for i in node_order]    
+    sorted_order = [node_to_row[label_node_names[i]] for i in node_order ]    
 
 
     desired_lim = (-0.3, 0.8)
     lim_tick_positions = [np.argmin(np.abs(bin_centers - tick)) for tick in desired_lim]
 
     desired_ticks = [0, 0.1, 0.5]
+    # desired_ticks = [0, 0.5]
     tick_positions = [np.argmin(np.abs(bin_centers - tick)) for tick in desired_ticks]
 
     sorted_labels = np.array([
@@ -68,7 +69,8 @@ def temporal_pattern_SVD(variant,
     boundaries = np.flatnonzero(sorted_labels[1:] != sorted_labels[:-1]) + 1
     n_labels = len(np.unique(sorted_labels))
 
-    fig, axs = plt.subplots(1, 2, figsize=(6.8, 2.3), constrained_layout=True)
+    fig, axs = plt.subplots(1, 2, figsize=(6, 2.1), constrained_layout=True)
+    # fig, axs = plt.subplots(1, 2, figsize=(2, 1.8), constrained_layout=True)
 
     for ax, matrix in zip(axs, [PSTH_weight_matrix, reconstruct_matrix]):
         sns.heatmap(matrix[sorted_order],
@@ -85,6 +87,7 @@ def temporal_pattern_SVD(variant,
         ax.set_xlabel("Time (s)", labelpad=1)
         ax.spines[['right', 'top', 'left', 'bottom']].set_visible(True)
         ax.tick_params(length=1, pad=1, axis='y')
+        # ax.tick_params(pad=1, length=1, axis='x')
         ax.tick_params(pad=1, axis='x')
 
         for boundary in boundaries:
@@ -93,7 +96,7 @@ def temporal_pattern_SVD(variant,
         yticks = []
         for label_id in range(1, n_labels+1):
             label_position = np.argwhere(sorted_labels == label_id)[:, 0]
-            yticks.append(label_position.mean())
+            yticks.append(label_position.mean() + 0.5)
         ax.set_yticks(yticks, [str(i) for i in range(1, n_labels+1)])
         for tick in ax.get_yticklabels():
             text = tick.get_text()
@@ -104,11 +107,8 @@ def temporal_pattern_SVD(variant,
 
         ax2 = ax.twiny()
         ax2.set_xticks(tick_positions, [""]*len(tick_positions), rotation=0)  
-        # ax2.tick_params(length=1, pad=1, axis='y')
         ax2.set_xlim(lim_tick_positions[0], lim_tick_positions[-1])
 
-        #     avg_psth = matrix[sorted_order][label_position].mean(axis=0)
-        #     ax.plot(np.arange(len(bin_centers)), -avg_psth/50 + label_center, lw=1, color="#bc5090", alpha=0.7)
 
     save_path = path.join(get_saving_path(), task_name, 
                         f"RawVSReconstruct_{variant}_SVD5.png")
@@ -171,7 +171,9 @@ def temporal_pattern_Early_spike(task_name: str="TemporalPattern",):
     node2label, node_order = get_grand_cluster_result()
     label_node_names = list(node2label.keys())
     node_to_spikes = {}
-    fig, ax = plt.subplots(1, 1, figsize=(2., 2.5), constrained_layout=True)
+    annotate_data={}
+    fig, ax = plt.subplots(1, 1, figsize=(2.5, 2.5), constrained_layout=True)
+    fig_dist, ax_dist = plt.subplots(1, 1, figsize=(2.4, 1.3), constrained_layout=True)
     for cohort_name_group in [["SST_JUX", "SST_WC"], ["PV_JUX"], ["PYR_JUX", "PYR_WC"]]:
         for cohort_name in cohort_name_group:
             trial_wise_spike_timing = get_trial_wise_spike_timing_features(cohort_name)
@@ -191,16 +193,43 @@ def temporal_pattern_Early_spike(task_name: str="TemporalPattern",):
                           if label_node_names[i] in node_to_spikes]
     for cluster_id, cluster_nodes in groupby(ordered_node_names, key=node2label.__getitem__):
         cluster_y_start = global_y_offset
+        median_early_spike_500ms = []
+
+        celltype_specific_data = defaultdict(list)
         for node_name in cluster_nodes:
             cell_data, cohort_name = node_to_spikes[node_name]
             ax.eventplot(np.concatenate(cell_data), lineoffsets=global_y_offset,
                              orientation='horizontal', linelengths=1, linewidths=0.3,
-                             color=COHORT_COLORS[cohort_name])
+                             color=COHORT_COLORS[cohort_name.replace("_WC", "_JUX")])
             global_y_offset -= 1
+            median_early_spike_500ms.append(np.median(np.concatenate([trial[np.where((trial < 40) & (trial > 0))] 
+                                                              for trial in cell_data])))
+            # celltype_specific_data[cohort_name.replace("_WC", "_JUX")].append(
+                # np.median(np.concatenate([trial[np.where((trial < 100) & (trial > 0))] 
+                #                                               for trial in cell_data])))
+            celltype_specific_data[cohort_name.replace("_WC", "_JUX")].append(median_early_spike_500ms[-1])
+
+        print(f"Cluster {cluster_id} celltype specific data:")
+        for celltype, values in celltype_specific_data.items():
+            print(f"  {celltype}: {np.mean(values):.3f} +/- {np.std(values):.3f}")
         ax.fill_betweenx(y=[global_y_offset+0.5, cluster_y_start+0.5],
                          x1=0, x2=0.5 * 1000,
                         alpha=0.3, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10,)
         global_y_offset -= 2
+
+        median_early_spike_500ms = np.array(median_early_spike_500ms)        
+        median_early_spike_500ms = median_early_spike_500ms[median_early_spike_500ms>16]  # filter out artifacts        
+        median_early_spike_500ms = median_early_spike_500ms[~np.isnan(median_early_spike_500ms)]        
+        if cluster_id == 3:
+            continue
+        ax_dist.scatter(np.sort(median_early_spike_500ms), np.arange(1, 1 + len(median_early_spike_500ms))/len(median_early_spike_500ms),
+                                facecolor=CLUSTER_COLORS[cluster_id], edgecolor='black',
+                                s=7, lw=0.5, alpha=0.9, zorder=10)
+        ax_dist.plot(np.sort(median_early_spike_500ms), np.arange(1, 1 + len(median_early_spike_500ms))/len(median_early_spike_500ms),
+                        color=CLUSTER_COLORS[cluster_id], lw=1, zorder=-1, alpha=0.9)
+        print(f"cluster {cluster_id}: Median early spike times for all cells: {np.mean(median_early_spike_500ms):.3f}+/-{np.std(median_early_spike_500ms):.3f}")
+        annotate_data[f"Cluster_{cluster_id}"] = median_early_spike_500ms
+
 
 
     global_y_offset -= 5
@@ -212,8 +241,8 @@ def temporal_pattern_Early_spike(task_name: str="TemporalPattern",):
         pad=1     
     )
     ax.spines[['right', 'top']].set_visible(False)
-    ax.set_xlim(-20, 60)
-    ax.set_xticks([0, 20, 40,])
+    ax.set_xlim(-20, 80)
+    ax.set_xticks([0, 20, 40, 60,])
     ax.axvline(0, color='gray', lw=0.5, ls="--", zorder=-1)
     ax.axvline(20, color='gray', lw=0.5, ls="--", zorder=-1)
     ax.set_xlabel("Time from puff onset (ms)", labelpad=1)
@@ -225,6 +254,32 @@ def temporal_pattern_Early_spike(task_name: str="TemporalPattern",):
 
     fig.savefig(save_path, dpi=500, transparent=True)
     plt.close(fig)
+    logger.info("Plot saved to " + save_path)
+
+    ax_dist.tick_params(
+        length=1,
+        pad=1     
+    )
+    ax_dist.spines[['right', 'top']].set_visible(False)
+    ax_dist.set_xticks([18, 20, 22, 24, 26])
+    ax_dist.set_yticks([0, 0.5, 1], ["0%", "50%", "100%"])
+    ax_dist.set_xlabel("Median early spike time (ms)", labelpad=1)
+    ax_dist.set_ylabel("Cumulative distribution", labelpad=1)
+
+    save_path = path.join(get_saving_path(), task_name, f"EarlySpikeDistribution_CDF_by_cluster.png")
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+    fig_dist.savefig(save_path, dpi=500, transparent=True)
+    logger.info("Plot saved to " + save_path)
+
+    
+    basic_ttest.stats_pairwise_ks(annotate_data, ax=ax_dist)
+    for cluster_id, y_values in annotate_data.items():
+        ax_dist.text(np.mean(y_values), 0.2, f"{np.mean(y_values):.2f}±{np.std(y_values):.2f}", 
+                     ha='center', va='bottom', fontsize=3, rotation=45, zorder=2000)
+    save_path = path.join(get_saving_path(), task_name, f"EarlySpikeDistribution_CDF_by_cluster_annotated.png")
+    fig_dist.savefig(save_path, dpi=500, transparent=True)
+    plt.close(fig_dist)
     logger.info("Plot saved to " + save_path)
 
 
@@ -259,7 +314,7 @@ def temporal_pattern_early_vs_sustained(task_name: str="TemporalPattern",):
     plt.rcParams["font.size"] = 6
        
     annotate_data = {}
-    fig, ax = plt.subplots(1, 1, figsize=(2, 1.5), constrained_layout=True)
+    fig, ax = plt.subplots(1, 1, figsize=(2.4, 1.6), constrained_layout=True)
     x_offset = 0.5
     ax.tick_params(
         length=1,

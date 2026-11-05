@@ -196,7 +196,7 @@ def sort_all_cell_activity(
         def unit_plot(puff_data, blank_data, plotting_red_cohen_list, plotting_cell_colors, 
                       v_range, xlim, ylim, save_path, theme_color="black", overlap=False,
                       _annotate=False, _blank_plotting_red_cohen=None):
-            fig, ax = plt.subplots(2, 4, figsize=(4., 2.5), 
+            fig, ax = plt.subplots(2, 4, figsize=(3.5, 2.5), 
                                 width_ratios=[0.4, 1.2, 1.2, 1.2],
                                 height_ratios=[1.2, 0.7],
                                 constrained_layout=True)
@@ -245,7 +245,7 @@ def sort_all_cell_activity(
                 annotate_data[idx] = np.mean(group_fluorescence.raw_array[:, compare_t_positions[0]:compare_t_positions[1]], axis=1)
                 jitter = np.random.uniform(-0.12, 0.12, size=annotate_data[idx].shape)
 
-                if _blank_plotting_red_cohen is not None:
+                if cohen_d_data is not None:
                     ax_scatter.scatter(cohen_d_data, annotate_data[idx], color=[cmap(norm(single_cd)) for single_cd in cohen_d_data], 
                                     lw=0.5, s=4, alpha=0.8)
                     annotate_data_scatter[0].append(np.array(cohen_d_data).flatten())
@@ -312,9 +312,12 @@ def sort_all_cell_activity(
                 ax_scatter.spines[['right', 'top']].set_visible(False)
                 if _annotate:
                     basic_ttest.add_linear_regression(ax_scatter, np.concatenate(annotate_data_scatter[0]), np.concatenate(annotate_data_scatter[1]),
-                                                      theme_color='gray')
+                                                        theme_color='gray')
                 default_exit_save(fig_scatter, save_path.replace(".png", f"_scatter{'_annotated' if _annotate else ''}.png"), _transparent=True)
 
+            print(save_path, )
+            for i in plotting_red_cohen_list:
+                print(i)
 
         PSTH_v_range = 1.0
         fluo_v_range = 1.0
@@ -322,45 +325,57 @@ def sort_all_cell_activity(
         # unit_plot(reordered_puff_deconv, reordered_blank_deconv, red_cohen_d_list_masked, cell_colors,
         #           v_range=PSTH_v_range, xlim=(-0.5, 1), ylim=(-0.2, 0.8), save_path=save_path, overlap=True)
 
-        # # save_path = path.join(get_saving_path2(), f"AveragePSTH_{order_name}_{range_str}_long.png")
-        # # unit_plot(reordered_puff_deconv, reordered_blank_deconv, red_cohen_d_list_masked, cell_colors, 
-        # #           v_range=PSTH_v_range, xlim=(-2, 2.5), ylim=(-0.2, 1), save_path=save_path)
+        # save_path = path.join(get_saving_path2(), f"AveragePSTH_{order_name}_{range_str}_long.png")
+        # unit_plot(reordered_puff_deconv, reordered_blank_deconv, red_cohen_d_list_masked, cell_colors, 
+        #           v_range=PSTH_v_range, xlim=(-2, 2.5), ylim=(-0.2, 1), save_path=save_path)
 
         
         # save_path = path.join(get_saving_path2(), f"AverageFluorescence_{order_name}_{range_str}.png")
         # unit_plot(reordered_puff_fluo, reordered_blank_fluo, red_cohen_d_list_masked, cell_colors, 
         #           v_range=fluo_v_range, xlim=(-.5, 1.5), ylim=(-0.1, 0.5), save_path=save_path, overlap=True)
 
-        # day3 = np.where(day_id_list_masked == 3)[0]
-        # day3CR = np.where(np.isfinite(np.array(reordered_red_cohen_d).reshape(-1, 1)) & (day_id_list_masked == 3))[0]
-        # day4 = np.where(day_id_list_masked == 4)[0]
-        # day4CR = np.where(np.isfinite(np.array(reordered_red_cohen_d).reshape(-1, 1)) & (day_id_list_masked == 4))[0]
+        day3 = np.where(day_id_list_masked == 3)[0]
+        day3CR = np.where(np.isfinite(np.array(reordered_red_cohen_d).reshape(-1, 1)) & (day_id_list_masked == 3))[0]
+        day4 = np.where(day_id_list_masked == 4)[0]
+        day4CR = np.where(np.isfinite(np.array(reordered_red_cohen_d).reshape(-1, 1)) & (day_id_list_masked == 4))[0]
 
         # # day4 = np.where(day_id_list_masked == 4)[0]
-        # for select_day_name, select_day_type in zip(
-        #     ["day3", "CRALL_day3", "day4", "CRALL_day4"],
-        #     [day3, day3CR, day4, day4CR]
-        #     ):
-        #     save_path = path.join(get_saving_path2(), f"AveragePSTH_{order_name}_{range_str}_{select_day_name}.png")
-        #     unit_plot(reordered_puff_deconv[select_day_type], reordered_blank_deconv[select_day_type],
-        #               red_cohen_d_list_masked[select_day_type], cell_colors[select_day_type], 
-        #               v_range=PSTH_v_range, xlim=(-0.5, 1), ylim=(-0.2, 0.8), save_path=save_path, overlap=True)
+        for select_day_name, select_day_type in zip(
+            ["day3", "CRALL_day3",],
+            [day3, day3CR,]
+            # ["day3", "CRALL_day3", "day4", "CRALL_day4"],
+            # [day3, day3CR, day4, day4CR]
+            ):
+            save_path = path.join(get_saving_path2(), f"AveragePSTH_{order_name}_{range_str}_{select_day_name}.png")
+            unit_plot(reordered_puff_deconv[select_day_type], reordered_blank_deconv[select_day_type],
+                      red_cohen_d_list_masked[select_day_type], cell_colors[select_day_type], 
+                      v_range=PSTH_v_range, xlim=(-0.5, 1), ylim=(-0.2, 0.8), save_path=save_path, overlap=True,)
 
-        #     save_path = path.join(get_saving_path2(), f"AverageFluorescence_{order_name}_{range_str}_{select_day_name}.png")
-        #     unit_plot(reordered_puff_fluo[select_day_type], reordered_blank_fluo[select_day_type],
-        #               red_cohen_d_list_masked[select_day_type], cell_colors[select_day_type],
-        #               v_range=fluo_v_range, xlim=(-.5, 1.5), ylim=(-0.1, 0.5), save_path=save_path, overlap=True)
+            # save_path = path.join(get_saving_path2(), f"AveragePSTH_{order_name}_{range_str}_{select_day_name}_long.png")
+            # unit_plot(reordered_puff_deconv[select_day_type], reordered_blank_deconv[select_day_type],
+            #           red_cohen_d_list_masked[select_day_type], cell_colors[select_day_type], 
+            #           v_range=PSTH_v_range, xlim=(-2, 2.5), ylim=(-0.2, 1), save_path=save_path, overlap=True)
+
+            save_path = path.join(get_saving_path2(), f"AverageFluorescence_{order_name}_{range_str}_{select_day_name}.png")
+            unit_plot(reordered_puff_fluo[select_day_type], reordered_blank_fluo[select_day_type],
+                      red_cohen_d_list_masked[select_day_type], cell_colors[select_day_type],
+                      v_range=fluo_v_range, xlim=(-.5, 1.5), ylim=(-0.1, 0.5), save_path=save_path, overlap=True,)
+            
+            # save_path = path.join(get_saving_path2(), f"AverageFluorescence_{order_name}_{range_str}_{select_day_name}_long.png")
+            # unit_plot(reordered_puff_fluo[select_day_type], reordered_blank_fluo[select_day_type],
+            #           red_cohen_d_list_masked[select_day_type], cell_colors[select_day_type], 
+            #           v_range=fluo_v_range, xlim=(-2, 2.5), ylim=(-0.2, 1), save_path=save_path, overlap=True)
 
         CR_pos_day3 = np.where((red_cohen_d_list_masked > 1) & (day_id_list_masked == 3))[0]
         CR_neg_day3 = np.where((red_cohen_d_list_masked < 1) & (day_id_list_masked == 3))[0]
-        # CR_pos_day4 = np.where((red_cohen_d_list_masked > 1) & (day_id_list_masked == 4))[0]
-        # CR_neg_day4 = np.where((red_cohen_d_list_masked < 1) & (day_id_list_masked == 4))[0]
+        # # CR_pos_day4 = np.where((red_cohen_d_list_masked > 1) & (day_id_list_masked == 4))[0]
+        # # CR_neg_day4 = np.where((red_cohen_d_list_masked < 1) & (day_id_list_masked == 4))[0]
 
-        save_path = path.join(get_saving_path2(), f"AveragePSTH_{order_name}_{range_str}_CRposvsCRneg.png")
-        unit_plot(reordered_puff_deconv[CR_pos_day3], reordered_puff_deconv[CR_neg_day3],
-                    red_cohen_d_list_masked[CR_pos_day3], cell_colors[CR_pos_day3], theme_color=[f"#ff00ff", f"#000000"],
-                    v_range=PSTH_v_range, xlim=(-0.5, 1), ylim=(-0.2, 1), save_path=save_path, overlap=True,
-                    _blank_plotting_red_cohen=red_cohen_d_list_masked[CR_neg_day3])
+        # save_path = path.join(get_saving_path2(), f"AveragePSTH_{order_name}_{range_str}_CRposvsCRneg.png")
+        # unit_plot(reordered_puff_deconv[CR_pos_day3], reordered_puff_deconv[CR_neg_day3],
+        #             red_cohen_d_list_masked[CR_pos_day3], cell_colors[CR_pos_day3], theme_color=[f"#ff00ff", f"#000000"],
+        #             v_range=PSTH_v_range, xlim=(-0.5, 1), ylim=(-0.2, 1), save_path=save_path, overlap=True,
+        #             _blank_plotting_red_cohen=red_cohen_d_list_masked[CR_neg_day3])
         
         save_path = path.join(get_saving_path2(), f"AveragePSTH_{order_name}_{range_str}_CRposvsCRneg.png")
         unit_plot(reordered_puff_deconv[CR_pos_day3], reordered_puff_deconv[CR_neg_day3],
@@ -368,11 +383,11 @@ def sort_all_cell_activity(
                     v_range=PSTH_v_range, xlim=(-0.5, 1), ylim=(-0.2, 1), save_path=save_path, overlap=True, _annotate=True,
                     _blank_plotting_red_cohen=red_cohen_d_list_masked[CR_neg_day3])
 
-        save_path = path.join(get_saving_path2(), f"AverageFluorescence_{order_name}_{range_str}_CRposvsCRneg.png")
-        unit_plot(reordered_puff_fluo[CR_pos_day3], reordered_puff_fluo[CR_neg_day3],
-                    red_cohen_d_list_masked[CR_pos_day3], cell_colors[CR_pos_day3], theme_color=[f"#ff00ff", f"#000000"],
-                    v_range=fluo_v_range, xlim=(-0.5, 1.5), ylim=(-0.1, 0.5), save_path=save_path, overlap=True,
-                    _blank_plotting_red_cohen=red_cohen_d_list_masked[CR_neg_day3])
+        # save_path = path.join(get_saving_path2(), f"AverageFluorescence_{order_name}_{range_str}_CRposvsCRneg.png")
+        # unit_plot(reordered_puff_fluo[CR_pos_day3], reordered_puff_fluo[CR_neg_day3],
+        #             red_cohen_d_list_masked[CR_pos_day3], cell_colors[CR_pos_day3], theme_color=[f"#ff00ff", f"#000000"],
+        #             v_range=fluo_v_range, xlim=(-0.5, 1.5), ylim=(-0.1, 0.5), save_path=save_path, overlap=True,
+        #             _blank_plotting_red_cohen=red_cohen_d_list_masked[CR_neg_day3])
 
         save_path = path.join(get_saving_path2(), f"AverageFluorescence_{order_name}_{range_str}_CRposvsCRneg.png")
         unit_plot(reordered_puff_fluo[CR_pos_day3], reordered_puff_fluo[CR_neg_day3],

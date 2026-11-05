@@ -169,17 +169,18 @@ def visualize_all_cell_staining(dataset: DataSet, save_dir: str):
                              if "red_cohen_d" in node.info and "green_cohen_d" in node.info])))
     # mice_marker = ["o", "s", "D", "^", "v", "<", ">", "p", "*", "H", "X"]
     all_cohen_red = []
-    for cell_node in dataset.select("cell"):
-        if "red_cohen_d" not in cell_node.info or "green_cohen_d" not in cell_node.info:
+    for cellsession_node in dataset.select("cellsession"):
+        if "red_cohen_d" not in cellsession_node.info or "green_cohen_d" not in cellsession_node.info:
             continue
+        if cellsession_node.info['day_id'] != 3:
+            continue
+        mice_idx = all_mice_idx.index(cellsession_node.mice_id)
 
-        mice_idx = all_mice_idx.index(cell_node.mice_id)
-
-        ax.scatter(cell_node.info["red_cohen_d"], cell_node.info["green_cohen_d"],
-                   facecolor=cmap(norm(cell_node.info["red_cohen_d"])), edgecolor='white', lw=0.5, alpha=0.8, s=8, 
-                   marker='o')
-        all_cohen_red.append(cell_node.info["red_cohen_d"])
-
+        ax.scatter(cellsession_node.info["red_cohen_d"], cellsession_node.info["green_cohen_d"],
+                   facecolor='none', edgecolor=cmap(norm(cellsession_node.info["red_cohen_d"])), lw=0.7, alpha=1, s=8, 
+                   marker='o', clip_on=False)
+        all_cohen_red.append(cellsession_node.info["red_cohen_d"])
+    print(f"{np.mean(all_cohen_red):.3f} +/- {np.std(all_cohen_red):.3f}")
     # WC recording from J.S.
     ax.scatter([1.925, 2.606, 1.045], [2.511, 2.040, 2.919], facecolor=cmap(norm([1.925, 2.606, 1.045])), 
                edgecolor='black', lw=0.5, alpha=1, s=20, marker='*', zorder=100)
@@ -192,7 +193,8 @@ def visualize_all_cell_staining(dataset: DataSet, save_dir: str):
     #                     loc="best", fontsize='x-small')
 
     ax.set_xlim(-2, 4)
-    ax.set_ylim(0, 5)
+    # ax.set_ylim(0, 5)
+    ax.set_xticks([-1, 0, 1, 2, 3])
     ax.axvline(1, color='red', linestyle='--', linewidth=1, alpha=0.7)
     ax.axhline(1, color='gray', linestyle='--', linewidth=1, alpha=0.7)
 
@@ -200,7 +202,7 @@ def visualize_all_cell_staining(dataset: DataSet, save_dir: str):
     ax.tick_params(length=1, pad=1)
     sns.kdeplot(x=all_cohen_red, ax=ax,
                 color="gray", linewidth=0, fill=True)
-    ax.set_xlim(-2, 4)
+    ax.set_xlim(axs[1].get_xlim())
     ax.set_ylabel("")
     ax.set_xlabel("")
     ax.set_yticks([])

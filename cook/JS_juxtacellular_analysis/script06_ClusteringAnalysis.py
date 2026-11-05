@@ -124,8 +124,8 @@ def main(svd_flag, spk_feature_flag, acg_flag):
             #                             _visualize=True)
 
             # clustering_lineage(combined_cf_list, task_id=task_name, weight_alpha=weight_alpha, n_features=n_feature)
-            clustering_lineage(combined_cf_list, task_id=task_name, weight_alpha=weight_alpha, n_features=n_feature, 
-                               top_k=7, figsize=(1.9, 1.2))
+            # clustering_lineage(combined_cf_list, task_id=task_name, weight_alpha=weight_alpha, n_features=n_feature, 
+            #                    top_k=10, figsize=(2, 2))
             clustering_quality_test(combined_cf_list, task_id=task_name, weight_alpha=weight_alpha, n_features=n_feature)
 
     def p2():
@@ -133,27 +133,27 @@ def main(svd_flag, spk_feature_flag, acg_flag):
                                      n_features=n_feature)
 
     def p3():
-        for weight_alpha in [50,]:
-            for n_cluster in [2, 3, 4, 5, 6, 7, 8, 9, 10]:
-                for feature_drop_id in range(n_feature):
-                    consensus_grid_search(combined_cf_list, 
-                                          task_id=task_name, n_features=n_feature,
-                                            num_of_cluster=n_cluster, weight_alpha=weight_alpha,
-                                            n_weight=100,
-                                            _visualize=True, _feature_drop_id=feature_drop_id)
+        # for weight_alpha in [50,]:
+        #     for n_cluster in [2, 3, 4, 5, 6, 7, 8, 9, 10]:
+        #         for feature_drop_id in range(n_feature):
+        #             consensus_grid_search(combined_cf_list, 
+        #                                   task_id=task_name, n_features=n_feature,
+        #                                     num_of_cluster=n_cluster, weight_alpha=weight_alpha,
+        #                                     n_weight=100,
+        #                                     _visualize=True, _feature_drop_id=feature_drop_id)
         feature_contribution_analysis(combined_cf_list, task_id=task_name, n_feature=n_feature, weight_alpha=50, feature_names=feature_names)
 
     def p4():
-        for resample_rate in [0.9, 0.75, 0.5]:
-            for resample_seed in range(100):
-                for n_cluster in [2, 3, 4, 5, 6, 7, 8, 9, 10]:
-                    consensus_grid_search(combined_cf_list, 
-                                          task_id=task_name,
-                                          n_features=n_feature,
-                                          num_of_cluster=n_cluster, weight_alpha=50,
-                                            n_weight=10,
-                                           _visualize=False,
-                                          _resample_tuple=(resample_rate, resample_seed))
+        # for resample_rate in [0.9, 0.75, 0.5]:
+        #     for resample_seed in range(100):
+        #         for n_cluster in [2, 3, 4, 5, 6, 7, 8, 9, 10]:
+        #             consensus_grid_search(combined_cf_list, 
+        #                                   task_id=task_name,
+        #                                   n_features=n_feature,
+        #                                   num_of_cluster=n_cluster, weight_alpha=50,
+        #                                     n_weight=10,
+        #                                    _visualize=False,
+        #                                   _resample_tuple=(resample_rate, resample_seed))
 
         clustering_stability_test(combined_cf_list, weight_alpha=50, task_id=task_name, n_feature=n_feature, num_fcluster=6)
 

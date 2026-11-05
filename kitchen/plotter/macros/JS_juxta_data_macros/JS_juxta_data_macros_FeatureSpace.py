@@ -727,7 +727,7 @@ def Visualize_Decomposition_Weights(variant: str, decomposition_method: str, n_c
         axc_weight.set_xlabel("")
         axc_weight.axhline(0, color='gray', linestyle='--', lw=1, alpha=0.5, zorder=-10)
 
-        basic_ttest.stats_anova(annotation_data, axc_weight, bon_ferroni_adj=5)
+        # basic_ttest.stats_anova(annotation_data, axc_weight, bon_ferroni_adj=5)
 
         # if component_name == "Baseline":
         #     axc_weight.set_title("Baseline FR [Hz]")
@@ -738,7 +738,8 @@ def Visualize_Decomposition_Weights(variant: str, decomposition_method: str, n_c
         # axc_weight.set_xticklabels(new_xticks)
 
     save_path = path.join(get_saving_path(), "FeatureSpace", 
-                          f"PC_Overview_{variant}_{decomposition_method}_{n_components}_annotated.png")
+                          f"PC_Overview_{variant}_{decomposition_method}_{n_components}.png")
+                        #   f"PC_Overview_{variant}_{decomposition_method}_{n_components}_annotated.png")
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     fig.savefig(save_path, dpi=500, transparent=True)
     plt.close(fig)

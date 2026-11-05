@@ -612,15 +612,21 @@ def eigen_gap_quality_test(cf_list: list[CellFeature], task_id: str):
         all_gaps_result.append(gaps[1:10])
     all_gaps_result = np.array(all_gaps_result)
 
-    fig, ax = plt.subplots(1, 1, figsize=(1.1, 1.), constrained_layout=True)
+    fig, ax = plt.subplots(1, 1, figsize=(1.6, 1.), constrained_layout=True)
 
     ax.tick_params(length=1, pad=1)
     ax.errorbar(np.arange(2, 11), all_gaps_result.mean(axis=0), 
                 yerr=all_gaps_result.std(axis=0),
                 fmt="o", color='black',
-                markersize=3, lw=1, alpha=0.9, markeredgewidth=0.5,
+                markersize=3, lw=1, alpha=1, markeredgewidth=0.5,
                 ecolor='black', elinewidth=0.5,
-                capsize=1.5, capthick=0.5,)
+                capsize=1.5, capthick=0.5, zorder=3)
+    # ax.plot(np.arange(2, 11), all_gaps_result.mean(axis=0), color='black', lw=1)
+
+
+    gray_values = np.linspace(0.65, 0.3, len(all_gaps_result))
+    for i, (single_scale, gray) in enumerate(zip(all_gaps_result, gray_values)):
+        ax.plot(np.arange(2, 11), single_scale, color=str(gray), lw=0.7, alpha=0.9, zorder=-1)
 
     ax.set_xlabel("Eigen index (k)", labelpad=1)
     ax.set_ylabel("Eigengap " + r"$\lambda_{k+1}-\lambda_k$", labelpad=1)
@@ -655,13 +661,13 @@ def clustering_quality_test(cf_list: list[CellFeature], task_id: str, **kw):
         for k, clustering_result_at_k in cocluster_result_dict.items():
             for cluster_method, coclustering_result in clustering_result_at_k.items():
                 rng = np.random.default_rng(42)
-                resample_indices = rng.choice(len(coclustering_result), size=100, replace=False)
+                resample_indices = rng.choice(len(coclustering_result), size=min(100, len(coclustering_result)), replace=False)
                 labels_list = [numpy_kit.CoClusterMatrix2Labels(coclustering_result[i]) for i in resample_indices]
 
                 for labels in labels_list:
                     elements, counts = np.unique(labels[specific_indices], return_counts=True)
                     specific_k = np.sum(counts >= 1)
-                    if specific_k == 1:
+                    if not 2 <= specific_k < len(specific_indices):
                         continue
                     silhouette_scores[k][cluster_method].append(
                         silhouette_score(normalized_feature_matrix[specific_indices], 
@@ -675,13 +681,13 @@ def clustering_quality_test(cf_list: list[CellFeature], task_id: str, **kw):
         for k, clustering_result_at_k in cocluster_result_dict.items():
             for cluster_method, coclustering_result in clustering_result_at_k.items():
                 rng = np.random.default_rng(42)
-                resample_indices = rng.choice(len(coclustering_result), size=100, replace=False)
+                resample_indices = rng.choice(len(coclustering_result), size=min(100, len(coclustering_result)), replace=False)
                 labels_list = [numpy_kit.CoClusterMatrix2Labels(coclustering_result[i]) for i in resample_indices]
 
                 for labels in labels_list:
                     elements, counts = np.unique(labels[specific_indices], return_counts=True)
                     specific_k = np.sum(counts >= 1)
-                    if specific_k == 1:
+                    if not 2 <= specific_k < len(specific_indices):
                         continue
                     ch_indices[k][cluster_method].append(
                         calinski_harabasz_score(normalized_feature_matrix[specific_indices], 
@@ -695,13 +701,13 @@ def clustering_quality_test(cf_list: list[CellFeature], task_id: str, **kw):
         for k, clustering_result_at_k in cocluster_result_dict.items():
             for cluster_method, coclustering_result in clustering_result_at_k.items():
                 rng = np.random.default_rng(42)
-                resample_indices = rng.choice(len(coclustering_result), size=100, replace=False)
+                resample_indices = rng.choice(len(coclustering_result), size=min(100, len(coclustering_result)), replace=False)
                 labels_list = [numpy_kit.CoClusterMatrix2Labels(coclustering_result[i]) for i in resample_indices]
 
                 for labels in labels_list:
                     elements, counts = np.unique(labels[specific_indices], return_counts=True)
                     specific_k = np.sum(counts >= 1)
-                    if specific_k == 1:
+                    if not 2 <= specific_k < len(specific_indices):
                         continue
                     db_indices[k][cluster_method].append(
                         davies_bouldin_score(normalized_feature_matrix[specific_indices], 
@@ -765,13 +771,25 @@ def clustering_quality_test(cf_list: list[CellFeature], task_id: str, **kw):
     pv_silhouette = SilhouetteScore(clustering_results, "PV")
     pyr_silhouette = SilhouetteScore(clustering_results, "PYR")
     all_silhouette = SilhouetteScore(clustering_results, "ALL")
+
+    sst_db = DBIndex(clustering_results, "SST")
+    pv_db = DBIndex(clustering_results, "PV")
+    pyr_db = DBIndex(clustering_results, "PYR")
+    all_db = DBIndex(clustering_results, "ALL")
+
+    sst_ch = CHIndex(clustering_results, "SST")
+    pv_ch = CHIndex(clustering_results, "PV")
+    pyr_ch = CHIndex(clustering_results, "PYR")
+    all_ch = CHIndex(clustering_results, "ALL")
     
     method_list = ["KMeans", "Spectral", "Gaussian", "Agg", "ALL"]
     for metric_name, metric_dict in zip(
-        ["PAC (%)", "Silhouette (AU)"],
+        ["PAC (%)", "Silhouette (AU)", "DB index (AU)", "CH index (AU)"],
         [
             {"SST": sst_pac, "PV": pv_pac, "PYR": pyr_pac, "ALL": all_pac},
-            {"SST": sst_silhouette, "PV": pv_silhouette, "PYR": pyr_silhouette, "ALL": all_silhouette}
+            {"SST": sst_silhouette, "PV": pv_silhouette, "PYR": pyr_silhouette, "ALL": all_silhouette},
+            {"SST": sst_db, "PV": pv_db, "PYR": pyr_db, "ALL": all_db},
+            {"SST": sst_ch, "PV": pv_ch, "PYR": pyr_ch, "ALL": all_ch}
         ]
     ):
         def mean_metric(scores):
@@ -814,76 +832,76 @@ def clustering_quality_test(cf_list: list[CellFeature], task_id: str, **kw):
                 ax.set_yticks([0, 0.2, 0.4, 0.6], ["0", "20", "40", "60"])
 
             save_path = path.join(get_saving_path(), "spv_clustering", task_id, "overall",
-                                        f"{method_name}_{metric_name.split(' ')[0]}_alpha{kw.get('weight_alpha')}.png")
+                                        f"Summarized_{method_name}_{metric_name.split(' ')[0]}_alpha{kw.get('weight_alpha')}.png")
             default_exit_save(fig, save_path=save_path, _transparent=True)
 
+    # exit()
+    # fig, axs = plt.subplots(4, 5, figsize=(6.5, 5.2), constrained_layout=True, sharey="col")
 
-    fig, axs = plt.subplots(4, 5, figsize=(6.5, 5.2), constrained_layout=True, sharey="col")
+    # def plot_metric(ax, metric_dict):
+    #     grand_avg = []
+    #     for method in method_list[:-1]:
+    #         avg_values = [np.nanmean(metric_dict[k][method]) for k in np.arange(2, 11)]
+    #         grand_avg.append(avg_values)
+    #         ax.plot(np.arange(2, 11), avg_values, label=method, lw=0.5)
+    #     ax.plot(np.arange(2, 11), np.mean(grand_avg, axis=0), label="Grand Avg", color='black', lw=1, ls='--')
+    #     ax.legend(frameon=False, loc='best', fontsize=5, handlelength=1, labelspacing=0.2, handletextpad=0.4)
+    #     ax.tick_params(length=1, pad=1)
+    #     ax.set_xlabel("Num of cluster (K)", labelpad=1)
+    #     ax.set_xticks([2, 3, 4, 5, 6, 7, 8, 9, 10])
 
-    def plot_metric(ax, metric_dict):
-        grand_avg = []
-        for method in method_list[:-1]:
-            avg_values = [np.nanmean(metric_dict[k][method]) for k in np.arange(2, 11)]
-            grand_avg.append(avg_values)
-            ax.plot(np.arange(2, 11), avg_values, label=method, lw=0.5)
-        ax.plot(np.arange(2, 11), np.mean(grand_avg, axis=0), label="Grand Avg", color='black', lw=1, ls='--')
-        ax.legend(frameon=False, loc='best', fontsize=5, handlelength=1, labelspacing=0.2, handletextpad=0.4)
-        ax.tick_params(length=1, pad=1)
-        ax.set_xlabel("Num of cluster (K)", labelpad=1)
-        ax.set_xticks([2, 3, 4, 5, 6, 7, 8, 9, 10])
+    # axs[0, 0].set_title("Silhouette Score")
+    # plot_metric(axs[0, 0], SilhouetteScore(clustering_results, "SST"))
+    # axs[0, 0].set_ylabel("SST", labelpad=1)
+    # plot_metric(axs[1, 0], SilhouetteScore(clustering_results, "PV"))
+    # axs[1, 0].set_ylabel("PV", labelpad=1)
+    # plot_metric(axs[2, 0], SilhouetteScore(clustering_results, "PYR"))
+    # axs[2, 0].set_ylabel("PYR", labelpad=1)
+    # plot_metric(axs[3, 0], SilhouetteScore(clustering_results, "ALL"))
+    # axs[3, 0].set_ylabel("ALL cell types", labelpad=1)
 
-    axs[0, 0].set_title("Silhouette Score")
-    plot_metric(axs[0, 0], SilhouetteScore(clustering_results, "SST"))
-    axs[0, 0].set_ylabel("SST", labelpad=1)
-    plot_metric(axs[1, 0], SilhouetteScore(clustering_results, "PV"))
-    axs[1, 0].set_ylabel("PV", labelpad=1)
-    plot_metric(axs[2, 0], SilhouetteScore(clustering_results, "PYR"))
-    axs[2, 0].set_ylabel("PYR", labelpad=1)
-    plot_metric(axs[3, 0], SilhouetteScore(clustering_results, "ALL"))
-    axs[3, 0].set_ylabel("ALL cell types", labelpad=1)
+    # axs[0, 1].set_title("Calinski-Harabasz Index")
+    # plot_metric(axs[0, 1], CHIndex(clustering_results, "SST"))
+    # axs[0, 1].set_ylabel("SST", labelpad=1)
+    # plot_metric(axs[1, 1], CHIndex(clustering_results, "PV"))
+    # axs[1, 1].set_ylabel("PV", labelpad=1)
+    # plot_metric(axs[2, 1], CHIndex(clustering_results, "PYR"))
+    # axs[2, 1].set_ylabel("PYR", labelpad=1)
+    # plot_metric(axs[3, 1], CHIndex(clustering_results, "ALL"))
+    # axs[3, 1].set_ylabel("ALL cell types", labelpad=1)
 
-    axs[0, 1].set_title("Calinski-Harabasz Index")
-    plot_metric(axs[0, 1], CHIndex(clustering_results, "SST"))
-    axs[0, 1].set_ylabel("SST", labelpad=1)
-    plot_metric(axs[1, 1], CHIndex(clustering_results, "PV"))
-    axs[1, 1].set_ylabel("PV", labelpad=1)
-    plot_metric(axs[2, 1], CHIndex(clustering_results, "PYR"))
-    axs[2, 1].set_ylabel("PYR", labelpad=1)
-    plot_metric(axs[3, 1], CHIndex(clustering_results, "ALL"))
-    axs[3, 1].set_ylabel("ALL cell types", labelpad=1)
+    # axs[0, 2].set_title("Davies-Bouldin Index")
+    # plot_metric(axs[0, 2], DBIndex(clustering_results, "SST"))
+    # axs[0, 2].set_ylabel("SST", labelpad=1)
+    # plot_metric(axs[1, 2], DBIndex(clustering_results, "PV"))
+    # axs[1, 2].set_ylabel("PV", labelpad=1)
+    # plot_metric(axs[2, 2], DBIndex(clustering_results, "PYR"))   
+    # axs[2, 2].set_ylabel("PYR", labelpad=1)
+    # plot_metric(axs[3, 2], DBIndex(clustering_results, "ALL"))
+    # axs[3, 2].set_ylabel("ALL cell types", labelpad=1)
 
-    axs[0, 2].set_title("Davies-Bouldin Index")
-    plot_metric(axs[0, 2], DBIndex(clustering_results, "SST"))
-    axs[0, 2].set_ylabel("SST", labelpad=1)
-    plot_metric(axs[1, 2], DBIndex(clustering_results, "PV"))
-    axs[1, 2].set_ylabel("PV", labelpad=1)
-    plot_metric(axs[2, 2], DBIndex(clustering_results, "PYR"))   
-    axs[2, 2].set_ylabel("PYR", labelpad=1)
-    plot_metric(axs[3, 2], DBIndex(clustering_results, "ALL"))
-    axs[3, 2].set_ylabel("ALL cell types", labelpad=1)
-
-    axs[0, 3].set_title("Percentage of Ambiguous\nClustering (PAC)")
-    plot_metric(axs[0, 3], {k: PAC(v, within=False, cross=False) for k, v in clustering_results.items()})
-    axs[0, 3].set_ylabel("Grand consensus", labelpad=1)
-    plot_metric(axs[1, 3], {k: PAC(v, within=True, cross=False) for k, v in clustering_results.items()})
-    axs[1, 3].set_ylabel("Within-cell type consensus", labelpad=1)
-    plot_metric(axs[2, 3], {k: PAC(v, within=False, cross=True) for k, v in clustering_results.items()})
-    axs[2, 3].set_ylabel("Cross-cell type consensus", labelpad=1)
+    # axs[0, 3].set_title("Percentage of Ambiguous\nClustering (PAC)")
+    # plot_metric(axs[0, 3], {k: PAC(v, within=False, cross=False) for k, v in clustering_results.items()})
+    # axs[0, 3].set_ylabel("Grand consensus", labelpad=1)
+    # plot_metric(axs[1, 3], {k: PAC(v, within=True, cross=False) for k, v in clustering_results.items()})
+    # axs[1, 3].set_ylabel("Within-cell type consensus", labelpad=1)
+    # plot_metric(axs[2, 3], {k: PAC(v, within=False, cross=True) for k, v in clustering_results.items()})
+    # axs[2, 3].set_ylabel("Cross-cell type consensus", labelpad=1)
 
 
-    axs[0, 4].set_title("PAC for Specific\nCell Types")
-    plot_metric(axs[0, 4], {k: PAC_st(v, specific_celltype="SST") for k, v in clustering_results.items()})
-    axs[0, 4].set_ylabel("SST", labelpad=1)
-    plot_metric(axs[1, 4], {k: PAC_st(v, specific_celltype="PV") for k, v in clustering_results.items()})
-    axs[1, 4].set_ylabel("PV", labelpad=1)
-    plot_metric(axs[2, 4], {k: PAC_st(v, specific_celltype="PYR") for k, v in clustering_results.items()})
-    axs[2, 4].set_ylabel("PYR", labelpad=1)
-    plot_metric(axs[3, 4], {k: PAC_st(v, specific_celltype="ALL") for k, v in clustering_results.items()})
-    axs[3, 4].set_ylabel("ALL cell types", labelpad=1)
+    # axs[0, 4].set_title("PAC for Specific\nCell Types")
+    # plot_metric(axs[0, 4], {k: PAC_st(v, specific_celltype="SST") for k, v in clustering_results.items()})
+    # axs[0, 4].set_ylabel("SST", labelpad=1)
+    # plot_metric(axs[1, 4], {k: PAC_st(v, specific_celltype="PV") for k, v in clustering_results.items()})
+    # axs[1, 4].set_ylabel("PV", labelpad=1)
+    # plot_metric(axs[2, 4], {k: PAC_st(v, specific_celltype="PYR") for k, v in clustering_results.items()})
+    # axs[2, 4].set_ylabel("PYR", labelpad=1)
+    # plot_metric(axs[3, 4], {k: PAC_st(v, specific_celltype="ALL") for k, v in clustering_results.items()})
+    # axs[3, 4].set_ylabel("ALL cell types", labelpad=1)
 
-    save_path = path.join(get_saving_path(), "spv_clustering", task_id, "overall",
-                                f"All_metrics_alpha{kw.get('weight_alpha')}.png")
-    default_exit_save(fig, save_path=save_path, _transparent=True)
+    # save_path = path.join(get_saving_path(), "spv_clustering", task_id, "overall",
+    #                             f"All_metrics_alpha{kw.get('weight_alpha')}.png")
+    # default_exit_save(fig, save_path=save_path, _transparent=True)
 
 
 
@@ -973,9 +991,13 @@ def clustering_stability_test(cf_list: list[CellFeature], weight_alpha, task_id,
         for k in range(2, 11)
     }
 
-    fig, ax = plt.subplots(1, 1, figsize=(1.4, 1.1), constrained_layout=True)
+    
+    plt.rcParams["font.family"] = "Arial"
+    plt.rcParams["font.size"] = 6
+    
+    fig, ax = plt.subplots(1, 1, figsize=(1., 0.9), constrained_layout=True)
     metric_name = "pearson"
-    metric_description = "Similarity to consensus\n of full dataset"
+    metric_description = "Consensus matrix similarity (R)"
     ax.tick_params(length=1, pad=1)
     for resample_comparison, resample_color, resample_str, resample_offset in zip(
         [resample_comparison_90, resample_comparison_75, resample_comparison_50],
@@ -1071,7 +1093,7 @@ def clustering_stability_test(cf_list: list[CellFeature], weight_alpha, task_id,
                         markersize=2, lw=1, alpha=0.9, markeredgewidth=0.5,
                         ecolor=resample_color, elinewidth=0.5,
                         capsize=1., capthick=0.5,)
-    ax.set_ylabel("Adjusted RI", labelpad=1)
+    ax.set_ylabel("Adj. RI for 6 clusters", labelpad=1)
     ax.set_xticks([-0.7, 0, 0.7], ["90%", "75%", "50%"], fontsize=5)
     for tick_id, tick in enumerate(ax.get_xticklabels()):
         tick.set_rotation(0)
@@ -1512,7 +1534,7 @@ def visualize_final_grand(feature_list: list[CellFeature],
             )
             corresponding_cfs_in_cluster = [corresponding_cfs[i] for i in cluster_corresponding_idx[avg_sorting_order]]
 
-            figAB, axAB = plt.subplots(2, 1, figsize=(1, 1,), constrained_layout=True)
+            figAB, axAB = plt.subplots(2, 1, figsize=(1.2, 0.8), constrained_layout=True)
             axA = axAB[0]
             oreo_plot(axA, sorted_cluster_psth, 0, 1,  
                         {"color": 'black', "lw": 1, "alpha": 1},
@@ -1542,7 +1564,7 @@ def visualize_final_grand(feature_list: list[CellFeature],
             default_exit_save(figAB, save_path=save_path + f"_heatmap_{dataset_name_group}_{cluster_id}_AB.png", 
                               _transparent=True)
 
-            figC, axC = plt.subplots(1, 1, figsize=(1.1, 1,), constrained_layout=True)
+            figC, axC = plt.subplots(1, 1, figsize=(1.3, 0.8,), constrained_layout=True)
             axC.tick_params(
                 length=1,
                 pad=1,
@@ -1563,12 +1585,17 @@ def visualize_final_grand(feature_list: list[CellFeature],
             # else:
             axC.set_yticks([0.5, len(sorted_cluster_psth)-0.5], 
                         ["1", f"{len(sorted_cluster_psth)}"], rotation=0)
-            axC.set_xlabel("Time (s)", labelpad=1)
+            # axC.set_xlabel("Time (s)", labelpad=1)
             
             axC.spines[['right', 'top', 'left', 'bottom']].set_visible(True)
 
-            default_exit_save(figC, save_path=save_path + f"_heatmap_{dataset_name_group}_{cluster_id}_C.png", _transparent=True)
-
+            default_exit_save(figC, save_path=save_path + f"_heatmap_{dataset_name_group}_{cluster_id}_C.png", 
+                              _transparent=True, _no_close=True)
+            axC.set_yticks([])
+            axC.set_xticks([])
+            figC.set_size_inches(1, 0.1 + 1.3/50 * len(sorted_cluster_psth))
+            default_exit_save(figC, save_path=save_path + f"_heatmap_{dataset_name_group}_{cluster_id}_C_adaptive.png", 
+                              _transparent=True, _no_close=True)
 
             figD, axD = plt.subplots(1, 1, figsize=(0.4, 0.5,), constrained_layout=True)
             wave_indices_in_cluster = [wave_node_to_row[single_cf.node_name] 
@@ -1731,11 +1758,11 @@ def visualize_final_grand(feature_list: list[CellFeature],
 
     
     figE, axEs = plt.subplots(1, len(ephys_feature_names), 
-                                figsize=(4., 1), constrained_layout=True,
+                                figsize=(3.5, 1), constrained_layout=True,
                                 gridspec_kw={'hspace': 0.0, 'wspace': 0.0})
     
     figF, axFs = plt.subplots(1, len(svd_feature_names), 
-                                figsize=(4., 1), constrained_layout=True,
+                                figsize=(3.5, 1), constrained_layout=True,
                                 gridspec_kw={'hspace': 0.0, 'wspace': 0.0})
     annotation_E, annotation_F = {f_id: {} for f_id in range(len(ephys_feature_names))}, {f_id: {} for f_id in range(len(svd_feature_names))}
     corresponding_cfs = [feature_list[i] for i in leaves_order]
@@ -1959,6 +1986,51 @@ def visualize_final_grand(feature_list: list[CellFeature],
     default_exit_save(figCDF, save_path=save_path + f"_CDF_annotate.png",
                         _transparent=True, )
     
+    # Reuse the standardized cell features from the CDF plots above.
+    figCDF_bar, axCDF_bar = plt.subplots(figsize=(2.1, 0.7), constrained_layout=True)
+    i, j = np.triu_indices(len(cdf_cluster_names), k=1)
+    corr_phys = 1 - pdist(total_ephys_matrix, metric="cosine")
+    corr_svd = 1 - pdist(total_svd_matrix, metric="cosine")
+    bar_colors = [CLUSTER_COLORS[cluster_id] for cluster_id in clusterss] + ["gray"]
+    for group_id, cluster_id in enumerate(list(clusterss) + [None]):
+        mask = (cdf_cluster_names[i] != cdf_cluster_names[j]) if cluster_id is None else (
+            (cdf_cluster_names[i] == cluster_id) & (cdf_cluster_names[j] == cluster_id))
+        color = bar_colors[group_id]
+        axCDF_bar.bar(group_id - 0.18, np.mean(corr_phys[mask]), width=0.32,
+                      facecolor=color, edgecolor=color, linewidth=0.5, zorder=3)
+        axCDF_bar.bar(group_id + 0.18, np.mean(corr_svd[mask]), width=0.32,
+                      facecolor="none", edgecolor=color, linewidth=0.5, zorder=3)
+
+    axCDF_bar.set_ylabel("Mean similarity", labelpad=1)
+    axCDF_bar.axhline(0, color="black", ls=':', alpha=0.5, linewidth=0.5, zorder=-1)
+    axCDF_bar.set_axisbelow(True)
+    axCDF_bar.set_yticks([0, 0.5])
+    axCDF_bar.set_xlim(-0.55, len(clusterss) + 0.55)
+    axCDF_bar.set_xticks(range(len(clusterss) + 1), [str(c) for c in clusterss] + ["C.C."])
+    for ticklabel, color in zip(axCDF_bar.get_xticklabels(), bar_colors):
+        ticklabel.set_color(color)
+    axCDF_bar.spines[['right', 'top']].set_visible(False)
+    axCDF_bar.tick_params(length=1, pad=1)
+    default_exit_save(figCDF_bar, save_path=save_path + "_CDF_bars.png", _transparent=True)
+
+    figCD, axCD = plt.subplots(1, len(clusterss) + 1, figsize=(0.5 * (len(clusterss) + 1), 0.4),
+                              sharex=True, sharey=True, constrained_layout=True)
+    for group_id, cluster_id in enumerate(list(clusterss) + [None]):
+        mask = (cdf_cluster_names[i] != cdf_cluster_names[j]) if cluster_id is None else (
+            (cdf_cluster_names[i] == cluster_id) & (cdf_cluster_names[j] == cluster_id))
+        values_phys, values_svd = corr_phys[mask], corr_svd[mask]
+        axCD[group_id].plot(np.sort(values_phys), np.arange(1, len(values_phys) + 1) / len(values_phys),
+                           color=bar_colors[group_id], linewidth=0.5, zorder=3)
+        axCD[group_id].plot(np.sort(values_svd), np.arange(1, len(values_svd) + 1) / len(values_svd),
+                           color=bar_colors[group_id], linewidth=0.5, zorder=3, ls="--")
+    for ax in axCD:
+        ax.set_xlim(-1, 1)
+        ax.set_ylim(0, 1)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.spines[["top", "right"]].set_visible(False)
+        ax.tick_params(length=1, pad=1)
+    default_exit_save(figCD, save_path=save_path + "_PairwiseSimilarity_CD.png", _transparent=True)
 
     
     fcluster_specific_order = [
@@ -2080,8 +2152,11 @@ def get_grand_cluster_result():
 
 
 
-def feature_contribution_analysis(cf_list: list[CellFeature], task_id, n_feature, weight_alpha, feature_names):
-   
+def feature_contribution_analysis(cf_list: list[CellFeature], task_id, n_feature, weight_alpha, feature_names,
+                                  num_fcluster=6):
+    """Compare consensus similarity per K, and grand-consensus ARI/Jaccard, after feature removal."""
+    assert sum(map(len, feature_names)) == n_feature, "Feature names must match the feature-vector order and count"
+
     clustering_methods = ["KMeans", "Spectral", "Gaussian", "Agg"]
     def grand_coclustering_matrix(grid_search_result):
         return np.nanmean([np.nanmean(grid_search_result[clustering_method], axis=0) 
@@ -2089,24 +2164,30 @@ def feature_contribution_analysis(cf_list: list[CellFeature], task_id, n_feature
 
     selected_ks = np.arange(2, 11)
     selected_postfix = "_full"
+    flatten_feature_names = sum(feature_names, [])
 
-
-    grand_consensus_matrix = np.nanmean([
-        grand_coclustering_matrix(
-            consensus_grid_search(cf_list, num_of_cluster=k, weight_alpha=weight_alpha, task_id=task_id, n_features=n_feature), )
+    # Retain each K separately for the same comparison as the resampling test.
+    clustering_results = {
+        k: grand_coclustering_matrix(
+            consensus_grid_search(cf_list, num_of_cluster=k, weight_alpha=weight_alpha,
+                                  task_id=task_id, n_features=n_feature))
         for k in selected_ks
-    ], axis=0)
-    
-    
-    feature_drop_grand_consensus_matrix = {
-        feature_id: np.nanmean([
-            grand_coclustering_matrix(
+    }
+    feature_drop_clustering_results = {
+        feature_id: {
+            k: grand_coclustering_matrix(
                 consensus_grid_search(cf_list, num_of_cluster=k, n_weight=100,
                                       weight_alpha=weight_alpha,
-                                       _feature_drop_id=feature_id, task_id=task_id, n_features=n_feature),
-            ) for k in selected_ks
-        ], axis=0)
+                                      _feature_drop_id=feature_id, task_id=task_id, n_features=n_feature))
+            for k in selected_ks
+        }
         for feature_id in range(n_feature)
+    }
+    # ARI and Jaccard still use the average over K, matching the resampling test.
+    grand_consensus_matrix = np.nanmean([clustering_results[k] for k in selected_ks], axis=0)
+    feature_drop_grand_consensus_matrix = {
+        feature_id: np.nanmean([per_k[k] for k in selected_ks], axis=0)
+        for feature_id, per_k in feature_drop_clustering_results.items()
     }
 
     def compare_consensus(C, resample_C):
@@ -2123,36 +2204,99 @@ def feature_contribution_analysis(cf_list: list[CellFeature], task_id, n_feature
             "rmse": np.sqrt(np.mean((x - y) ** 2))
         }
     
-    fig, ax = plt.subplots(1, 1, figsize=(2.5, 1.2), constrained_layout=True)
+    fig, ax = plt.subplots(1, 1, figsize=(1.7, 1), constrained_layout=True)
     ax.tick_params(length=1, pad=1)
-    x_offset = 0
-    group_offset = 0.5
-    xticks, xticklabels = [], []
-    flatten_feature_names = sum(feature_names, [])
-    for feature_group_id, feature_group_names in enumerate(feature_names):
-        for feature_name in feature_group_names:
-            dissimilarity = 1 - compare_consensus(
-                grand_consensus_matrix,
-                feature_drop_grand_consensus_matrix[flatten_feature_names.index(feature_name)]
-            )["pearson"]
-            ax.bar(x_offset, dissimilarity, color='black', lw=0.5, width=0.7, alpha=0.9)
-            xticks.append(x_offset)
-            xticklabels.append(feature_name)
-            x_offset += 1
-        if feature_group_id < len(feature_names) - 1:
-            ax.axvline(x=x_offset+(group_offset - 1)/2, 
-                    color='gray', lw=0.5, linestyle='--')
-        x_offset += group_offset
-    ax.set_xticks(xticks)
-    ax.set_xticklabels(xticklabels, rotation=30, ha='right')
+    for feature_id, feature_name in enumerate(flatten_feature_names):
+        similarities = [compare_consensus(clustering_results[k],
+                                         feature_drop_clustering_results[feature_id][k])["pearson"]
+                        for k in selected_ks]
+        ax.plot(feature_id + np.linspace(-0.3, 0.3, len(selected_ks)), similarities,  
+                color='black', lw=0.5, alpha=0.9, zorder=0)
+        ax.scatter(feature_id + np.linspace(-0.3, 0.3, len(selected_ks)), similarities,
+                   color=[str(s) for s in np.linspace(0.1, 0.8, len(selected_ks))], 
+                   s=2, lw=0.5, alpha=0.9, zorder=1)
+    ax.set_xticks(range(len(flatten_feature_names)), ["Spont.\nFR",] + flatten_feature_names[1:])
+    ax.set_yticks([0, 0.5, 1])
+    # ax.set_xlabel("Feature ID", labelpad=1)
+    ax.set_ylabel("Similarity (R)", labelpad=1)
     ax.spines[["top", "right"]].set_visible(False)
-    ax.set_yticks([0, 0.1])
-    ax.set_ylabel("Dissimilarity", labelpad=1)
 
     save_path = path.join(get_saving_path(), "spv_clustering", task_id, "overall",
-                                    f"feature_contribution_alpha{weight_alpha}_{selected_postfix}.png")
+                         f"feature_contribution_alpha{weight_alpha}_{selected_postfix}.png")
     default_exit_save(fig, save_path=save_path, _transparent=True)
+
     
+
+    def get_fcluster_labels(C):
+        Z = linkage(squareform(1 - C, checks=True), method="average")
+        return fcluster(Z, t=num_fcluster, criterion="maxclust")
+
+    grand_labels = get_fcluster_labels(grand_consensus_matrix)
+    ref_clusters = np.unique(grand_labels)
+    feature_drop_labels = {
+        feature_id: get_fcluster_labels(C)
+        for feature_id, C in feature_drop_grand_consensus_matrix.items()
+    }
+    ari_scores = [adjusted_rand_score(grand_labels, feature_drop_labels[feature_id])
+                  for feature_id in range(n_feature)]
+    
+    jaccard_scores = {
+        feature_id: {
+            ref_cluster: max(jaccard_score(grand_labels == ref_cluster, labels == drop_cluster,
+                                          average="binary", zero_division=0)
+                             for drop_cluster in np.unique(labels))
+            for ref_cluster in ref_clusters
+        }
+        for feature_id, labels in feature_drop_labels.items()
+    }
+
+    fig, ax = plt.subplots(1, 1, figsize=(1.9, 1), constrained_layout=True)
+    ax.tick_params(length=1, pad=1)
+    
+    ax.set_xticks(range(len(flatten_feature_names)), ["Spont.\nFR",] + flatten_feature_names[1:])
+
+
+    ax2 = ax.twinx()
+    ax2.set_zorder(0)
+    
+    for feature_id in range(n_feature):
+        ax2.plot(feature_id + np.linspace(-0.3, 0.3, 6),
+                [jaccard_scores[feature_id][ref_cluster] for ref_cluster in ref_clusters],
+                color='black', lw=0.5, alpha=0.9, zorder=0)
+        ax2.scatter(feature_id + np.linspace(-0.3, 0.3, 6),
+                [jaccard_scores[feature_id][ref_cluster] for ref_cluster in ref_clusters],
+                color=[CLUSTER_COLORS[ref_cluster] for ref_cluster in ref_clusters],
+                s=3, lw=0.5, alpha=0.9, zorder=1, clip_on=False)
+    ax2.set_ylim(0, 1)
+    ax2.set_yticks([0, 0.5, 1])
+
+    
+    ax2.set_ylabel('Jaccard Index', labelpad=1)
+    ax2.tick_params(axis='y', colors='black', length=1, pad=1)
+    ax2.spines['right'].set_color('black')
+    
+    ax2.spines[["top", "left"]].set_visible(False)
+
+    ax.set_ylabel('Adj. Rand Index', labelpad=1, color='gray')
+    ax.tick_params(axis='y', colors='gray', length=1, pad=1)
+    ax.spines['left'].set_color('gray')
+    ax.spines[["top", "right"]].set_visible(False)
+
+    ax.set_yticks([-1, 0, 1])
+    ax.set_ylim(-1, 1)
+
+    ax.scatter(np.arange(n_feature), ari_scores, color='gray',
+               s=6, lw=0.5, alpha=0.9, zorder=100, marker='^')
+    ax.plot(np.arange(n_feature), ari_scores, color='gray', 
+            lw=0.5, alpha=0.9, ls='--', zorder=50)
+    
+
+
+    save_path = path.join(get_saving_path(), "spv_clustering", task_id, "overall",
+                            f"feature_contribution_alpha{weight_alpha}_ari_clusters{num_fcluster}_{selected_postfix}.png")
+    default_exit_save(fig, save_path=save_path, _transparent=True)
+
+
     
    
 
@@ -2162,4 +2306,4 @@ if __name__ == "__main__":
         test_vec = np.concatenate([random_weight_vec(length=13, alpha=test_alpha, seed=test_seed) 
                                    for test_seed in range(5)])
         print(f"Alpha: {test_alpha}, Vector: {np.sort(test_vec)}"\
-                f": 90th: {np.percentile(test_vec, 90):.3f}, 10th: {np.percentile(test_vec, 10):.3f}, Median: {np.median(test_vec):.3f}, SD: {np.std(test_vec):.3f}")
+                f": 95th: {np.percentile(test_vec, 95):.3f}, 5th: {np.percentile(test_vec, 5):.3f}, Median: {np.median(test_vec):.3f}, SD: {np.std(test_vec):.3f}")

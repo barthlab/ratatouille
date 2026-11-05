@@ -256,7 +256,7 @@ LEGEND_STYLE = {
 
 VSPAN_STYLE = {
     "lw": 0,
-    "alpha": 0.3,
+    "alpha": 0.4,
     "zorder": -10,
 }
 

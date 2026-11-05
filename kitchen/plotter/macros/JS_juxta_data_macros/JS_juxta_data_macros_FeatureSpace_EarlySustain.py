@@ -97,7 +97,7 @@ def VisualizeExample_Physiology_Fingerprint_Vertical(annotated: bool=True, bon_f
                         alpha=0.9,)
             annotate_data[cohort_id+0.4] = values
         if annotated:
-            basic_ttest.stats_pairwise_unpaired_ttest(annotate_data, ax, bon_ferroni_adj=bon_ferroni_adj)
+            basic_ttest.stats_anova(annotate_data, ax, bon_ferroni_adj=bon_ferroni_adj)
             for x_coor, y_values in annotate_data.items():
                 ax.text(x_coor, np.nanmean(y_values), f"{np.nanmean(y_values):.2f}±{np.nanstd(y_values):.2f}", 
                         ha='center', va='bottom', fontsize=3)
@@ -209,7 +209,7 @@ def VisualizeExample_Physiology_Fingerprint_EarlyVsSustained():
         ax.set_ylabel("Spike rate (Hz)", labelpad=1)
         ax.set_yticks([0, 1, 10, 100] + [i for i in range(2, 10)] + [i for i in range(20, 100, 10)] + [200,], 
                       labels=["0", "1", "10", "100"] + ["",]*17)
-    for zorder_id, (cohort_id, cohort_name) in enumerate(zip([0, 1, 2,], ["SST_JUX", "PV_JUX",  "PYR_JUX", ])):
+    for zorder_id, (cohort_id, cohort_name) in enumerate(zip([0, 1, 2, 0], ["SST_JUX", "PV_JUX",  "PYR_JUX", "SST_WC" ])):
         
         cohort_data = combined_physiology[combined_physiology["cohort_name"] == cohort_name]
         baseline_spont_FR = cohort_data["Spont. FR [Hz]"].values
@@ -409,7 +409,7 @@ def VisualizeExample_Physiology_Fingerprint_EarlyVsSustained():
 
 
 
-def VisualizeExample_Physiology_Fingerprint_EarlySpikeDistribution():
+def VisualizeExample_Physiology_Fingerprint_EarlySpikeDistribution(k: int=100):
 
     
     import matplotlib.pyplot as plt    
@@ -419,7 +419,9 @@ def VisualizeExample_Physiology_Fingerprint_EarlySpikeDistribution():
     plt.rcParams["font.size"] = 6
     
     fig, ax = plt.subplots(1, 1, figsize=(2.5, 2.5), constrained_layout=True)
+    fig_500100, ax_500100 = plt.subplots(1, 1, figsize=(2.5, 2), constrained_layout=True)
     fig_dist, ax_dist = plt.subplots(1, 1, figsize=(1.5, 1.5), constrained_layout=True)
+    fig_dist_500100, ax_dist_500100 = plt.subplots(1, 1, figsize=(1.5, 1.5), constrained_layout=True)
     global_LFP = []
 
     def _good_cell(cell_spike_timing):
@@ -429,6 +431,7 @@ def VisualizeExample_Physiology_Fingerprint_EarlySpikeDistribution():
 
     global_y_offset = 0
     annotate_data = {}
+    annotate_data_500100 = {}
     for cohort_id, cohort_name_group in zip([2, 1, 0], [["SST_JUX", "SST_WC"], ["PV_JUX",],  ["PYR_JUX", "PYR_WC"]]):
 
         puff_trials_500ms, puff_trials_100ms = [], []
@@ -468,7 +471,7 @@ def VisualizeExample_Physiology_Fingerprint_EarlySpikeDistribution():
                      color=COHORT_BRIGHTER_COLORS[cohort_name_group[0]], lw=1, zorder=-1, alpha=0.9)
         print(f"{cohort_name_group}: Median early spike times for all cells: {np.mean(median_all):.3f}+/-{np.std(median_all):.3f}")
         annotate_data[cohort_name_group[0]] = median_all
-
+        
 
         sort_order_500ms = np.argsort(median_early_spike_500ms)
         sort_order_100ms = np.argsort(median_early_spike_100ms)
@@ -485,24 +488,70 @@ def VisualizeExample_Physiology_Fingerprint_EarlySpikeDistribution():
                         alpha=0.3, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10,)
         global_y_offset -= 1
 
-        # if len(puff_trials_100ms_sorted) == 0 or not "SST_JUX" in cohort_name_group:
-        #     global_y_offset -= 1
-        #     continue
-        # for cell_data in puff_trials_100ms_sorted:
-        #     ax.eventplot(np.concatenate(cell_data), lineoffsets=global_y_offset,
-        #                      orientation='horizontal', linelengths=1, linewidths=0.2,
-        #                      color=COHORT_COLORS[cohort_name_group[0]])
-        #     global_y_offset -= 1
-        # ax.fill_betweenx(y=[global_y_offset+0.5, global_y_offset + len(puff_trials_100ms_sorted)+0.5],
-        #                  x1=0, x2=0.1 * 1000,
-        #                  alpha=0.3, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10,)
+        if "SST_JUX" in cohort_name_group:
+            median_early_spike_100ms = np.array(median_early_spike_100ms)
+            median_early_spike_100ms = median_early_spike_100ms[median_early_spike_100ms>16]
+            median_early_spike_100ms = median_early_spike_100ms[~np.isnan(median_early_spike_100ms)]
+            median_early_spike_500ms = np.array(median_early_spike_500ms)
+            median_early_spike_500ms = median_early_spike_500ms[median_early_spike_500ms>16]
+            median_early_spike_500ms = median_early_spike_500ms[~np.isnan(median_early_spike_500ms)]
+            annotate_data_500100[cohort_name_group[0]+"_100ms"] = median_early_spike_100ms
+            annotate_data_500100[cohort_name_group[0]+"_500ms"] = median_early_spike_500ms
+            ax_dist_500100.scatter(np.sort(median_early_spike_500ms), 
+                            np.arange(1, 1 + len(median_early_spike_500ms))/len(median_early_spike_500ms),
+                                    facecolor=COHORT_BRIGHTER_COLORS[cohort_name_group[0]], edgecolor='black',
+                                    s=7, lw=0.5, alpha=0.9, zorder=10)
+            ax_dist_500100.plot(np.sort(median_early_spike_500ms), np.arange(1, 1 + len(median_early_spike_500ms))/len(median_early_spike_500ms),
+                            color=COHORT_BRIGHTER_COLORS[cohort_name_group[0]], lw=1, zorder=-1, alpha=0.9)
+            ax_dist_500100.scatter(np.sort(median_early_spike_100ms), 
+                            np.arange(1, 1 + len(median_early_spike_100ms))/len(median_early_spike_100ms),
+                                    facecolor='white', edgecolor=COHORT_BRIGHTER_COLORS[cohort_name_group[0]],
+                                    s=7, lw=0.5, alpha=0.9, zorder=10)
+            ax_dist_500100.plot(np.sort(median_early_spike_100ms), np.arange(1, 1 + len(median_early_spike_100ms))/len(median_early_spike_100ms),
+                            color=COHORT_BRIGHTER_COLORS[cohort_name_group[0]], lw=1, zorder=-1, alpha=0.9, ls='--')
+            print(f"Median early spike 100ms: {np.mean(median_early_spike_100ms):.3f} +/- {np.std(median_early_spike_100ms):.3f}")
+            print(f"Median early spike 500ms: {np.mean(median_early_spike_500ms):.3f} +/- {np.std(median_early_spike_500ms):.3f}")
+            
+            
+            tmp_y_offset = 0
+            for cell_data in puff_trials_500ms_sorted:
+                ax_500100.eventplot(np.concatenate(cell_data[: k]), lineoffsets=tmp_y_offset,
+                                    orientation='horizontal', linelengths=1, linewidths=0.3,
+                                    color=COHORT_COLORS[cohort_name_group[0]])
+                cell_median = np.median(np.concatenate([trial[np.where((trial < 40) & (trial > 0))] 
+                                                              for trial in cell_data[:k]])) 
+                ax_500100.scatter(cell_median, tmp_y_offset, facecolor='white', edgecolor='black',
+                                    s=7, lw=0.5, alpha=0.9, zorder=10, marker='*')
+                                    
+                tmp_y_offset -= 1           
+            
+            ax_500100.fill_betweenx(y=[tmp_y_offset+0.5, tmp_y_offset + len(puff_trials_500ms_sorted)+0.5],
+                            x1=0, x2=0.5 * 1000,
+                            alpha=0.3, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10,)
+            
+            tmp_y_offset -= 1
+            for cell_data in puff_trials_100ms_sorted:
+                ax_500100.eventplot(np.concatenate(cell_data[: k]), lineoffsets=tmp_y_offset,
+                                    orientation='horizontal', linelengths=1, linewidths=0.3,
+                                    color=COHORT_COLORS[cohort_name_group[0]])
+                cell_median = np.median(np.concatenate([trial[np.where((trial < 40) & (trial > 0))] 
+                                                              for trial in cell_data[: k]])) 
+                ax_500100.scatter(cell_median, tmp_y_offset, facecolor='white', edgecolor='black',
+                                    s=7, lw=0.5, alpha=0.9, zorder=10, marker='*')
+                tmp_y_offset -= 1
+            
+            
+            ax_500100.fill_betweenx(y=[tmp_y_offset+0.5, tmp_y_offset + len(puff_trials_100ms_sorted)+0.5],
+                            x1=0, x2=0.1 * 1000,
+                            alpha=0.3, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10,)
         global_y_offset -= 1
 
 
     global_y_offset -= 5
+    tmp_y_offset -= 5
     all_global_LFP = grouping_timeseries(global_LFP)
     ax.plot(all_global_LFP.t * 1000, all_global_LFP.v * 10 + global_y_offset, color="k", lw=1,)
-
+    
     ax.tick_params(
         length=1,
         pad=1     
@@ -514,6 +563,19 @@ def VisualizeExample_Physiology_Fingerprint_EarlySpikeDistribution():
     ax.axvline(20, color='gray', lw=0.5, ls="--", zorder=-1)
     ax.set_xlabel("Time from puff onset (ms)", labelpad=1)
 
+    ax_500100.plot(all_global_LFP.t * 1000, all_global_LFP.v * 10 + tmp_y_offset, color="k", lw=1,)
+    
+    ax_500100.tick_params(
+        length=1,
+        pad=1     
+    )
+    ax_500100.spines[['right', 'top']].set_visible(False)
+    ax_500100.set_xlim(-20, 120)
+    ax_500100.set_xticks([0, 40, 80, ])
+    ax_500100.axvline(0, color='gray', lw=0.5, ls="--", zorder=-1)
+    ax_500100.axvline(20, color='gray', lw=0.5, ls="--", zorder=-1)
+    ax_500100.set_xlabel("Time from puff onset (ms)", labelpad=1)
+
     ax_dist.tick_params(
         length=1,
         pad=1     
@@ -524,12 +586,30 @@ def VisualizeExample_Physiology_Fingerprint_EarlySpikeDistribution():
     ax_dist.set_xlabel("Median early spike time (ms)", labelpad=1)
     ax_dist.set_ylabel("Cumulative distribution", labelpad=1)
 
+    ax_dist_500100.tick_params(
+        length=1,
+        pad=1     
+    )
+    ax_dist_500100.spines[['right', 'top']].set_visible(False)
+    ax_dist_500100.set_xticks([18, 20, 22, 24, 26])
+    ax_dist_500100.set_yticks([0, 0.5, 1], ["0%", "50%", "100%"])
+    ax_dist_500100.set_xlabel("Median early spike time (ms)", labelpad=1)
+    ax_dist_500100.set_ylabel("Cumulative distribution", labelpad=1)
+
 
     save_path = path.join(get_saving_path(), "Physiology_Fingerprint", f"EarlySpikeDistribution.png")
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
     fig.savefig(save_path, dpi=500, transparent=True)
     plt.close(fig)
+    logger.info("Plot saved to " + save_path)
+
+
+    save_path = path.join(get_saving_path(), "Physiology_Fingerprint", f"EarlySpikeDistribution_500100_{k}.png")
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+    fig_500100.savefig(save_path, dpi=500, transparent=True)
+    plt.close(fig_500100)
     logger.info("Plot saved to " + save_path)
 
     save_path = path.join(get_saving_path(), "Physiology_Fingerprint", f"EarlySpikeDistribution_CDF.png")
@@ -544,6 +624,200 @@ def VisualizeExample_Physiology_Fingerprint_EarlySpikeDistribution():
     fig_dist.savefig(save_path, dpi=500, transparent=True)
     plt.close(fig_dist)
     logger.info("Plot saved to " + save_path)
+
+    save_path = path.join(get_saving_path(), "Physiology_Fingerprint", f"EarlySpikeDistribution_CDF_500100.png")
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+    fig_dist_500100.savefig(save_path, dpi=500, transparent=True)
+    logger.info("Plot saved to " + save_path)
+
+    
+    basic_ttest.stats_pairwise_ks(annotate_data_500100, ax=ax_dist_500100)
+    save_path = path.join(get_saving_path(), "Physiology_Fingerprint", f"EarlySpikeDistribution_CDF_500100_annotated.png")
+    fig_dist_500100.savefig(save_path, dpi=500, transparent=True)
+    plt.close(fig_dist_500100)
+    logger.info("Plot saved to " + save_path)
+
+
+
+
+def VisualizeExample_Physiology_Fingerprint_EarlySpikeDistribution_vs_EarlyLateFR():
+
+    
+    import matplotlib.pyplot as plt    
+    import seaborn as sns
+
+    plt.rcParams["font.family"] = "Arial"
+    plt.rcParams["font.size"] = 6
+    
+    fig, axs = plt.subplots(1, 2, figsize=(2.5, 1.5), constrained_layout=True)
+    global_LFP = []
+
+    def _good_cell(cell_spike_timing):
+        num_trial = len(cell_spike_timing)
+        total_spike_time = sum([np.sum((-1000<=trial) & (trial<=1500)) for trial in cell_spike_timing])
+        return num_trial >= 5 and total_spike_time >= 1
+
+    for cohort_id, cohort_name_group in zip([2, 1, 0], [["SST_JUX", "SST_WC"], ["PV_JUX",],  ["PYR_JUX", "PYR_WC"]]):
+
+        puff_trials_500ms, puff_trials_100ms = [], []
+        for cohort_name in cohort_name_group:
+            trial_wise_spike_timing = get_trial_wise_spike_timing_features(cohort_name)
+            all_trial_type = trial_wise_spike_timing["all_trial_type"]
+            indices_500ms = np.where(all_trial_type == "500msPuff")[0]
+            indices_100ms = np.where(all_trial_type == "100msPuff")[0]
+            if len(indices_500ms) > 0:
+                puff_trials_500ms.extend([trial_wise_spike_timing["all_spikes"][i] for i in indices_500ms
+                                          if _good_cell(trial_wise_spike_timing["all_spikes"][i])])
+            if len(indices_100ms) > 0:
+                puff_trials_100ms.extend([trial_wise_spike_timing["all_spikes"][i] for i in indices_100ms
+                                          if _good_cell(trial_wise_spike_timing["all_spikes"][i])])
+
+            if "WC" not in cohort_name:
+                LFP_t, all_LFP = get_all_cellsession_LFP_mean(cohort_name)
+                global_LFP.append(TimeSeries(t=LFP_t, v=np.mean(all_LFP, axis=0)))
+
+        print(f"{cohort_name_group}: Found {len(puff_trials_500ms)} cells for 500ms puff and {len(puff_trials_100ms)} cells for 100ms puff.")
+
+        median_early_spike_500ms = [np.median(np.concatenate([trial[np.where((trial < 40) & (trial > 0))] 
+                                                              for trial in cell_data])) 
+                                    for cell_data in puff_trials_500ms]
+
+        
+        median_all = np.array(median_early_spike_500ms)
+        valid_index = ~np.isnan(median_all) & (median_all > 16)
+
+        early_fr_500ms = np.array([np.mean([len(trial[np.where((trial < 40) & (trial > 0))] )
+                                   for trial in cell_data]) for cell_data in puff_trials_500ms])
+        late_fr_500ms = np.array([np.mean([len(trial[np.where((trial >= 40) & (trial <= 500))] )
+                                for trial in cell_data]) for cell_data in puff_trials_500ms])
+        axs[0].scatter(median_all[valid_index], early_fr_500ms[valid_index],
+                       facecolor=COHORT_BRIGHTER_COLORS[cohort_name_group[0]], edgecolor='black',
+                                               s=7, lw=0.5, alpha=0.9, zorder=10)
+        axs[1].scatter(median_all[valid_index], late_fr_500ms[valid_index],
+                       facecolor=COHORT_BRIGHTER_COLORS[cohort_name_group[0]], edgecolor='black',
+                                               s=7, lw=0.5, alpha=0.9, zorder=10)
+        axs[0].set_ylabel("Early FR (Hz)")
+        axs[1].set_ylabel("Late FR (Hz)")
+        # basic_ttest.add_linear_regression(axs[0], median_all[valid_index], early_fr_500ms[valid_index],
+        #                                   theme_color = COHORT_BRIGHTER_COLORS[cohort_name_group[0]],
+        #                                   offsets=cohort_id/10)
+        # basic_ttest.add_linear_regression(axs[1], median_all[valid_index], late_fr_500ms[valid_index],
+        #                                   theme_color = COHORT_BRIGHTER_COLORS[cohort_name_group[0]],
+        #                                   offsets=cohort_id/10)
+
+
+    for ax in axs:
+        ax.tick_params(
+            length=1,
+            pad=1     
+        )
+        ax.spines[['right', 'top']].set_visible(False)
+        # ax.set_xlim(15, 30)
+        # ax.set_xticks([15, 20, 25, 30])
+        ax.axvline(20, color='gray', lw=0.5, ls="--", zorder=-1)
+        ax.set_xlabel("Time from puff onset (ms)", labelpad=1)
+
+    save_path = path.join(get_saving_path(), "Physiology_Fingerprint", f"EarlySpikeDistribution_vs_earlylateFR.png")
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+    fig.savefig(save_path, dpi=500, transparent=True)
+    plt.close(fig)
+    logger.info("Plot saved to " + save_path)
+
+
+
+def VisualizeExample_Physiology_Fingerprint_lateFR_evolution(k=25):
+
+    
+    import matplotlib.pyplot as plt    
+    import seaborn as sns
+
+    plt.rcParams["font.family"] = "Arial"
+    plt.rcParams["font.size"] = 6
+    
+    fig, axs = plt.subplots(3, 1, figsize=(1, 2.5), constrained_layout=True)
+    # fig, axs = plt.subplots(3, 1, figsize=(2.5, 2.5), constrained_layout=True)
+    global_LFP = []
+
+    def _good_cell(cell_spike_timing):
+        num_trial = len(cell_spike_timing)
+        total_spike_time = sum([np.sum((-1000<=trial) & (trial<=1500)) for trial in cell_spike_timing])
+        return num_trial >= 5 and total_spike_time >= 1
+
+    for cohort_id, cohort_name_group in zip([2, 1, 0], [["SST_JUX", "SST_WC"], ["PV_JUX",],  ["PYR_JUX", "PYR_WC"]]):
+
+        puff_trials_500ms, puff_trials_100ms = [], []
+        for cohort_name in cohort_name_group:
+            trial_wise_spike_timing = get_trial_wise_spike_timing_features(cohort_name)
+            all_trial_type = trial_wise_spike_timing["all_trial_type"]
+            indices_500ms = np.where(all_trial_type == "500msPuff")[0]
+            indices_100ms = np.where(all_trial_type == "100msPuff")[0]
+            if len(indices_500ms) > 0:
+                puff_trials_500ms.extend([trial_wise_spike_timing["all_spikes"][i] for i in indices_500ms
+                                          if _good_cell(trial_wise_spike_timing["all_spikes"][i])])
+            if len(indices_100ms) > 0:
+                puff_trials_100ms.extend([trial_wise_spike_timing["all_spikes"][i] for i in indices_100ms
+                                          if _good_cell(trial_wise_spike_timing["all_spikes"][i])])
+
+            if "WC" not in cohort_name:
+                LFP_t, all_LFP = get_all_cellsession_LFP_mean(cohort_name)
+                global_LFP.append(TimeSeries(t=LFP_t, v=np.mean(all_LFP, axis=0)))
+
+        print(f"{cohort_name_group}: Found {len(puff_trials_500ms)} cells for 500ms puff and {len(puff_trials_100ms)} cells for 100ms puff.")
+
+        
+
+        early_fr_500ms = np.array([np.mean([len(trial[np.where((trial < 40) & (trial > 0))] )
+                                   for trial in cell_data]) for cell_data in puff_trials_500ms])
+        late_fr_500ms = np.array([np.mean([len(trial[np.where((trial >= 40) & (trial <= 500))] )
+                                for trial in cell_data]) for cell_data in puff_trials_500ms])
+
+        full_data_x, full_data_y = [], []
+        for cell_data in puff_trials_500ms:
+            late_frs = [len(trial[np.where((trial >= 40) & (trial <= 500))] ) for trial in cell_data]
+            axs[cohort_id].scatter(np.arange(len(late_frs))[:k], late_frs[:k],
+                    facecolor=COHORT_BRIGHTER_COLORS[cohort_name_group[0]], edgecolor='none',
+                                               s=1, lw=0.2, alpha=0.5, zorder=-2.5)
+            
+            # axs[cohort_id].plot(np.arange(len(late_frs)), late_frs,
+            #                 color=COHORT_BRIGHTER_COLORS[cohort_name_group[0]], lw=0.5, zorder=-3, alpha=0.5)
+            full_data_x.extend(np.arange(len(late_frs))[:k])
+            full_data_y.extend(late_frs[:k])
+        avg_late_fr = []
+        for k in range(k):
+            avg_late_fr.append(np.mean([
+                len(cell_data[k][np.where((cell_data[k] >= 40) & (cell_data[k] <= 500))] )
+
+                for cell_data in puff_trials_500ms if len(cell_data) > k
+            ]))
+        axs[cohort_id].plot(np.arange(len(avg_late_fr)), avg_late_fr,
+                            color='black', lw=0.5, zorder=-2, alpha=0.9)
+        axs[cohort_id].scatter(np.arange(len(avg_late_fr)), avg_late_fr,
+                               facecolor=COHORT_BRIGHTER_COLORS[cohort_name_group[0]], edgecolor='black', 
+                               s=3, lw=0.5, alpha=0.9, zorder=-1)
+        # axs[cohort_id].axhline(np.mean(avg_late_fr), color='gray', lw=0.5, ls="--", zorder=-1.5)
+        basic_ttest.add_linear_regression(axs[cohort_id], full_data_x, full_data_y)
+
+    for ax in axs:
+        ax.tick_params(
+        length=1,
+        pad=1     
+    )
+        ax.spines[['right', 'top']].set_visible(False)
+        # ax.set_xlim(15, 30)
+        # ax.set_xticks([15, 20, 25, 30])
+        # ax.axvline(20, color='gray', lw=0.5, ls="--", zorder=-1)
+        ax.set_xlabel("Trial #", labelpad=1)
+        ax.set_ylabel("Late FR (Hz)", labelpad=1)
+
+    save_path = path.join(get_saving_path(), "Physiology_Fingerprint", f"LateFR_evolution.png")
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+    fig.savefig(save_path, dpi=500, transparent=True)
+    plt.close(fig)
+    logger.info("Plot saved to " + save_path)
+
 
 
 
@@ -698,9 +972,9 @@ def VisualizeExample_Physiology_Fingerprint_EarlySpikeIndicatedTrailState(_annot
             # ax.plot(list(sustained_cell.keys()), list(sustained_cell.values()), 
             #            color=COHORT_BRIGHTER_COLORS[cohort_name], lw=0.5, alpha=0.2)
             ax.plot([0+intrude_offset, 1-intrude_offset], [lfp_cell[0], lfp_cell[1]], 
-                       color=COHORT_BRIGHTER_COLORS[cohort_name], lw=0.5, alpha=0.7, zorder=cohort_id)
+                       color=COHORT_COLORS[cohort_name], lw=0.5, alpha=0.7, zorder=cohort_id)
             ax.plot([1+intrude_offset, 2-intrude_offset], [lfp_cell[1], lfp_cell[2]], 
-                       color=COHORT_BRIGHTER_COLORS[cohort_name], lw=0.5, alpha=0.7, zorder=cohort_id)
+                       color=COHORT_COLORS[cohort_name], lw=0.5, alpha=0.7, zorder=cohort_id)
         print(cohort_name, [len(sustained_summary[i]) for i in range(3)], [len(lfp_summary[i]) for i in range(3)])
         avg_sustained = {key: np.mean(value) for key, value in sorted(sustained_summary.items(), key=lambda item: item[0])}
         avg_lfp = {key: np.mean(value) for key, value in sorted(lfp_summary.items(), key=lambda item: item[0])}
@@ -723,7 +997,7 @@ def VisualizeExample_Physiology_Fingerprint_EarlySpikeIndicatedTrailState(_annot
         ax.errorbar(np.array(list(avg_lfp.keys())) + cohort_offset, list(avg_lfp.values()), yerr=list(std_lfp.values()), 
                       fmt="o",
                         markeredgecolor="black",
-                        markerfacecolor=COHORT_BRIGHTER_COLORS[cohort_name],
+                        markerfacecolor=COHORT_COLORS[cohort_name],
                         markeredgewidth=0.5,
                         markersize=3,
                         ecolor='black',
@@ -742,6 +1016,7 @@ def VisualizeExample_Physiology_Fingerprint_EarlySpikeIndicatedTrailState(_annot
         )
         ax.set_xlabel("Early spike number (#)", labelpad=1)
         ax.set_ylabel("Mean LFP amplitude (mV)", labelpad=1)
+        ax.set_ylim(-3, 0.2)
         ax.set_xticks([0, 1, 2], ["0", "1", "2+"])
         ax.axhline(0, color='gray', lw=0.5, ls='--', zorder=-1)
         ax.spines[['right', 'top']].set_visible(False)

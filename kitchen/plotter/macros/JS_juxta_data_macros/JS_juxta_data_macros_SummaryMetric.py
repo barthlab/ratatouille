@@ -602,26 +602,30 @@ def SummaryMetric_Waveform(
 
 
 
-    fig, axs = plt.subplots(3, 3, figsize=(4, 4), 
-                            sharey='row', sharex='col', constrained_layout=True)
-    for dataset_index, dataset_name in enumerate(("SST_JUX", "PV_JUX",  "PYR_JUX", ) ):        
-        color_scheme.POTENTIAL_COLOR = COHORT_BRIGHTER_COLORS[dataset_name]
-        style_dicts.POTENTIAL_TRACE_STYLE["color"] = COHORT_BRIGHTER_COLORS[dataset_name]
+    fig, axs = plt.subplots(3, 5, figsize=(4, 2.5), 
+                            sharey='all', sharex='col', constrained_layout=True)
+    for dataset_index, dataset_name in enumerate(("SST_JUX", "SST_WC", "PV_JUX",  "PYR_JUX", "PYR_WC") ):        
+        color_scheme.POTENTIAL_COLOR = COHORT_COLORS[dataset_name]
+        style_dicts.POTENTIAL_TRACE_STYLE["color"] = COHORT_COLORS[dataset_name]
         for spike_type_id, spike_type in enumerate(("early_spike", "sustained_spike", "regular_spike")):
             waveform_t, all_waveforms, _ = get_all_cellsession_type_specific_Waveform_mean(dataset_name, spike_type)
             baseline = np.mean(all_waveforms[:, waveform_t < -1/1000],)
-            oreo_plot(axs[dataset_index, spike_type_id], AdvancedTimeSeries(t=waveform_t * 1000, 
+            n_cells = all_waveforms.shape[0]
+            ax = axs[spike_type_id, dataset_index]
+            oreo_plot(ax, AdvancedTimeSeries(t=waveform_t * 1000, 
                                             v=np.mean(all_waveforms, axis=0) - baseline, 
                                             variance=np.std(all_waveforms, axis=0), 
                                             raw_array=all_waveforms), 0, 1, 
-                        {"color": COHORT_BRIGHTER_COLORS[dataset_name], "lw": 1., "alpha": 0.9, "zorder": -dataset_index},
+                        {"color": COHORT_COLORS[dataset_name], "lw": 1., "alpha": 0.9, "zorder": -dataset_index},
                         style_dicts.FILL_BETWEEN_STYLE | {"alpha": 0.3, "zorder": -dataset_index})
-            # ax.axhline(dataset_index * y_offset, color=COHORT_COLORS[dataset_name], 
+            # axs[spike_type_id, dataset_index].axhline(dataset_index * y_offset, color=COHORT_COLORS[dataset_name], 
             #            linestyle='--', lw=1, alpha=0.5, zorder=-10)
-            axs[0, spike_type_id].set_title(spike_type.replace("_", " ").title())
+            axs[spike_type_id, 0].set_ylabel(spike_type.replace("_", " ").title())
+        axs[0, dataset_index].text(1, 1, f"n={n_cells}", transform=axs[0, dataset_index].transAxes, ha='right', va='top', fontsize=6)
     for ax in axs.flatten():
-        ax.spines[['right', 'top', 'bottom']].set_visible(False)
-        ax.set_xticks([])
+        ax.spines[['right', 'top', 'bottom', 'left']].set_visible(False)
+        # ax.set_xticks([])
+        ax.tick_params(length=0, pad=1,)
         # ax.set_yticks([])   
     
     # ax.set_xlabel("Time [ms]")

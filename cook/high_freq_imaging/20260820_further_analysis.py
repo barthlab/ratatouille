@@ -41,12 +41,12 @@ def state_dependent_analysis():
     plot_manual = PlotManual(whisker=True, fluorescence=True, locomotion=True)
 
     register_staining_info(dataset, create_small_pic=False, create_big_pic=False)
-    # visualize_single_cell_state_dependent(dataset, plot_small_pic=False)
+    visualize_single_cell_state_dependent(dataset, plot_small_pic=False)
 
     
 
 if __name__ == "__main__":
-    sort_all_cell_activity()
+    # sort_all_cell_activity()
     # deconv_clustering_analysis(_visualize=True)
-    # celltype_assignment_analysis()
+    celltype_assignment_analysis()
     # state_dependent_analysis()

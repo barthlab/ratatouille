@@ -158,12 +158,12 @@ def stats_pairwise_paired_ttest(data: dict[tuple[int, int], tuple[np.ndarray | l
                 ha='center', va='bottom', fontsize=3)
 
 
-def stats_pairwise_ks(data: dict[str, np.ndarray | list], ax, loc='upper left'):
+def stats_pairwise_ks(data: dict[str, np.ndarray | list], ax, loc='upper left', bon_ferroni_adj: int=1):
     pairs = list(combinations(data, 2))
 
     # Pairwise KS tests + FDR correction
     pvals = [ks_2samp(data[a], data[b]).pvalue for a, b in pairs]
-    padj = multipletests(pvals, method='bonferroni')[1]
+    padj = multipletests(pvals, method='bonferroni')[1] * bon_ferroni_adj
 
     # Format significance
     lines = [f'{a} vs {b}: {get_stars(p)} (p={p:.3g})'
