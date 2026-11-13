@@ -2,6 +2,7 @@ import logging
 
 from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_FeatureSpace import Visualize_ISI_distribution, Visualize_Waveform, VisualizeACG, get_all_physiology_features, get_combined_variability_physiology, get_weight_tuple_Decomposition_Weights, get_weight_tuple_PSTH, get_weight_tuple_Physiology_Fingerprint, get_weight_tuple_Waveform, simple_Landscope_feature_space, simple_pairwise_correlation_matrix, simple_pairwise_distance_distribution, simple_feature_correlation_matrix
 from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_FeatureSpace_EarlySustain import VisualizeExample_Physiology_Fingerprint_EarlySpikeDistribution, VisualizeExample_Physiology_Fingerprint_EarlySpikeDistribution_vs_EarlyLateFR, VisualizeExample_Physiology_Fingerprint_EarlySpikeIndicatedTrailState, VisualizeExample_Physiology_Fingerprint_EarlyVsSustained, VisualizeExample_Physiology_Fingerprint_Vertical, VisualizeExample_Physiology_Fingerprint_lateFR_evolution
+from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_SPVtypes import get_grand_cluster_result
 from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_Settings import COHORT_COLORS
 from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_StabilityTestSVD import stability_test_SVD, variability_visualize
 from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_StateDependency import Visualize_Variability_of_ephysiology
@@ -25,8 +26,8 @@ def analyze_physiology_fingerprint():
     # Visualize_ISI_distribution()
     # VisualizeExample_Physiology_Fingerprint_Vertical(bon_ferroni_adj=5)
     # VisualizeExample_Physiology_Fingerprint_EarlyVsSustained()
-    # for k in (2, 4, 6, 8, 10, 12, 14, 16, 18, ):
-    #     VisualizeExample_Physiology_Fingerprint_EarlySpikeDistribution(k=k)
+    for k in (2, 4, 6, 8, 10, 12, 14, 16, 18, 99):
+        VisualizeExample_Physiology_Fingerprint_EarlySpikeDistribution(k=k)
     VisualizeExample_Physiology_Fingerprint_lateFR_evolution()
     # VisualizeExample_Physiology_Fingerprint_EarlySpikeDistribution_vs_EarlyLateFR()
     # VisualizeExample_Physiology_Fingerprint_EarlySpikeIndicatedTrailState(_annotate=False)
@@ -126,7 +127,8 @@ def decomposition_stability_test():
 
 def temporal_pattern():
     # temporal_pattern_SVD('raw', binsize=5/1000)
-    temporal_pattern_Early_spike()
+    for k in (15,):
+        temporal_pattern_Early_spike(k=k)
     # temporal_pattern_early_vs_sustained()
     # temporal_pattern_variability_visualize('raw', binsize=10/1000)
 
@@ -150,15 +152,30 @@ def compare_modality():
     corr_matrix_compare_modality_by_clusters(ephys_matrix, ephys_node_names, svd_matrix, svd_node_names)
 
 
+def data_availability_report():
+    from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_Dataavailability import visualize_data_availability, visualize_data_habituation
+    # visualize_data_availability("500msPuff")
+    # visualize_data_availability("100msPuff")
+
+    visualize_data_habituation("500msPuff")
+    visualize_data_habituation("100msPuff")
+
+
+
+
+
+
+
 def main():
     # analyze_physiology_fingerprint_state_dependent()
-    analyze_physiology_fingerprint()
+    # analyze_physiology_fingerprint()
     # analyze_psth()
     # analyze_waveform()
     # analyze_decomposition_weights()
     # decomposition_stability_test()
     # temporal_pattern()
     # compare_modality()
+    data_availability_report()
 
 
 if __name__ == "__main__":

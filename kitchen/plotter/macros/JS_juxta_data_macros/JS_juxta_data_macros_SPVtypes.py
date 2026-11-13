@@ -2084,7 +2084,7 @@ def grand_co_clustering_analysis(cf_list: list[CellFeature], weight_alpha, task_
 
 
 
-def get_grand_cluster_result():
+def get_grand_cluster_result(_save_dataframe: bool=False):
     
     def tuple2featurelist(feature_tuple) -> list[CellFeature]:
         cf_list = []
@@ -2148,6 +2148,16 @@ def get_grand_cluster_result():
 
     labels, leaves_order = visualize_final_grand(combined_cf_list, full_avg_coclustering_matrix, save_path='', 
                                  feature_names=feature_names, _visualize=False)
+
+    if _save_dataframe:
+        import pandas as pd
+        df = pd.DataFrame({
+            "node_name": [combined_cf_list[i].node_name for i in leaves_order],
+            "label": [labels[i] for i in leaves_order]
+        })
+        save_path = path.join(get_saving_path(), "spv_clustering",
+                                 f"{task_name}_cluster_labels.csv")
+        df.to_csv(save_path, index=False)
     return {node_name: single_labels for node_name, single_labels in zip([cf.node_name for cf in combined_cf_list], labels)}, leaves_order
 
 

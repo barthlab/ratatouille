@@ -149,7 +149,7 @@ def temporal_pattern_SVD(variant,
 
 
 
-def temporal_pattern_Early_spike(task_name: str="TemporalPattern",):
+def temporal_pattern_Early_spike(task_name: str="TemporalPattern", k: int=999):
 
     
     from itertools import groupby
@@ -174,16 +174,20 @@ def temporal_pattern_Early_spike(task_name: str="TemporalPattern",):
     annotate_data={}
     fig, ax = plt.subplots(1, 1, figsize=(2.5, 2.5), constrained_layout=True)
     fig_dist, ax_dist = plt.subplots(1, 1, figsize=(2.4, 1.3), constrained_layout=True)
+    fig_late_fr, ax_late_fr = plt.subplots(1, 6, figsize=(6, 1.2), constrained_layout=True)
     for cohort_name_group in [["SST_JUX", "SST_WC"], ["PV_JUX"], ["PYR_JUX", "PYR_WC"]]:
         for cohort_name in cohort_name_group:
             trial_wise_spike_timing = get_trial_wise_spike_timing_features(cohort_name)
             all_trial_type = trial_wise_spike_timing["all_trial_type"]
             indices_500ms = np.where(all_trial_type == "500msPuff")[0]
+            indices_100ms = np.where(all_trial_type == "100msPuff")[0]
+            node_has_100ms = set(trial_wise_spike_timing["all_node_name"][i] for i in indices_100ms)
             for i in indices_500ms:
                 cell_data = trial_wise_spike_timing["all_spikes"][i]
+                cell_node = trial_wise_spike_timing["all_node_name"][i]
                 if _good_cell(cell_data):
                     node_name = trial_wise_spike_timing["all_node_name"][i]
-                    node_to_spikes[node_name] = (cell_data, cohort_name)
+                    node_to_spikes[node_name] = (cell_data, cohort_name, node_name in node_has_100ms)
 
             if "WC" not in cohort_name:
                 LFP_t, all_LFP = get_all_cellsession_LFP_mean(cohort_name)
@@ -196,11 +200,15 @@ def temporal_pattern_Early_spike(task_name: str="TemporalPattern",):
         median_early_spike_500ms = []
 
         celltype_specific_data = defaultdict(list)
+        celltype_specific_data_late_fr = defaultdict(list)
         for node_name in cluster_nodes:
-            cell_data, cohort_name = node_to_spikes[node_name]
-            ax.eventplot(np.concatenate(cell_data), lineoffsets=global_y_offset,
+            cell_data, cohort_name, has_100ms = node_to_spikes[node_name]
+            ax.eventplot(np.concatenate(cell_data[: k]), lineoffsets=global_y_offset,
                              orientation='horizontal', linelengths=1, linewidths=0.3,
                              color=COHORT_COLORS[cohort_name.replace("_WC", "_JUX")])
+            if has_100ms:
+                ax.scatter(-19, global_y_offset, facecolor='white', edgecolor='black',
+                                        s=7, lw=0.5, alpha=0.9, zorder=10, marker='>')
             global_y_offset -= 1
             median_early_spike_500ms.append(np.median(np.concatenate([trial[np.where((trial < 40) & (trial > 0))] 
                                                               for trial in cell_data])))
@@ -208,6 +216,12 @@ def temporal_pattern_Early_spike(task_name: str="TemporalPattern",):
                 # np.median(np.concatenate([trial[np.where((trial < 100) & (trial > 0))] 
                 #                                               for trial in cell_data])))
             celltype_specific_data[cohort_name.replace("_WC", "_JUX")].append(median_early_spike_500ms[-1])
+            celltype_specific_data_late_fr[cohort_name.replace("_WC", "_JUX")].append(
+
+                 [len(trial[np.where((trial >= 40) & (trial <= 100))] ) / 0.06                            
+                            
+                            for trial in cell_data[:k]]
+            )
 
         print(f"Cluster {cluster_id} celltype specific data:")
         for celltype, values in celltype_specific_data.items():
@@ -220,17 +234,45 @@ def temporal_pattern_Early_spike(task_name: str="TemporalPattern",):
         median_early_spike_500ms = np.array(median_early_spike_500ms)        
         median_early_spike_500ms = median_early_spike_500ms[median_early_spike_500ms>16]  # filter out artifacts        
         median_early_spike_500ms = median_early_spike_500ms[~np.isnan(median_early_spike_500ms)]        
-        if cluster_id == 3:
-            continue
-        ax_dist.scatter(np.sort(median_early_spike_500ms), np.arange(1, 1 + len(median_early_spike_500ms))/len(median_early_spike_500ms),
-                                facecolor=CLUSTER_COLORS[cluster_id], edgecolor='black',
-                                s=7, lw=0.5, alpha=0.9, zorder=10)
-        ax_dist.plot(np.sort(median_early_spike_500ms), np.arange(1, 1 + len(median_early_spike_500ms))/len(median_early_spike_500ms),
-                        color=CLUSTER_COLORS[cluster_id], lw=1, zorder=-1, alpha=0.9)
-        print(f"cluster {cluster_id}: Median early spike times for all cells: {np.mean(median_early_spike_500ms):.3f}+/-{np.std(median_early_spike_500ms):.3f}")
-        annotate_data[f"Cluster_{cluster_id}"] = median_early_spike_500ms
+        if cluster_id != 3:
+            ax_dist.scatter(np.sort(median_early_spike_500ms), np.arange(1, 1 + len(median_early_spike_500ms))/len(median_early_spike_500ms),
+                                    facecolor=CLUSTER_COLORS[cluster_id], edgecolor='black',
+                                    s=7, lw=0.5, alpha=0.9, zorder=10)
+            ax_dist.plot(np.sort(median_early_spike_500ms), np.arange(1, 1 + len(median_early_spike_500ms))/len(median_early_spike_500ms),
+                            color=CLUSTER_COLORS[cluster_id], lw=1, zorder=-1, alpha=0.9)
+            print(f"cluster {cluster_id}: Median early spike times for all cells: {np.mean(median_early_spike_500ms):.3f}+/-{np.std(median_early_spike_500ms):.3f}")
+            annotate_data[f"Cluster_{cluster_id}"] = median_early_spike_500ms
+
+        for celltype, values in celltype_specific_data_late_fr.items():
+            # if celltype != "SST_JUX":
+            #     continue
+            rates = np.full((len(values), max(map(len, values))), np.nan)
+            for cell_idx, cell_rates in enumerate(values):
+                rates[cell_idx, :len(cell_rates)] = cell_rates
+            ax_late_fr[cluster_id - 1].plot(np.arange(1, rates.shape[1] + 1), np.nanmean(rates, axis=0),
+                                          color=COHORT_COLORS[celltype], lw=0.5, zorder=-2, alpha=0.9)
+            
+            ax_late_fr[cluster_id - 1].scatter(np.arange(1, rates.shape[1] + 1), np.nanmean(rates, axis=0),
+                                   facecolor=COHORT_COLORS[celltype], edgecolor='black',
+                                   s=3, lw=0.5, alpha=0.9, zorder=-1, clip_on=False)
+            
+            # basic_ttest.add_linear_regression(ax_late_fr[cluster_id - 1], 
+            #                                   np.arange(1, rates.shape[1] + 1), np.nanmean(rates, axis=0))
 
 
+    for cluster_id, cluster_ax in enumerate(ax_late_fr, 1):
+        cluster_ax.set_title(f"Cluster {cluster_id}", color=CLUSTER_COLORS[cluster_id], fontsize=6)
+        cluster_ax.set_xlabel("Trial #", labelpad=1)
+        cluster_ax.set_ylabel("Late FR (Hz)", labelpad=1)
+        cluster_ax.tick_params(length=1, pad=1)
+        cluster_ax.spines[['right', 'top']].set_visible(False)
+    # for cluster_ax in ax_late_fr[1:]:
+    #     cluster_ax.set_ylim(-5, 35)
+    save_path = path.join(get_saving_path(), task_name, f"LateFR_evolution_by_cluster_{k}.png")
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    fig_late_fr.savefig(save_path, dpi=500, transparent=True)
+    plt.close(fig_late_fr)
+    logger.info("Plot saved to " + save_path)
 
     global_y_offset -= 5
     all_global_LFP = grouping_timeseries(global_LFP)
@@ -249,7 +291,7 @@ def temporal_pattern_Early_spike(task_name: str="TemporalPattern",):
 
 
 
-    save_path = path.join(get_saving_path(), task_name, f"EarlySpikeDistribution_sorted_by_cluster.png")
+    save_path = path.join(get_saving_path(), task_name, f"EarlySpikeDistribution_sorted_by_cluster_{k}.png")
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
     fig.savefig(save_path, dpi=500, transparent=True)

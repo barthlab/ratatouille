@@ -52,32 +52,32 @@ def SingleCell_4HZ_300HZ_BeamView(
                        ] for trial_type in trial_types.keys()],
         content_dict={
             f"{node_name}\nHPF 4Hz\n{trial_type}": (
-                partial(beam_view, plot_manual=plot_manual_spike4Hz, sync_events=alignment_events, spike_mark=0),
+                partial(beam_view, plot_manual=plot_manual_spike4Hz, sync_events=alignment_events, spike_mark=1),  #0
                 trial_dataset)
             for trial_type, trial_dataset in trial_types.items()
             } | {
             f"{node_name}\nHPF 300Hz\n{trial_type}": (
-                partial(beam_view, plot_manual=plot_manual_spike300Hz, sync_events=alignment_events, spike_mark=0),
+                partial(beam_view, plot_manual=plot_manual_spike300Hz, sync_events=alignment_events, spike_mark=1),  #0
                 trial_dataset)
             for trial_type, trial_dataset in trial_types.items()
             },
-        # figsize=(2 * UNIT_X_INCHES, n_trial_types * PARALLEL_Y_INCHES),
-        figsize=(2 * 1.4, n_trial_types * 0.6),
+        figsize=(2 * UNIT_X_INCHES, n_trial_types * PARALLEL_Y_INCHES),
+        # figsize=(2 * 1.4, n_trial_types * 0.6),
         save_path=routing.default_fig_path(node, "BeamView_{}.png"),
-        plot_settings={
-            f"{node_name}\nHPF 4Hz\n{trial_type}": {"set_xlim": (-2.1, 0)}
-            for trial_type in trial_types.keys()
-        } | {
-            f"{node_name}\nHPF 300Hz\n{trial_type}": {"set_xlim": (-2.1, 0)}
-            for trial_type in trial_types.keys()
-        },
         # plot_settings={
-        #     f"{node_name}\nHPF 4Hz\n{trial_type}": {"set_xlim": (-0.3, 0.8)}
+        #     f"{node_name}\nHPF 4Hz\n{trial_type}": {"set_xlim": (-2.1, 0)}
         #     for trial_type in trial_types.keys()
         # } | {
-        #     f"{node_name}\nHPF 300Hz\n{trial_type}": {"set_xlim": (-1.2, 2.7)}
+        #     f"{node_name}\nHPF 300Hz\n{trial_type}": {"set_xlim": (-2.1, 0)}
         #     for trial_type in trial_types.keys()
         # },
+        plot_settings={
+            f"{node_name}\nHPF 4Hz\n{trial_type}": {"set_xlim": (-0.3, 0.8)}
+            for trial_type in trial_types.keys()
+        } | {
+            f"{node_name}\nHPF 300Hz\n{trial_type}": {"set_xlim": (-1.2, 2.7)}
+            for trial_type in trial_types.keys()
+        },
         sharex=False,
         auto_yscale=False,
         saving_settings={"_transparent": True},
@@ -85,7 +85,7 @@ def SingleCell_4HZ_300HZ_BeamView(
         auto_title=False
     )
 
-def get_500ms_puff_trials(node: Node, dataset: DataSet):
+def get_500ms_puff_trials(node: Node, dataset: DataSet, _return_raw_time: bool=False):
     all_trial_nodes = dataset.subtree(node).select("trial", _empty_warning=False)
     trial_types = select_from_value(
                 all_trial_nodes.rule_based_group_by(lambda x: x.info.get("trial_type")),
@@ -98,10 +98,14 @@ def get_500ms_puff_trials(node: Node, dataset: DataSet):
     if len(trials_500ms_puff) == 0:
         logger.debug(f"Cannot find 500ms puff trials for {get_node_name(node)}: no puff trials found. Skip...")
         return None
-    return sync_nodes(trials_500ms_puff, ("VerticalPuffOn",), plot_manual_spike300Hz)
+    raw_times = [trial.data.timeline.advanced_filter(("VerticalPuffOn",)).t[0] for trial in trials_500ms_puff]
+    synced_nodes = sync_nodes(trials_500ms_puff, ("VerticalPuffOn",), plot_manual_spike300Hz)
+    if _return_raw_time:
+        return synced_nodes, raw_times
+    return synced_nodes
 
 
-def get_100ms_puff_trials(node: Node, dataset: DataSet):
+def get_100ms_puff_trials(node: Node, dataset: DataSet, _return_raw_time: bool=False):
     all_trial_nodes = dataset.subtree(node).select("trial", _empty_warning=False)
     trial_types = select_from_value(
                 all_trial_nodes.rule_based_group_by(lambda x: x.info.get("trial_type")),
@@ -114,7 +118,11 @@ def get_100ms_puff_trials(node: Node, dataset: DataSet):
     if len(trials_100ms_puff) == 0:
         logger.debug(f"Cannot find 100ms puff trials for {get_node_name(node)}: no puff trials found. Skip...")
         return None
-    return sync_nodes(trials_100ms_puff, ("VerticalPuffOn",), plot_manual_spike300Hz)
+    raw_times = [trial.data.timeline.advanced_filter(("VerticalPuffOn",)).t[0] for trial in trials_100ms_puff]
+    synced_nodes = sync_nodes(trials_100ms_puff, ("VerticalPuffOn",), plot_manual_spike300Hz)
+    if _return_raw_time:
+        return synced_nodes, raw_times
+    return synced_nodes
 
 
 def SingleCell_4HZ_ZOOMINOUT_StackView(        
@@ -217,6 +225,96 @@ def SingleCell_4HZ_BeamView_Beautify(
     logger.info("Plot saved to" + save_path)
 
 
+def SingleCell_4HZ_BeamView_ShowCase(        
+        node: Node,
+        dataset: DataSet,
+) -> None:
+    node_name = get_node_name(node)
+    
+    puff_tuple_500ms = get_500ms_puff_trials(node, dataset, _return_raw_time=True)
+    puff_tuple_100ms = get_100ms_puff_trials(node, dataset, _return_raw_time=True)
+    if puff_tuple_500ms is None or puff_tuple_100ms is None:
+        return
+    
+    puff_trials_500ms, raw_times_500ms = puff_tuple_500ms
+    event_history = {raw_time: "500ms" for raw_time in raw_times_500ms}
+    puff_trials_100ms, raw_times_100ms = puff_tuple_100ms
+    event_history.update({raw_time: "100ms" for raw_time in raw_times_100ms})
+
+    # plotting
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as patches
+    plt.rcParams["font.family"] = "Arial"
+    plt.rcParams["font.size"] = 6
+
+    fig, axs = plt.subplots(1, 2, figsize=(5.8, 1.5), constrained_layout=True)
+
+    zoom_range = (-0.7, 1.2)
+    style_dicts.EMPHASIZED_POTENTIAL_LINE_ADD_STYLE["lw"] = 0.3
+    style_dicts.EMPHASIZED_POTENTIAL_LINE_ADD_STYLE["alpha"] = 0.7
+    for spike_type in style_dicts.SPIKE_POTENTIAL_TRACE_STYLE.keys():
+        style_dicts.SPIKE_POTENTIAL_TRACE_STYLE[spike_type]["lw"] = 0.4
+        style_dicts.SPIKE_POTENTIAL_TRACE_STYLE[spike_type]["alpha"] = 0.9
+
+    for i, (ax, data_trials, duration) in enumerate(zip(axs, [puff_trials_500ms, puff_trials_100ms], [0.5, 0.1])):
+        ax.spines[['right', 'top',]].set_visible(False)
+        ax.set_yticks([])
+        
+        n_trials = len(data_trials)
+        x_offset, y_offset = 0.0 / n_trials, -5
+
+        for trial_id, trial_node in enumerate(data_trials):
+            offseted_potntial = trial_node.data.potential.segment(zoom_range[0], zoom_range[1]).aligned_to(-trial_id * x_offset)
+            unit_trace.unit_plot_potential(potential=offseted_potntial, 
+                        ax=ax, y_offset=trial_id * y_offset, ratio=POTENTIAL_RATIO, aspect=4, wc_flag=WC_CONVERT_FLAG(node), spike_mark=1,
+                        yticks_flag=trial_id == 0,)
+            # ax.set_ylim(-0.8*max_height, 0.8*max_height)
+    
+        # parallelogram = patches.Polygon(xy=list(zip([0, duration, duration + x_offset * (n_trials - 1), x_offset * (n_trials - 1)], 
+        #                                             [0, 0, y_offset * (n_trials - 1), y_offset * (n_trials - 1)])), 
+        #                                 alpha=0.3, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10)
+        # ax.add_patch(parallelogram)
+
+        ax.axvspan(0, duration, alpha=0.3, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10)
+
+
+        ax.tick_params(length=1, pad=1)
+        ax.set_xlabel("Time from puff onset (s)", labelpad=1)
+        ax.set_xlim(zoom_range[0], zoom_range[1] + x_offset * (n_trials - 1))
+        ax.set_xticks([-0.5, 0, 0.5, 1.0], ["-0.5", "0", "0.5", "1.0"])
+
+    # axs[0].set_title(f"{node_name}")
+    
+    save_path = routing.default_fig_path(node, "ShowcaseBeamView_{}.png")
+    fig.savefig(save_path, dpi=500, transparent=True)
+    plt.close(fig)
+    
+    logger.info("Plot saved to" + save_path)
+
+
+    fig, ax = plt.subplots(1, 1, figsize=(5.8, 1), constrained_layout=True)
+    for trial_time, trial_type in event_history.items():
+        if trial_type == "500ms":
+            ax.scatter(trial_time, 0, 
+                       facecolors=color_scheme.POTENTIAL_COLOR, edgecolors='black', 
+                       lw=0.5, s=10, marker='v')
+        elif trial_type == "100ms":
+            ax.scatter(trial_time, 0, 
+                       facecolors='white', edgecolors=color_scheme.POTENTIAL_COLOR, 
+                       lw=0.5, s=10, marker='v')
+    ax.tick_params(length=1, pad=1)
+    ax.set_xlabel("Time from task start (s)", labelpad=1)
+    ax.spines[['right', 'top', 'left']].set_visible(False)
+    ax.set_yticks([])
+
+    save_path = routing.default_fig_path(node, "ShowcaseBeamView_{}_event.png")
+    fig.savefig(save_path, dpi=500, transparent=True)
+    plt.close(fig)
+
+
+
+
+
 def SingleCell_4HZ_JUST_LFP_AVG(        
         node: Node,
         dataset: DataSet,
@@ -245,12 +343,12 @@ def SingleCell_4HZ_JUST_LFP_AVG(
                style_dicts.POTENTIAL_TRACE_STYLE, style_dicts.FILL_BETWEEN_STYLE | {"alpha": 0.7}, lw=1., color='black', alpha=0.9)
     ax.axvspan(0, 0.5, alpha=0.5, color=color_scheme.PUFF_COLOR, lw=0, zorder=-10)
     # ax.set_xlabel("Time [s]")
-    ax.set_xlim(-0.05, 0.1)
+    ax.set_xlim(-0.04, 0.08)
     ax.set_yticks([])
     ax.set_xticks([])
 
     # axs[0].set_title(f"{node_name}")
-    fig.set_size_inches(2.5, 2.5)
+    fig.set_size_inches(.6, .6)
     
     save_path = routing.default_fig_path(node, "Small_LFP_{}.png")
     fig.savefig(save_path, dpi=500, transparent=True)

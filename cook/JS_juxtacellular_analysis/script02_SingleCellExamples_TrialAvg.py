@@ -4,7 +4,7 @@ from os import path
 from kitchen.configs.routing import default_data_path
 from kitchen.loader.general_loader_interface import load_dataset
 from kitchen.plotter.macros.HighFreqImaging_macros.posthoc_staining_analysis import cohens_d, visualize_staining_small
-from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_SingleCell import SingleCell_4HZ_BeamView_Beautify, SingleCell_4HZ_JUST_LFP_AVG, SingleCell_RasterPlot, SingleCell_4HZ_300HZ_BeamView, SingleCell_4HZ_ZOOMINOUT_StackView
+from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_SingleCell import SingleCell_4HZ_BeamView_Beautify, SingleCell_4HZ_BeamView_ShowCase, SingleCell_4HZ_JUST_LFP_AVG, SingleCell_RasterPlot, SingleCell_4HZ_300HZ_BeamView, SingleCell_4HZ_ZOOMINOUT_StackView
 from kitchen.plotter.macros.JS_juxta_data_macros.JS_juxta_data_macros_Settings import COHORT_COLORS
 import kitchen.plotter.color_scheme as color_scheme
 import kitchen.plotter.style_dicts as style_dicts
@@ -50,6 +50,7 @@ def register_posthoc_staining_result(mouse_node):
 def main():  
     # for dataset_name in ("SST_JUX", "SST_WC", "PV_JUX", "PYR_JUX", "PYR_WC"): 
     # for dataset_name in ("SST_WC", "PV_JUX", "PYR_JUX", "PYR_WC"): 
+    # for dataset_name in ("SST_WC", "PYR_JUX", "PYR_WC"): 
     # for dataset_name in ("ChosenOneExampleSST", ): 
     for dataset_name in ("SST_JUX",): 
         dataset = load_dataset(template_id="PassivePuff_JuxtaCellular_FromJS_202509", cohort_id=dataset_name, 
@@ -60,9 +61,10 @@ def main():
         for session_node in dataset.select(hash_key="cellsession"):          
             # register_posthoc_staining_result(session_node)
             print(session_node)
-            # SingleCell_4HZ_JUST_LFP_AVG(session_node, dataset)
+            SingleCell_4HZ_JUST_LFP_AVG(session_node, dataset)
             # SingleCell_4HZ_BeamView_Beautify(session_node, dataset)
-            # SingleCell_4HZ_300HZ_BeamView(session_node, dataset, _first_k_trials=5)
+            # SingleCell_4HZ_BeamView_ShowCase(session_node, dataset)
+            # SingleCell_4HZ_300HZ_BeamView(session_node, dataset, )
             # SingleCell_4HZ_ZOOMINOUT_StackView(session_node, dataset, spike_mark=2)
             # SingleCell_4HZ_ZOOMINOUT_StackView(session_node, dataset, spike_mark=3)
             # SingleCell_RasterPlot(session_node, dataset, _tiny=True)
