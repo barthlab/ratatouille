@@ -25,9 +25,36 @@ plt.rcParams["font.size"] = 6
 
 
 def _get_data_availability_table(node2label, trial_type):
-    """Match trials by full node name, then sum sessions for each mouse/cell."""
+    """Include trial-data and labeled nodes, then sum sessions per mouse/cell."""
+    node_names = set(node2label)
+    cohort_names = set(COHORT_COLORS)
+    for node_name in node2label:
+        match = re.search(r"(?:^|[\s(])Cohort_([^\s,)]+)", node_name)
+        if match is None:
+            raise ValueError(f"Cannot parse Cohort from node name: {node_name}")
+        cohort_names.add(match.group(1))
+
+    trial_counts = {}
+    for cohort in sorted(cohort_names):
+        timing = get_trial_wise_spike_timing_features(cohort)
+        names, spikes, types = (timing[key] for key in
+                                ("all_node_name", "all_spikes", "all_trial_type"))
+        if not (len(names) == len(spikes) == len(types)):
+            raise ValueError(f"Misaligned trial-wise arrays for {cohort}")
+        seen = set()
+        for node_name, trials, puff_type in zip(names, spikes, types):
+            key = (node_name, puff_type)
+            if key in seen:
+                raise ValueError(f"Duplicate trial-wise record: {key}")
+            seen.add(key)
+            node_names.add(node_name)
+            trial_counts.setdefault(node_name, 0)
+            if trial_type is None or puff_type == trial_type:
+                # Each element is one trial, including trials with zero spikes.
+                trial_counts[node_name] += len(trials)
+
     rows = []
-    for node_name, cluster in node2label.items():
+    for node_name in sorted(node_names):
         fields = {}
         for field in ("Cohort", "Mice", "Cell", "Session"):
             match = re.search(rf"(?:^|[\s(]){field}_([^\s,)]+)", node_name)
@@ -41,11 +68,11 @@ def _get_data_availability_table(node2label, trial_type):
             "mouse": fields["Mice"],
             "cell_id": int(fields["Cell"]),
             "cohort": fields["Cohort"],
-            "cluster": cluster,
+            "cluster": node2label.get(node_name, pd.NA),
             "session": fields["Session"],
         })
     if not rows:
-        raise ValueError("No clustered cells available to plot.")
+        raise ValueError("No cells available to plot.")
     data = pd.DataFrame(rows)
     labels_per_cell = data.groupby(["mouse", "cell_id"])[["cluster", "cohort"]].nunique()
     conflicting = labels_per_cell.gt(1).any(axis=1)
@@ -53,28 +80,10 @@ def _get_data_availability_table(node2label, trial_type):
         raise ValueError("Cannot combine sessions with conflicting cluster or cohort labels: "
                          f"{labels_per_cell.index[conflicting].tolist()}")
 
-    trial_counts = {}
-    for cohort in sorted(data["cohort"].unique()):
-        timing = get_trial_wise_spike_timing_features(cohort)
-        names, spikes, types = (timing[key] for key in
-                                ("all_node_name", "all_spikes", "all_trial_type"))
-        if not (len(names) == len(spikes) == len(types)):
-            raise ValueError(f"Misaligned trial-wise arrays for {cohort}")
-        seen, cohort_counts = set(), {}
-        for node_name, trials, puff_type in zip(names, spikes, types):
-            key = (node_name, puff_type)
-            if key in seen:
-                raise ValueError(f"Duplicate trial-wise record: {key}")
-            seen.add(key)
-            cohort_counts.setdefault(node_name, 0)
-            if trial_type is None or puff_type == trial_type:
-                # Each element is one trial, including trials with zero spikes.
-                cohort_counts[node_name] += len(trials)
-        trial_counts.update(cohort_counts)
     data["n_trials"] = pd.array(data["node_name"].map(trial_counts), dtype="Int64")
     missing = data.loc[data["n_trials"].isna(), "node_name"]
     if not missing.empty:
-        logger.warning("No trial-wise record for %d clustered cells:\n%s",
+        logger.warning("No trial-wise record for %d cells:\n%s",
                        len(missing), missing.to_string(index=False))
     mixed_mice = data.groupby("mouse")["cohort"].nunique()
     if (mixed_mice > 1).any():
@@ -90,16 +99,19 @@ def _get_data_availability_table(node2label, trial_type):
         n_trials=("n_trials", lambda counts: counts.sum(min_count=len(counts))),
         n_sessions=("node_name", "size"),
     )
+    # A known label from any session identifies the combined cell. Only cells
+    # with no labeled sessions receive the empty-set symbol.
+    data["cluster"] = data["cluster"].astype(object).where(data["cluster"].notna(), "∅")
     data["n_trials"] = data["n_trials"].astype("Int64")
     return data
 
 
 def visualize_data_availability(trial_type=None):
-    """Plot clustered cells by mouse and numeric cell ID, and return their counts.
+    """Plot all cells by mouse and numeric cell ID, and return their counts.
 
     Count both 100msPuff and 500msPuff trials by default; pass either trial type
-    to restrict counts. Gray slots mean absent from node2label, not necessarily
-    unrecorded. A clustered cell without a trial-wise record displays 'X: NA'.
+    to restrict counts. Empty gray slots mean no cell in the trial data or cluster
+    results. Unlabeled cells display '∅:count'; missing trial data displays 'X:NA'.
     Repeated sessions for the same mouse/cell are combined by summing trial counts.
     """
     if trial_type not in (None, "100msPuff", "500msPuff"):
@@ -112,18 +124,21 @@ def visualize_data_availability(trial_type=None):
     mouse2row = {mouse: row for row, mouse in enumerate(mice)}
     cell2col = {cell_id: col for col, cell_id in enumerate(cell_ids)}
     missing_color = "#D0D0D0"
+    cluster_colors = {**CLUSTER_COLORS, "∅": "#DBDBDB"}
     fig, axs = plt.subplots(
         1, 2, figsize=(5.1, 3), constrained_layout=True,
     )
     try:
         for ax, color_by, palette, title in zip(
-            (axs[1], axs[0]), ("cluster", "cohort"), (CLUSTER_COLORS, COHORT_COLORS),
+            (axs[1], axs[0]), ("cluster", "cohort"), (cluster_colors, COHORT_COLORS),
             ("Colored by cluster", "Colored by cohort"),
         ):
             # Draw NA explicitly so it stays gray when saved with transparency.
             ax.imshow(np.full((len(mice), len(cell_ids), 3), to_rgb(missing_color)),
                       interpolation="nearest", aspect="auto")
             for entry in data.itertuples(index=False):
+                if entry.n_trials == 0:
+                    continue
                 row, col = mouse2row[entry.mouse], cell2col[entry.cell_id]
                 # Pale fills keep colored cluster labels and black counts readable.
                 fill = 0.25 * np.array(to_rgb(palette[getattr(entry, color_by)])) + 0.75
@@ -131,7 +146,8 @@ def visualize_data_availability(trial_type=None):
                                        facecolor=fill, edgecolor="white", linewidth=0.5))
                 count_text = "NA" if pd.isna(entry.n_trials) else str(entry.n_trials)
                 cluster_text = TextArea(str(entry.cluster), textprops={
-                    "color": CLUSTER_COLORS[entry.cluster], "fontsize": 6, "weight": "bold",
+                    "color": cluster_colors[entry.cluster], "fontsize": 6, "weight": "bold",
+                    "fontfamily": "DejaVu Sans" if entry.cluster == "∅" else plt.rcParams["font.family"],
                     "path_effects": [pe.withStroke(linewidth=1., foreground="white")],
                 })
                 count = TextArea(f":{count_text}", textprops={"color": "black", "fontsize": 6})
@@ -155,7 +171,7 @@ def visualize_data_availability(trial_type=None):
             ax.set_title(title)
             
         trial_description = "100 + 500 ms puff" if trial_type is None else trial_type
-        fig.suptitle(f"Clustered cell availability | label : trial count ({trial_description})")
+        fig.suptitle(f"Cell availability | label : trial count ({trial_description})")
         suffix = "" if trial_type is None else f"_{trial_type}"
         save_path = path.join(get_saving_path(), f"Dataavailability{suffix}.png")
         os.makedirs(path.dirname(save_path), exist_ok=True)
@@ -208,7 +224,7 @@ def _get_data_firing_rate_table(node2label, trial_type):
 
 
 def visualize_data_habituation(trial_type=None):
-    """Plot spontaneous and evoked mean firing rates for one puff trial type."""
+    """Plot mean firing rates for all cells; mark unlabeled cells with ∅."""
     if trial_type not in ("100msPuff", "500msPuff"):
         raise ValueError("trial_type must be '100msPuff' or '500msPuff'")
     node2label, _ = get_grand_cluster_result(_save_dataframe=True)
@@ -233,13 +249,15 @@ def visualize_data_habituation(trial_type=None):
             # Draw NA explicitly so it stays gray when saved with transparency.
             ax.imshow(np.full((len(mice), len(cell_ids), 3), to_rgb(missing_color)),
                       interpolation="nearest", aspect="auto")
-            for entry in data.itertuples(index=False):
+            for entry in data.itertuples(index=False):                
+                if entry.n_trials == 0:
+                    continue
                 row, col = mouse2row[entry.mouse], cell2col[entry.cell_id]
                 rate = getattr(entry, rate_column)
-                if not np.isfinite(rate):
-                    continue
-                ax.add_patch(Rectangle((col - 0.5, row - 0.5), 1, 1,
-                                       facecolor=cmap(norm(rate)), edgecolor="white", linewidth=0.5))
+                if np.isfinite(rate):
+                    ax.add_patch(Rectangle((col - 0.5, row - 0.5), 1, 1,
+                                           facecolor=cmap(norm(rate)), edgecolor="white", linewidth=0.5))
+                    
             ax.set_xlim(-0.5, len(cell_ids) - 0.5)
             ax.set_ylim(len(mice) - 0.5, -0.5)
 
